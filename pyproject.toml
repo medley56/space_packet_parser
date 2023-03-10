@@ -1,0 +1,58 @@
+[tool.poetry]
+name = "space_packet_parser"
+version = "4.0.1"
+description = "A CCSDS telemetry packet decoding library based on the XTCE packet format description standard."
+license = "BSD-3-Clause"
+readme = "README.md"
+include = ["LICENSE.txt", "CITATION.cff"]
+authors = [
+    "Gavin Medley <gavin.medley@lasp.colorado.edu>",
+    "Michael Chambliss <michael.chambliss@lasp.colorado.edu>"
+]
+maintainers = [
+    "Gavin Medley <gavin.medley@lasp.colorado.edu>"
+]
+repository = "https://github.com/medley56/space_packet_parser"
+homepage = ""
+keywords = [
+    "ccsds",
+    "xtce",
+    "space data systems",
+    "space packet protocol",
+    "packet parsing",
+    "lasp",
+    "university of colorado",
+    "data processing",
+    "data extraction",
+    "data manipulation",
+    "data transformation",
+    "data encoding",
+    "data decoding",
+    "packet inspection",
+    "binary data",
+    "python"
+]
+
+[tool.poetry.dependencies]
+python = ">=3.8,<3.12"
+bitstring = ">=3.0.0,<5"
+
+[tool.poetry.group.dev.dependencies]
+pylint = "^2"
+pytest = "^6"
+pytest-randomly = "^3"
+pytest-cov = "^3"
+pyyaml = "^6.0"
+sphinx = "^6.1.3"
+myst-parser = "^1.0.0"
+
+[tool.poetry.group.examples]
+optional = true
+
+[tool.poetry.group.examples.dependencies]
+matplotlib = ">=3.4"
+memory-profiler = "^0.61.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

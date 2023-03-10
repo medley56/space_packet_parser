@@ -1,0 +1,7 @@
+venv
+coverage_report
+build
+.pytest_cache
+*.egg-info
+.coverage
+*.md
