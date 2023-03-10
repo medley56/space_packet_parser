@@ -5,8 +5,6 @@
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
-import sys
-sys.path.append('../../')
 
 project = 'space_packet_parser'
 copyright = '2023 University of Colorado'
