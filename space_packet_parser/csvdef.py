@@ -16,16 +16,17 @@ class CsvPacketDefinition:
 
     def __init__(self, csv_def_filepath: str or Path, add_checksum=False):
         """Instantiate an object representation of a CCSDS packet definition, from a telemetry packet
-         definition csv file. The definition for this format is not as rigorously defined anywhere to my
-         knowledge. The definition has been determined from looking at existing files and referring to
-         the following confluence page:
-         https://confluence.space.colorado.edu/display/OSWHOME/space+CSV+to+XTCE+Conversion.
+        definition csv file. The definition for this format is not as rigorously defined anywhere to my
+        knowledge. The definition has been determined from looking at existing files and referring to
+        the following confluence page:
+        https://confluence.space.colorado.edu/display/OSWHOME/space+CSV+to+XTCE+Conversion.
 
-         Parameters
-         ----------
-         csv_def_filepath : str or Path
-            Path to csv file containing packet definition.
-         """
+        Parameters
+        ----------
+        csv_def_filepath : str or Path
+        Path to csv file containing packet definition.
+
+        """
 
         # TODO: Add configurable checksum length or just have the check_sum_param passed in directly?
         if add_checksum:
@@ -46,6 +47,7 @@ class CsvPacketDefinition:
         -------
         : list of RowTuple
             A list containing all the rows, in order, from the CSV definition file.
+
         """
         with open(self._csv_def_filepath, encoding='utf-8') as csv_file:
             csv_reader = csv.DictReader(csv_file)
@@ -120,6 +122,7 @@ class CsvPacketDefinition:
                     )
                 }, ...
             }
+
         """
 
         container_column = [row.Container for row in self._csv_def]
@@ -152,6 +155,7 @@ class CsvPacketDefinition:
                 entry_list=[Parameter, Parameter, ...],
                 restrictions={"ParameterName": value, "OtherParamName": value, ...}
             )
+
         """
         entry_list = self.gen_entry_list(container)
         restrictions = self.gen_restrictions(container)
@@ -169,7 +173,7 @@ class CsvPacketDefinition:
             A list containing all the rows, in order, from the CSV definition
             pertaining to a single container type.
 
-        pkt_apid_entry_name : str
+        pkt_apid_header_name : str
             The string used in the packet header describing the APID for the CCSDS packet.
 
         Returns
@@ -224,27 +228,26 @@ class CsvPacketDefinition:
 
     @staticmethod
     def get_param_type_from_str(dtype, param_type_name, unit=None):
-        """ Determines the ParameterType to use for a given CSV data type format string.
+        """Determines the ParameterType to use for a given CSV data type format string.
 
         Parameters
         ----------
         dtype : str
-        A string defining the data endoding of a telemetry item.
-        Examples:
-            'U8' - unsigned 8-bit integer
-            'F16' - 16-bit float
-            'C64' - 64 byte character array
-
-        param_type_name: str
+            A string defining the data encoding of a telemetry item.
+            Examples:
+                'U8' - unsigned 8-bit integer
+                'F16' - 16-bit float
+                'C64' - 64 byte character array
+        param_type_name : str
             Name to be given to the created ParameterType
-
-        unit: str or None
+        unit : str or None
             Name of the units for the created ParameterType
 
         Returns
         -------
         : ParameterType
             A ParameterType corresponding to the input variables
+
         """
 
         # All data types must be a string starting with all letters and ending with integers ie 'U12' or 'Float8'
@@ -301,6 +304,7 @@ class CsvPacketDefinition:
                     )
                 }, ...
             }
+
         """
 
         return self._flattened_containers

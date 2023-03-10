@@ -5,6 +5,8 @@
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
+import sys
+sys.path.append('../../')
 
 project = 'space_packet_parser'
 copyright = '2023 University of Colorado'
@@ -13,7 +15,14 @@ author = 'Gavin Medley, Michael Chambliss'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ['myst_parser']
+extensions = [
+    "myst_parser",
+    "sphinx.ext.napoleon",
+    "autoapi.extension"
+]
+
+autoapi_type = 'python'
+autoapi_dirs = ['../../space_packet_parser']
 
 templates_path = ['_templates']
 exclude_patterns = []
@@ -28,5 +37,5 @@ source_suffix = {
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'alabaster'
-html_static_path = ['_static']
+html_theme = 'sphinx_rtd_theme'
+# html_static_path = ['_static']
