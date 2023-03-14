@@ -10,7 +10,10 @@ This is a log of changes made to the library over time
 # Version Release Notes
 Release notes for the `space_packet_parser` library
 
-## v4.0 (unreleased)
+## 4.0.2 (released)
+- Documentation updates for Read The Docs
+
+## v4.0.1 (released)
 - Modify API for `PacketParser.generator` to accept a ConstBitStream or a BufferedReader or a socket
   - This will allow us to keep memory overhead of reading a binary stream to almost zero
 - Add examples directory to help users
