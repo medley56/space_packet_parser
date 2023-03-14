@@ -1,0 +1,21 @@
+name: space-packet-parser Tests
+
+on:
+  push:
+    branches: [ "master", "dev" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build the Docker image
+      run: docker build . --file Dockerfile --build-arg BASE_IMAGE_PYTHON_VERSION=3.9 --tag space-packet-parser-3.9-test:latest
+    
+    - name: Run tests in Docker image
+      run: docker run -it space-packet-parser-3.9-test:latest
