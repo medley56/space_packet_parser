@@ -30,10 +30,13 @@ ENV PATH="$PATH:/root/.local/bin"
 COPY space_packet_parser $INSTALL_LOCATION/space_packet_parser
 COPY tests $INSTALL_LOCATION/tests
 COPY pylintrc $INSTALL_LOCATION
-
 COPY pyproject.toml $INSTALL_LOCATION
-# LICENSE.txt is referenced by setup.cfg
+# LICENSE.txt is referenced by pyproject.toml
 COPY LICENSE.txt $INSTALL_LOCATION
+# README.md is referenced by pyproject.toml
+COPY README.md $INSTALL_LOCATION
+# CITATION.cff is referenced by pyproject.toml
+COPY CITATION.cff $INSTALL_LOCATION
 
 # Ensure pip is upgraded
 RUN pip install --upgrade pip
