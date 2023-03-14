@@ -1,5 +1,10 @@
-# Space Packet Parser - a configurable parser for CCSDS telemetry packets
-This is a package for decoding CCSDS telemetry packets according to an XTCE or CSV packet structure definition. 
+# Space Packet Parser
+
+----------
+![Test Status](https://github.com/medley56/space_packet_parser/actions/workflows/tests.yml/badge.svg)
+![Doc Status](https://readthedocs.org/projects/space-packet-parser/badge/?version=latest)
+
+Space Packet Parser is a package for decoding CCSDS telemetry packets according to an XTCE or CSV packet structure definition. 
 It is based on the UML model of the XTCE spec and aims to support all but the most esoteric elements of the 
 XTCE telemetry packet specification.
 
@@ -12,3 +17,4 @@ Resources:
 ```bash
 pip install space_packet_parser
 ```
+
