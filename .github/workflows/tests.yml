@@ -1,4 +1,4 @@
-name: matrix tests
+name: Test with Matrix of Python Versions
 on:
   push:
     branches: [ "master", "dev" ]
@@ -6,9 +6,11 @@ on:
     branches: [ "master" ]
 jobs:
   python-version-matrix:
-    runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: [3.8, 3.9, 3.10, 3.11]
         bitstring-version: ["", 3.0.0]
     uses: ./.github/workflows/test-python-version.yml
+    with:
+      python-version: ${{ matrix.python-version }}
+      bitstring-version: ${{ matrix.bitstring-version }}
