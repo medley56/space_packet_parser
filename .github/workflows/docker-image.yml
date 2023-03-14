@@ -18,4 +18,4 @@ jobs:
       run: docker build . --file Dockerfile --build-arg BASE_IMAGE_PYTHON_VERSION=3.9 --tag space-packet-parser-3.9-test:latest
     
     - name: Run tests in Docker image
-      run: docker run -it space-packet-parser-3.9-test:latest
+      run: docker run -i space-packet-parser-3.9-test:latest
