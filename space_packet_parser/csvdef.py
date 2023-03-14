@@ -24,8 +24,7 @@ class CsvPacketDefinition:
         Parameters
         ----------
         csv_def_filepath : str or Path
-        Path to csv file containing packet definition.
-
+            Path to csv file containing packet definition.
         """
 
         # TODO: Add configurable checksum length or just have the check_sum_param passed in directly?
@@ -47,7 +46,6 @@ class CsvPacketDefinition:
         -------
         : list of RowTuple
             A list containing all the rows, in order, from the CSV definition file.
-
         """
         with open(self._csv_def_filepath, encoding='utf-8') as csv_file:
             csv_reader = csv.DictReader(csv_file)
@@ -75,7 +73,6 @@ class CsvPacketDefinition:
         -------
         : csv.DictReader
             The input DictReader with any non standard column names replaced.
-
         """
         # TODO: Unify this with the header_name_mappings kwarg used in Parser to allow the user to specify this
         #   on the fly
@@ -108,21 +105,6 @@ class CsvPacketDefinition:
         -------
         : dict
             A dict of FlattenedContainer namedtuples.
-            {
-                "PacketNameA": {
-                    FlattenedContainer(
-                        entry_list=[Parameter, Parameter, ...],
-                        restrictions={"ParameterName": value, "OtherParamName": value, ...}
-                    )
-                },
-                "PacketNameB": {
-                    FlattenedContainer(
-                        entry_list=[Parameter, Parameter, ...],
-                        restrictions={"ParameterName": value, "OtherParamName": value, ...}
-                    )
-                }, ...
-            }
-
         """
 
         container_column = [row.Container for row in self._csv_def]
@@ -150,12 +132,10 @@ class CsvPacketDefinition:
         -------
         : FlattenedContainer
             A namedtuple containing an entry list and restrictions.
-
             FlattenedContainer(
-                entry_list=[Parameter, Parameter, ...],
-                restrictions={"ParameterName": value, "OtherParamName": value, ...}
+            entry_list=[Parameter, Parameter, ...],
+            restrictions={"ParameterName": value, "OtherParamName": value, ...}
             )
-
         """
         entry_list = self.gen_entry_list(container)
         restrictions = self.gen_restrictions(container)
@@ -164,7 +144,6 @@ class CsvPacketDefinition:
 
     def gen_restrictions(self, container, pkt_apid_header_name='PKT_APID'):
         """ Determines and generates a dict of restrictions for a container type.
-
         Note: the only restriction currently supported is PKT_APID.
 
         Parameters
@@ -172,7 +151,6 @@ class CsvPacketDefinition:
         container : dict of RowTuple
             A list containing all the rows, in order, from the CSV definition
             pertaining to a single container type.
-
         pkt_apid_header_name : str
             The string used in the packet header describing the APID for the CCSDS packet.
 
@@ -180,7 +158,6 @@ class CsvPacketDefinition:
         -------
         : dict
             A dict containing the restrictions for the container parameter
-
         """
         last_apid = container[0].APID
         for row in container:
@@ -212,7 +189,6 @@ class CsvPacketDefinition:
         : list of Parameters
             A list of Parameter objects with each Parameter corresponding to one telemetry
             item from the container input
-
         """
         pkt_entry_list = []
         for row in container:
@@ -235,9 +211,9 @@ class CsvPacketDefinition:
         dtype : str
             A string defining the data encoding of a telemetry item.
             Examples:
-                'U8' - unsigned 8-bit integer
-                'F16' - 16-bit float
-                'C64' - 64 byte character array
+            'U8' - unsigned 8-bit integer
+            'F16' - 16-bit float
+            'C64' - 64 byte character array
         param_type_name : str
             Name to be given to the created ParameterType
         unit : str or None
@@ -247,7 +223,6 @@ class CsvPacketDefinition:
         -------
         : ParameterType
             A ParameterType corresponding to the input variables
-
         """
 
         # All data types must be a string starting with all letters and ending with integers ie 'U12' or 'Float8'
@@ -290,21 +265,6 @@ class CsvPacketDefinition:
         : dict
             A modified form of the _sequence_container_cache, flattened out to eliminate nested sequence containers
             and with all restriction logic aggregated together for easy comparisons.
-            {
-                "PacketNameA": {
-                    FlattenedContainer(
-                        entry_list=[Parameter, Parameter, ...],
-                        restrictions={"ParameterName": value, "OtherParamName": value, ...}
-                    )
-                },
-                "PacketNameB": {
-                    FlattenedContainer(
-                        entry_list=[Parameter, Parameter, ...],
-                        restrictions={"ParameterName": value, "OtherParamName": value, ...}
-                    )
-                }, ...
-            }
-
         """
 
         return self._flattened_containers

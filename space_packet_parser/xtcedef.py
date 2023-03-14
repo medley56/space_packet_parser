@@ -1073,12 +1073,12 @@ class StringDataEncoding(DataEncoding):
                  discrete_lookup_length: list = None,
                  length_linear_adjuster: callable = None):
         """Constructor
-
         Only one of termination_character, fixed_length, or leading_length_size should be set. Setting more than one
         is nonsensical.
 
-        # TODO: implement ByteOrderList to inform endianness. This can also relax the requirements on the encoding spec
-            since utf-16-le is redundant if endianness comes from the ByteOrderList
+        TODO: implement ByteOrderList to inform endianness.
+         This can also relax the requirements on the encoding spec since utf-16-le is redundant if endianness
+         comes from the ByteOrderList
 
         Parameters
         ----------
@@ -1226,9 +1226,9 @@ class StringDataEncoding(DataEncoding):
     def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict):
         """Create a data encoding object from an <xtce:StringDataEncoding> XML element.
         Strings in XTCE can be described in three ways:
+
         1. Using a termination character that marks the end of the string.
-        2. Using a fixed length, which may be derived from referenced parameter either directly or via a discrete
-           lookup table.
+        2. Using a fixed length, which may be derived from referenced parameter either directly or via a discrete lookup table.
         3. Using a leading size field that describes the size of the following string.
 
         Parameters
@@ -2072,18 +2072,18 @@ class XtcePacketDefinition:
             A modified form of the _sequence_container_cache, flattened out to eliminate nested sequence containers
             and with all restriction logic aggregated together for easy comparisons.
             {
-                "PacketNameA": {
-                    FlattenedContainer(
-                        entry_list=[Parameter, Parameter, ...],
-                        restrictions={"ParameterName": value, "OtherParamName": value, ...}
-                    )
-                },
-                "PacketNameB": {
-                    FlattenedContainer(
-                        entry_list=[Parameter, Parameter, ...],
-                        restrictions={"ParameterName": value, "OtherParamName": value, ...}
-                    )
-                }, ...
+            "PacketNameA": {
+            FlattenedContainer(
+            entry_list=[Parameter, Parameter, ...],
+            restrictions={"ParameterName": value, "OtherParamName": value, ...}
+            )
+            },
+            "PacketNameB": {
+            FlattenedContainer(
+            entry_list=[Parameter, Parameter, ...],
+            restrictions={"ParameterName": value, "OtherParamName": value, ...}
+            )
+            }, ...
             }
         """
 

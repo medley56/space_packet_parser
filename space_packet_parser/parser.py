@@ -48,7 +48,6 @@ class ParsedDataItem(xtcedef.AttrComparable):
             Raw representation of the parsed value. May be lots of different types but most often an integer
         derived_value : float or str
             May be a calibrated value or an enum lookup
-
         """
         if name is None or raw_value is None:
             raise ValueError("Invalid ParsedDataItem. Must define name and raw_value.")
@@ -72,7 +71,6 @@ class UnrecognizedPacketTypeError(Exception):
         ----------
         partial_data : dict, Optional
             Data parsed so far (for debugging at higher levels)
-
         """
         super().__init__(*args)
         self.partial_data = partial_data
@@ -94,7 +92,6 @@ class PacketParser:
             Number of bits per word. If set, binary parameters are assumed to end on a word boundary and any unused bits
             at the end of each binary parameter are skipped. Default is no word boundary enforcement. Typical usecase
             is 32bit words.
-
         """
         self.packet_definition = packet_definition
         self.word_size = word_size
@@ -120,7 +117,6 @@ class PacketParser:
         -------
         header : dict
             Dictionary of header items.
-
         """
         original_cursor_position = packet_data.pos
 
@@ -176,7 +172,6 @@ class PacketParser:
             Name of packet definition.
         : list
             A list of Parameter objects
-
         """
         warnings.warn("The '_determine_packet_by_restrictions' method is deprecated.", DeprecationWarning)
         flattened_containers = self.packet_definition.flattened_containers
@@ -232,7 +227,6 @@ class PacketParser:
         -------
         Packet
             A Packet object container header and data attributes.
-
         """
 
         def _parse_parameter(p: xtcedef.Parameter):
@@ -303,7 +297,6 @@ class PacketParser:
         -------
         Packet
             A Packet object container header and data attributes.
-
         """
         warnings.warn("The 'legacy_parse_packet' method is deprecated.", DeprecationWarning)
         header = {}
@@ -352,7 +345,6 @@ class PacketParser:
             Print function end string. Default is `\\r` to create a dynamically updating loading bar.
         log : bool
             If True, log the progress bar at INFO level.
-
         """
         progress_char = "="
         bar_length = 20
@@ -427,7 +419,6 @@ class PacketParser:
             Generator yields Packet objects containing the parsed packet data for each subsequent packet.
             If yield_unrecognized_packet_errors is True, it will yield an unraised exception object,
             which can be raised or used for debugging purposes.
-
         """
 
         def fill_read_buffer(source: bitstring.ConstBitStream or BinaryIO or socket.socket,
@@ -453,7 +444,6 @@ class PacketParser:
             result : int
                 Number of bits added to the buffer. Note that the buffer may still have nonzero length from previous
                 data even when this returns zero.
-
             """
             if isinstance(source, io.BufferedIOBase):
                 new_bytes = source.read(read_size_bytes)
