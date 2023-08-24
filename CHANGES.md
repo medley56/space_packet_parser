@@ -13,6 +13,7 @@ Release notes for the `space_packet_parser` library
 ## v4.1.0 (unreleased)
 - Bugfix in fill_buffer to allow compatibility with Bitstring 4.1.1
 - Add informative error if user tries to parse a TextIO object
+- Add documentation of some common issues
 
 ## v4.0.2 (released)
 - Documentation updates for Read The Docs

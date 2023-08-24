@@ -70,6 +70,39 @@ These exception objects are not raised so that the generator may keep parsing. I
 are yielded from the generator with a `partial_data` attribute for user examination. This partial data allows you to 
 see how far it got through a container inheritance structure before failing to determine the rest of the structure. 
 
+## Common Issues and Solutions
+### Parser Generator Completes without Yielding a Packet
+This can occur if your data file contains only packets that do not match any packet definitions in your XTCE document 
+and `yield_unrecognized_packet_errors=False` (the default). This could mean that your data file actually contains only 
+APIDs that are not covered in your packet definition but usually it means you have poorly defined restriction criteria.
+
+For example a restriction criteria element that requires an APID which does not exist in the data.
+```xml
+<xtce:RestrictionCriteria>
+    <xtce:Comparison parameterRef="PKT_APID" value="-99" useCalibratedValue="false"/>
+</xtce:RestrictionCriteria>
+```
+
+### Only Packet Headers are Parsed
+If you observe that only packet headers are being parsed but no exceptions are being raised, it likely means that 
+you have forgotten to set `abstract="true"` on your non-concrete sequence container elements.
+
+For example
+```xml
+<xtce:SequenceContainer name="CCSDSPacket">
+    <xtce:LongDescription>Super-container for telemetry and command packets</xtce:LongDescription>
+    <xtce:EntryList>
+        <xtce:ParameterRefEntry parameterRef="VERSION"/>
+        <xtce:ParameterRefEntry parameterRef="TYPE"/>
+    </xtce:EntryList>
+</xtce:SequenceContainer>
+```
+will parse as a complete packet, containing only VERSION and TYPE instead of searching for inheriting sequence 
+containers. To define the container as abstract, change the first element opening tag to
+```xml
+<xtce:SequenceContainer name="CCSDSPacket" abstract="true">
+```
+
 ## Optimizing for Performance
 The logic evaluated during packet parsing is largely reflective of the XTCE configuration being used 
 to define packet structures. The more logic in the XTCE, the more logic must be evaluated during 
