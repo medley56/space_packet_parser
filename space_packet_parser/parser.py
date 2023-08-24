@@ -401,6 +401,7 @@ class PacketParser:
         ccsds_headers_only : bool, Optional
             If True, only parses the packet headers (does not use the provided packet definition).
         yield_unrecognized_packet_errors : bool, Optional
+            Default False.
             If False, UnrecognizedPacketTypeErrors are caught silently and parsing continues to the next packet.
             If True, the generator will yield an UnrecognizedPacketTypeError in the event of an unrecognized
             packet. Note: These exceptions are not raised by default but are instead returned so that the generator
