@@ -10,7 +10,10 @@ This is a log of changes made to the library over time
 # Version Release Notes
 Release notes for the `space_packet_parser` library
 
-## 4.0.2 (released)
+## v4.1.0 (unreleased)
+- Bugfix in fill_buffer to allow compatibility with Bitstring 4.1.1
+
+## v4.0.2 (released)
 - Documentation updates for Read The Docs
 
 ## v4.0.1 (released)

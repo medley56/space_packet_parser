@@ -445,24 +445,27 @@ class PacketParser:
                 Number of bits added to the buffer. Note that the buffer may still have nonzero length from previous
                 data even when this returns zero.
             """
+            curser_pos = buffer.pos  # Keep track of the original buffer cursor location
             if isinstance(source, io.BufferedIOBase):
                 new_bytes = source.read(read_size_bytes)
                 buffer += new_bytes
-                return len(new_bytes)*8
-
-            if isinstance(source, socket.socket):
+                n_new_bits = len(new_bytes)*8
+            elif isinstance(source, socket.socket):
                 new_bytes = source.recv(read_size_bytes)
                 buffer += new_bytes  # Append BitStream with newly read bytes
-                return len(new_bytes)*8
-
-            if isinstance(source, bitstring.ConstBitStream):
+                n_new_bits = len(new_bytes)*8
+            elif isinstance(source, bitstring.ConstBitStream):
+                # This either reads read_size_bytes bytes or it just reads to the end of the data
                 new_bits = source[source.pos:source.pos + read_size_bytes * 8]
-                assert isinstance(new_bits, bitstring.ConstBitStream)
-                source.pos += len(new_bits)  # This way we never overshoot the end of the data
+                source.pos += len(new_bits)  # Set the source.pos to exactly where we read to
                 buffer += new_bits
-                return len(new_bits)
+                n_new_bits = len(new_bits)
+            else:
+                raise ValueError(f"Unrecognized data source: {source}")
 
-            raise ValueError(f"Unrecognized data source: {source}")
+            # Reset buffer.pos to the original position before we extended it
+            buffer.pos = curser_pos
+            return n_new_bits
 
         # ========
         # Start of generator
