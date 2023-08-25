@@ -460,8 +460,10 @@ class PacketParser:
                 source.pos += len(new_bits)  # Set the source.pos to exactly where we read to
                 buffer += new_bits
                 n_new_bits = len(new_bits)
+            elif isinstance(source, io.TextIOWrapper):
+                raise IOError(f"Packet data file opened in TextIO mode. You must open packet data in binary mode.")
             else:
-                raise ValueError(f"Unrecognized data source: {source}")
+                raise IOError(f"Unrecognized data source: {source}")
 
             # Reset buffer.pos to the original position before we extended it
             buffer.pos = curser_pos

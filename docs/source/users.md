@@ -18,7 +18,7 @@ xtce_document = Path('my_xtce_document.xml')
 packet_definition = xtcedef.XtcePacketDefinition(xtce_document)
 my_parser = parser.PacketParser(packet_definition)
 
-with packet_file.open() as binary_data:
+with packet_file.open("rb") as binary_data:
     packet_generator = my_parser.generator(binary_data)
 
     for packet in packet_generator:
@@ -38,7 +38,7 @@ csv_document = Path('my_csv_file.csv')
 packet_definition = csvdef.CsvPacketDefinition(csv_document)
 my_parser = parser.PacketParser(packet_definition)
 
-with packet_file.open() as binary_data:
+with packet_file.open("rb") as binary_data:
     packet_generator = my_parser.generator(binary_data)
 
     for packet in packet_generator:
