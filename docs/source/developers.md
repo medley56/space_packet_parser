@@ -27,9 +27,9 @@ Reference: [https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-
    or by running `poetry version X.Y.Z` or bumping according to a valid bump rule like `poetry version minor`
    (see poetry docs: https://python-poetry.org/docs/cli/#version).
 
-3. Update the version identifier in CITATION.cff.
+3. Update the version identifier in `CITATION.cff`.
 
-4. Update `CHANGES.md` to reflect that the version is now "released" and revisit `README.md` to keep it up to date.
+4. Update `changelog.md` to reflect that the version is now "released" and revisit `README.md` to keep it up to date.
    
 5. Open a PR to merge the release branch into master. This informs the rest of the team how the release 
    process is progressing as you polish the release branch.
