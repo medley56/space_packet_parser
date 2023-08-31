@@ -35,7 +35,7 @@ keywords = [
 
 [tool.poetry.dependencies]
 python = ">=3.8,<3.12"
-bitstring = ">=3.0.0,<5"
+bitstring = ">=3.0.0,<4.2"
 
 [tool.poetry.group.dev.dependencies]
 pylint = "^2"
