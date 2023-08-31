@@ -7,6 +7,7 @@ Space Packet Parser Documentation
 
    users.md
    developers.md
+   changelog.md
    autoapi/index.rst
 
 
