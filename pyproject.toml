@@ -13,7 +13,7 @@ maintainers = [
     "Gavin Medley <gavin.medley@lasp.colorado.edu>"
 ]
 repository = "https://github.com/medley56/space_packet_parser"
-homepage = ""
+homepage = "https://space-packet-parser.readthedocs.io"
 keywords = [
     "ccsds",
     "xtce",
@@ -34,8 +34,8 @@ keywords = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.8,<3.12"
-bitstring = ">=3.0.0,<4.2"
+python = ">=3.8"
+bitstring = ">=3.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pylint = "^2"
