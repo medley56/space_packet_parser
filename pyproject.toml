@@ -1,13 +1,14 @@
 [tool.poetry]
 name = "space_packet_parser"
-version = "4.1.0"
+version = "4.1.1"
 description = "A CCSDS telemetry packet decoding library based on the XTCE packet format description standard."
 license = "BSD-3-Clause"
 readme = "README.md"
 include = ["LICENSE.txt", "CITATION.cff"]
 authors = [
     "Gavin Medley <gavin.medley@lasp.colorado.edu>",
-    "Michael Chambliss <michael.chambliss@lasp.colorado.edu>"
+    "Michael Chambliss <michael.chambliss@lasp.colorado.edu>",
+    "Greg Lucas <greg.lucas@lasp.colorado.edu>",
 ]
 maintainers = [
     "Gavin Medley <gavin.medley@lasp.colorado.edu>"
