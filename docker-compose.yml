@@ -25,6 +25,12 @@ services:
       args:
         - BASE_IMAGE_PYTHON_VERSION=3.11
 
+  3.12-tests:
+    image: space-packets-3.12-test:latest
+    build:
+      args:
+        - BASE_IMAGE_PYTHON_VERSION=3.12
+
   3.11-tests-min-deps:
     image: space-packets-3.11-test:latest
     build:
