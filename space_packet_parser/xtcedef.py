@@ -1742,6 +1742,11 @@ class IntegerParameterType(ParameterType):
     pass
 
 
+class BooleanParameterType(ParameterType):
+    """<xtce:BooleanParameterType>"""
+    pass
+
+
 class FloatParameterType(ParameterType):
     """<xtce:FloatParameterType>"""
     pass
@@ -1948,6 +1953,7 @@ class XtcePacketDefinition:
     _tag_to_type_template = {
         '{{{xtce}}}StringParameterType': StringParameterType,
         '{{{xtce}}}IntegerParameterType': IntegerParameterType,
+        '{{{xtce}}}BooleanParameterType': BooleanParameterType,
         '{{{xtce}}}FloatParameterType': FloatParameterType,
         '{{{xtce}}}EnumeratedParameterType': EnumeratedParameterType,
         '{{{xtce}}}BinaryParameterType': BinaryParameterType,
