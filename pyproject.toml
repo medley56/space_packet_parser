@@ -36,6 +36,7 @@ keywords = [
 
 [tool.poetry.dependencies]
 python = ">=3.8"
+lxml = ">=4.8.0"
 
 [tool.poetry.group.dev.dependencies]
 pycodestyle = "*"

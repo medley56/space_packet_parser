@@ -2,7 +2,8 @@
 # Standard
 from io import StringIO
 import pytest
-from xml.etree import ElementTree
+# Installed
+import lxml.etree as ElementTree
 # Local
 from space_packet_parser import xtcedef, parser
 
