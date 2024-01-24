@@ -7,7 +7,8 @@ import logging
 import struct
 from typing import Tuple, Union, Optional, Any, List, TextIO, Dict
 import warnings
-from xml.etree import ElementTree
+# Installed
+import lxml.etree as ElementTree
 
 logger = logging.getLogger(__name__)
 
@@ -2322,7 +2323,6 @@ FlattenedContainer = namedtuple('FlattenedContainer', ['entry_list', 'restrictio
 class XtcePacketDefinition:
     """Object representation of the XTCE definition of a CCSDS packet object"""
 
-    _default_namespace = {'xtce': 'http://www.omg.org/space/xtce'}
     _tag_to_type_template = {
         '{{{xtce}}}StringParameterType': StringParameterType,
         '{{{xtce}}}IntegerParameterType': IntegerParameterType,
@@ -2352,10 +2352,10 @@ class XtcePacketDefinition:
         self._sequence_container_cache = {}  # Lookup for parsed sequence container objects
         self._parameter_cache = {}  # Lookup for parsed parameter objects
         self._parameter_type_cache = {}  # Lookup for parsed parameter type objects
-        self.ns = ns or self._default_namespace
+        self.tree = ElementTree.parse(xtce_document)
+        self.ns = ns or self.tree.getroot().nsmap
         self.type_tag_to_object = {k.format(**self.ns): v for k, v in
                                    self._tag_to_type_template.items()}
-        self.tree = ElementTree.parse(xtce_document)
 
         self._populate_sequence_container_cache()
 
