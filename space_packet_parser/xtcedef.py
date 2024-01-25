@@ -1693,7 +1693,7 @@ class ParameterType(AttrComparable, metaclass=ABCMeta):
         """
         for data_encoding in [StringDataEncoding, IntegerDataEncoding, FloatDataEncoding, BinaryDataEncoding]:
             # Try to find each type of data encoding element. If we find one, we assume it's the only one.
-            element = parameter_type_element.find(f"xtce:{data_encoding.__name__}", ns)
+            element = parameter_type_element.find(f".//xtce:{data_encoding.__name__}", ns)
             if element is not None:
                 return data_encoding.from_data_encoding_xml_element(element, ns)
 
