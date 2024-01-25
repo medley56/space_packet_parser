@@ -1747,6 +1747,16 @@ class BooleanParameterType(ParameterType):
     pass
 
 
+class AbsoluteTimeParameterType(ParameterType):
+    """<xtce:AbsoluteTimeParameterType>"""
+    pass
+
+
+class RelativeTimeParameterType(ParameterType):
+    """<xtce:RelativeTimeParameterType>"""
+    pass
+
+
 class FloatParameterType(ParameterType):
     """<xtce:FloatParameterType>"""
     pass
@@ -1955,6 +1965,8 @@ class XtcePacketDefinition:
         '{{{xtce}}}IntegerParameterType': IntegerParameterType,
         '{{{xtce}}}BooleanParameterType': BooleanParameterType,
         '{{{xtce}}}FloatParameterType': FloatParameterType,
+        '{{{xtce}}}AbsoluteTimeParameterType': AbsoluteTimeParameterType,
+        '{{{xtce}}}RelativeTimeParameterType': RelativeTimeParameterType,
         '{{{xtce}}}EnumeratedParameterType': EnumeratedParameterType,
         '{{{xtce}}}BinaryParameterType': BinaryParameterType,
     }
