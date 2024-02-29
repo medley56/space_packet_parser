@@ -501,8 +501,15 @@ class PacketParser:
                 self.print_progress(current_bits=n_bits_parsed, total_bits=total_length_bits,
                                     start_time_ns=start_time, current_packets=n_packets_parsed)
 
+            start_pos = read_buffer.pos
+            if start_pos > 160_000_000:
+                # Only trim the buffer after 20 MB read to prevent modifying
+                # the bitstream and trimming after every packet
+                read_buffer = read_buffer[start_pos:]
+                start_pos = 0
+
             # Fill buffer enough to parse a header
-            while len(read_buffer) < skip_header_bits + CCSDS_HEADER_LENGTH_BITS:
+            while len(read_buffer) - start_pos < skip_header_bits + CCSDS_HEADER_LENGTH_BITS:
                 result = fill_read_buffer(binary_data, read_buffer,
                                           read_size_bytes=buffer_read_size_bytes)
                 if not result:  # If there is verifiably no more data to add, break
@@ -511,16 +518,19 @@ class PacketParser:
             read_buffer.pos += skip_header_bits
             header = self._parse_header(read_buffer, reset_cursor=True)
             specified_total_packet_length_bits = self._total_packet_bits_from_pkt_len(header['PKT_LEN'].raw_value)
-            n_packets_parsed += 1  # Consider it a counted packet once we've parsed the header
+            # Consider it a counted packet once we've parsed the header
+            # and update the number of bits parsed
+            n_packets_parsed += 1
+            n_bits_in_packet = skip_header_bits + specified_total_packet_length_bits
+            n_bits_parsed += n_bits_in_packet
             if ccsds_headers_only is True:
-                # Trim read buffer (this also reduces memory usage over time for reading a ConstBitStream)
-                n_bits_parsed += skip_header_bits + specified_total_packet_length_bits
-                read_buffer = read_buffer[specified_total_packet_length_bits + skip_header_bits:]
+                # Update the read_buffer to the end of the packet
+                read_buffer.pos = start_pos + n_bits_in_packet
                 yield Packet(header=header, data=None)
                 continue
 
             # Based on PKT_LEN fill buffer enough to read a full packet
-            while len(read_buffer) < skip_header_bits + specified_total_packet_length_bits:
+            while (len(read_buffer) - read_buffer.pos) < skip_header_bits + specified_total_packet_length_bits:
                 result = fill_read_buffer(binary_data, read_buffer,
                                           read_size_bytes=buffer_read_size_bytes)
                 if not result:  # If there is verifiably no more data to add, break
@@ -536,10 +546,9 @@ class PacketParser:
                     _, parameter_list = self._determine_packet_by_restrictions(header)
                     packet = self.legacy_parse_packet(read_buffer, parameter_list, word_size=self.word_size)
             except UnrecognizedPacketTypeError as e:
-                # Regardless of whether we handle the error, we still want to chop the read_buffer in preparation
-                # for parsing the next packet
-                n_bits_parsed += skip_header_bits + specified_total_packet_length_bits
-                read_buffer = read_buffer[skip_header_bits + specified_total_packet_length_bits:]
+                # Regardless of whether we handle the error, we still want to update the read_buffer
+                # in preparation for parsing the next packet
+                read_buffer.pos = start_pos + n_bits_in_packet
                 logger.debug(f"Unrecognized error on packet with APID {header['PKT_APID'].raw_value}'")
                 if yield_unrecognized_packet_errors is True:
                     # Yield the caught exception without raising it (raising ends generator)
@@ -553,9 +562,10 @@ class PacketParser:
                                  f"{packet.header['PKT_LEN'].raw_value}. This might be because the CCSDS header is "
                                  f"incorrectly represented in your packet definition document.")
 
-            actual_length_parsed = read_buffer.pos - skip_header_bits
+            actual_length_parsed = read_buffer.pos - start_pos - skip_header_bits
 
             if actual_length_parsed != specified_total_packet_length_bits:
+                read_buffer.pos = start_pos + n_bits_in_packet
                 logger.warning(f"Parsed packet length "
                                f"({actual_length_parsed}b) did not match "
                                f"length specified in header ({specified_total_packet_length_bits}b). "
@@ -564,8 +574,7 @@ class PacketParser:
                 if not parse_bad_pkts:
                     logger.warning("Skipping (not yielding) bad packet because parse_bad_pkts is falsy.")
                     continue
-            n_bits_parsed += skip_header_bits + specified_total_packet_length_bits
-            read_buffer = read_buffer[specified_total_packet_length_bits + skip_header_bits:]
+
             yield packet
 
         if show_progress is True:
