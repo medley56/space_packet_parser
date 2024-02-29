@@ -1,7 +1,7 @@
 """Tests for space_packet_parser.xtcedef"""
 import bitstring
 import pytest
-from xml.etree import ElementTree
+import lxml.etree as ElementTree
 
 from space_packet_parser import xtcedef, parser
 
