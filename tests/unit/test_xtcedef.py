@@ -1388,4 +1388,87 @@ def test_parameter():
                       parameter_type=xtcedef.IntegerParameterType(
                        name='TEST_INT_Type',
                        unit='floops',
-                       encoding=xtcedef.IntegerDataEncoding(size_in_bits=16, encoding='unsigned')))
+                       encoding=xtcedef.IntegerDataEncoding(size_in_bits=16, encoding='unsigned')),
+                      short_description="Param short desc",
+                      long_description="This is a long description of the parameter")
+
+
+# -----------------------
+# Full XTCE Document Test
+# -----------------------
+def test_parsing_xtce_document(test_data_dir):
+    """Tests parsing an entire XTCE document and makes assertions about the contents"""
+    with open(test_data_dir / "test_xtce.xml") as x:
+        xdef = xtcedef.XtcePacketDefinition(x, ns=TEST_NAMESPACE)
+
+    # Test Parameter Types
+    ptname = "USEC_Type"
+    pt = xdef.named_parameter_types[ptname]
+    assert pt.name == ptname
+    assert pt.unit == "us"
+    assert isinstance(pt.encoding, xtcedef.IntegerDataEncoding)
+
+    # Test Parameters
+    pname = "ADAET1DAY"  # Named parameter
+    p = xdef.named_parameters[pname]
+    assert p.name == pname
+    assert p.short_description == "Ephemeris Valid Time, Days Since 1/1/1958"
+    assert p.long_description is None
+
+    pname = "USEC"
+    p = xdef.named_parameters[pname]
+    assert p.name == pname
+    assert p.short_description == "Secondary Header Fine Time (microsecond)"
+    assert p.long_description == "CCSDS Packet 2nd Header Fine Time in microseconds."
+
+    # Test Sequence Containers
+    scname = "SecondaryHeaderContainer"
+    sc = xdef.named_containers[scname]
+    assert sc.name == scname
+    assert sc == xtcedef.SequenceContainer(
+        name=scname,
+        entry_list=[
+            xtcedef.Parameter(
+                name="DOY",
+                parameter_type=xtcedef.FloatParameterType(
+                    name="DOY_Type",
+                    encoding=xtcedef.IntegerDataEncoding(
+                        size_in_bits=16, encoding="unsigned"
+                    ),
+                    unit="day"
+                ),
+                short_description="Secondary Header Day of Year",
+                long_description="CCSDS Packet 2nd Header Day of Year in days."
+            ),
+            xtcedef.Parameter(
+                name="MSEC",
+                parameter_type=xtcedef.FloatParameterType(
+                    name="MSEC_Type",
+                    encoding=xtcedef.IntegerDataEncoding(
+                        size_in_bits=32, encoding="unsigned"
+                    ),
+                    unit="ms"
+                ),
+                short_description="Secondary Header Coarse Time (millisecond)",
+                long_description="CCSDS Packet 2nd Header Coarse Time in milliseconds."
+            ),
+            xtcedef.Parameter(
+                name="USEC",
+                parameter_type=xtcedef.FloatParameterType(
+                    name="USEC_Type",
+                    encoding=xtcedef.IntegerDataEncoding(
+                        size_in_bits=16, encoding="unsigned"
+                    ),
+                    unit="us"
+                ),
+                short_description="Secondary Header Fine Time (microsecond)",
+                long_description="CCSDS Packet 2nd Header Fine Time in microseconds."
+            )
+        ],
+        short_description=None,
+        long_description="Container for telemetry secondary header items",
+        base_container_name=None,
+        restriction_criteria=None,
+        abstract=True,
+        inheritors=None
+    )

@@ -35,7 +35,8 @@ Packet = namedtuple('Packet', ['header', 'data'])
 class ParsedDataItem(xtcedef.AttrComparable):
     """Representation of a parsed parameter"""
 
-    def __init__(self, name: str, raw_value: any, unit: str = None, derived_value: float or str = None):
+    def __init__(self, name: str, raw_value: any, unit: str = None, derived_value: float or str = None,
+                 short_description: str = None, long_description: str = None):
         """Constructor
 
         Parameters
@@ -48,6 +49,10 @@ class ParsedDataItem(xtcedef.AttrComparable):
             Raw representation of the parsed value. May be lots of different types but most often an integer
         derived_value : float or str
             May be a calibrated value or an enum lookup
+        short_description : str
+            Parameter short description
+        long_description : str
+            Parameter long description
         """
         if name is None or raw_value is None:
             raise ValueError("Invalid ParsedDataItem. Must define name and raw_value.")
@@ -55,6 +60,8 @@ class ParsedDataItem(xtcedef.AttrComparable):
         self.raw_value = raw_value
         self.unit = unit
         self.derived_value = derived_value
+        self.short_description = short_description
+        self.long_description = long_description
 
     def __repr__(self):
         return (f"{self.__class__.__name__}("
@@ -237,7 +244,9 @@ class PacketParser:
                 name=p.name,
                 unit=p.parameter_type.unit,
                 raw_value=parsed_value,
-                derived_value=derived_value
+                derived_value=derived_value,
+                short_description=p.short_description,
+                long_description=p.long_description
             )
 
         def _parse_sequence_container(sc: xtcedef.SequenceContainer):
@@ -320,7 +329,9 @@ class PacketParser:
                 name=parameter.name,
                 unit=parameter.parameter_type.unit,
                 raw_value=parsed_value,
-                derived_value=derived_value
+                derived_value=derived_value,
+                short_description=parameter.short_description,
+                long_description=parameter.long_description
             )
 
         return Packet(header=header, data=user_data)

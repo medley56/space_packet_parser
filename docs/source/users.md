@@ -16,7 +16,14 @@ from space_packet_parser import xtcedef, parser
 packet_file = Path('my_packets.pkts')
 xtce_document = Path('my_xtce_document.xml')
 packet_definition = xtcedef.XtcePacketDefinition(xtce_document)
-my_parser = parser.PacketParser(packet_definition)
+
+# You can introspect the packet definition to learn about what was parsed
+pt = packet_definition.named_parameter_types["MY_PARAM_Type"]  # Look up a type (includes unit and encoding info)
+p = packet_definition.named_parameters['MY_PARAM']  # Look up a parameter (includes short and long descriptions)
+sc = packet_definition.named_containers['SecondaryHeaderContainer']  # Look up a sequence container (includes inheritance)
+# See the API docs for more information about the ParameterType, Parameter, and SequenceContainer classes
+
+my_parser = parser.PacketParser(packet_definition)  # Set up a packet parser from your definition
 
 with packet_file.open("rb") as binary_data:
     packet_generator = my_parser.generator(binary_data)

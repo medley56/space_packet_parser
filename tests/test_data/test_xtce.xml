@@ -1,0 +1,205 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<xtce:SpaceSystem xmlns:xtce="http://www.omg.org/space/xtce" name="Space Packet Parser">
+    <xtce:Header date="2024-03-05T13:36:00MST" version="1.0" author="Gavin Medley"/>
+    <xtce:TelemetryMetaData>
+        <xtce:ParameterTypeSet>
+            <xtce:IntegerParameterType name="VERSION_Type" signed="false">
+                <xtce:UnitSet/>
+                <xtce:IntegerDataEncoding sizeInBits="3" encoding="unsigned"/>
+            </xtce:IntegerParameterType>
+            <xtce:IntegerParameterType name="TYPE_Type" signed="false">
+                <xtce:UnitSet/>
+                <xtce:IntegerDataEncoding sizeInBits="1" encoding="unsigned"/>
+            </xtce:IntegerParameterType>
+            <xtce:IntegerParameterType name="SEC_HDR_FLG_Type" signed="false">
+                <xtce:UnitSet/>
+                <xtce:IntegerDataEncoding sizeInBits="1" encoding="unsigned"/>
+            </xtce:IntegerParameterType>
+            <xtce:IntegerParameterType name="PKT_APID_Type" signed="false">
+                <xtce:UnitSet/>
+                <xtce:IntegerDataEncoding sizeInBits="11" encoding="unsigned"/>
+            </xtce:IntegerParameterType>
+            <xtce:IntegerParameterType name="SEQ_FLGS_Type" signed="false">
+                <xtce:UnitSet/>
+                <xtce:IntegerDataEncoding sizeInBits="2" encoding="unsigned"/>
+            </xtce:IntegerParameterType>
+            <xtce:IntegerParameterType name="SRC_SEQ_CTR_Type" signed="false">
+                <xtce:UnitSet/>
+                <xtce:IntegerDataEncoding sizeInBits="14" encoding="unsigned"/>
+            </xtce:IntegerParameterType>
+            <xtce:IntegerParameterType name="PKT_LEN_Type" signed="false">
+                <xtce:UnitSet/>
+                <xtce:IntegerDataEncoding sizeInBits="16" encoding="unsigned"/>
+            </xtce:IntegerParameterType>
+            <xtce:FloatParameterType name="DOY_Type">
+                <xtce:UnitSet>
+                    <xtce:Unit>day</xtce:Unit>
+                </xtce:UnitSet>
+                <xtce:IntegerDataEncoding sizeInBits="16" encoding="unsigned"/>
+            </xtce:FloatParameterType>
+            <xtce:FloatParameterType name="MSEC_Type">
+                <xtce:UnitSet>
+                    <xtce:Unit>ms</xtce:Unit>
+                </xtce:UnitSet>
+                <xtce:IntegerDataEncoding sizeInBits="32" encoding="unsigned"/>
+            </xtce:FloatParameterType>
+            <xtce:FloatParameterType name="USEC_Type">
+                <xtce:UnitSet>
+                    <xtce:Unit>us</xtce:Unit>
+                </xtce:UnitSet>
+                <xtce:IntegerDataEncoding sizeInBits="16" encoding="unsigned"/>
+            </xtce:FloatParameterType>
+            <xtce:IntegerParameterType name="ADASCID_Type" signed="false">
+                <xtce:UnitSet/>
+                <xtce:IntegerDataEncoding sizeInBits="8" encoding="unsigned"/>
+            </xtce:IntegerParameterType>
+            <xtce:IntegerParameterType name="ADAETDAY_Type" signed="false">
+                <xtce:UnitSet>
+                    <xtce:Unit>day</xtce:Unit>
+                </xtce:UnitSet>
+                <xtce:IntegerDataEncoding sizeInBits="16" encoding="unsigned"/>
+            </xtce:IntegerParameterType>
+            <xtce:IntegerParameterType name="ADAETMS_Type" signed="false">
+                <xtce:UnitSet>
+                    <xtce:Unit>ms</xtce:Unit>
+                </xtce:UnitSet>
+                <xtce:IntegerDataEncoding sizeInBits="32" encoding="unsigned"/>
+            </xtce:IntegerParameterType>
+            <xtce:IntegerParameterType name="ADAETUS_Type" signed="false">
+                <xtce:UnitSet>
+                    <xtce:Unit>us</xtce:Unit>
+                </xtce:UnitSet>
+                <xtce:IntegerDataEncoding sizeInBits="16" encoding="unsigned"/>
+            </xtce:IntegerParameterType>
+            <xtce:FloatParameterType name="ADGPSPOS_Type">
+                <xtce:UnitSet>
+                    <xtce:Unit>m</xtce:Unit>
+                </xtce:UnitSet>
+                <xtce:FloatDataEncoding sizeInBits="32" encoding="IEEE-754"/>
+            </xtce:FloatParameterType>
+            <xtce:FloatParameterType name="ADGPSVEL_Type">
+                <xtce:UnitSet>
+                    <xtce:Unit>m/s</xtce:Unit>
+                </xtce:UnitSet>
+                <xtce:FloatDataEncoding sizeInBits="32" encoding="IEEE-754"/>
+            </xtce:FloatParameterType>
+            <xtce:FloatParameterType name="ADCFAQ_Type">
+                <xtce:UnitSet/>
+                <xtce:FloatDataEncoding sizeInBits="32" encoding="IEEE-754"/>
+            </xtce:FloatParameterType>
+        </xtce:ParameterTypeSet>
+        <xtce:ParameterSet>
+            <xtce:Parameter name="VERSION" parameterTypeRef="VERSION_Type">
+                <xtce:LongDescription>Not really used. We aren't changing the version of CCSDS that we use.</xtce:LongDescription>
+            </xtce:Parameter>
+            <xtce:Parameter name="TYPE" parameterTypeRef="TYPE_Type">
+                <xtce:LongDescription>Indicates whether this packet is CMD or TLM. TLM is 0.</xtce:LongDescription>
+            </xtce:Parameter>
+            <xtce:Parameter name="SEC_HDR_FLG" parameterTypeRef="SEC_HDR_FLG_Type">
+                <xtce:LongDescription>Always 1 - indicates that there is a secondary header.</xtce:LongDescription>
+            </xtce:Parameter>
+            <xtce:Parameter name="PKT_APID" parameterTypeRef="PKT_APID_Type">
+                <xtce:LongDescription>Unique to each packet type.</xtce:LongDescription>
+            </xtce:Parameter>
+            <xtce:Parameter name="SEQ_FLGS" parameterTypeRef="SEQ_FLGS_Type">
+                <xtce:LongDescription>Always set to 1.</xtce:LongDescription>
+            </xtce:Parameter>
+            <xtce:Parameter name="SRC_SEQ_CTR" parameterTypeRef="SRC_SEQ_CTR_Type">
+                <xtce:LongDescription>Increments from 0 at reset for each packet issued of that APID. Rolls over at 14b.</xtce:LongDescription>
+            </xtce:Parameter>
+            <xtce:Parameter name="PKT_LEN" parameterTypeRef="PKT_LEN_Type">
+                <xtce:LongDescription>Number of bytes of the data field following the primary header -1. (To get the length of the whole packet, add 7)</xtce:LongDescription>
+            </xtce:Parameter>
+            <xtce:Parameter name="DOY" parameterTypeRef="DOY_Type" shortDescription="Secondary Header Day of Year">
+                <xtce:LongDescription>CCSDS Packet 2nd Header Day of Year in days.</xtce:LongDescription>
+            </xtce:Parameter>
+            <xtce:Parameter name="MSEC" parameterTypeRef="MSEC_Type" shortDescription="Secondary Header Coarse Time (millisecond)">
+                <xtce:LongDescription>CCSDS Packet 2nd Header Coarse Time in milliseconds.</xtce:LongDescription>
+            </xtce:Parameter>
+            <xtce:Parameter name="USEC" parameterTypeRef="USEC_Type" shortDescription="Secondary Header Fine Time (microsecond)">
+                <xtce:LongDescription>CCSDS Packet 2nd Header Fine Time in microseconds.</xtce:LongDescription>
+            </xtce:Parameter>
+            <xtce:Parameter name="ADAESCID" parameterTypeRef="ADASCID_Type" shortDescription="Spacecraft ID"/>
+            <xtce:Parameter name="ADAET1DAY" parameterTypeRef="ADAETDAY_Type" shortDescription="Ephemeris Valid Time, Days Since 1/1/1958"/>
+            <xtce:Parameter name="ADAET1MS" parameterTypeRef="ADAETMS_Type" shortDescription="Ephemeris Valid Time, Milliseconds of Day"/>
+            <xtce:Parameter name="ADAET1US" parameterTypeRef="ADAETUS_Type" shortDescription="Ephemeris Valid Time, Microseconds of Milliseconds"/>
+            <xtce:Parameter name="ADGPSPOSX" parameterTypeRef="ADGPSPOS_Type" shortDescription="Ephemeris Position (ECEF) X"/>
+            <xtce:Parameter name="ADGPSPOSY" parameterTypeRef="ADGPSPOS_Type" shortDescription="Ephemeris Position (ECEF) Y"/>
+            <xtce:Parameter name="ADGPSPOSZ" parameterTypeRef="ADGPSPOS_Type" shortDescription="Ephemeris Position (ECEF) Z"/>
+            <xtce:Parameter name="ADGPSVELX" parameterTypeRef="ADGPSVEL_Type" shortDescription="Ephemeris Velocity (ECEF) X"/>
+            <xtce:Parameter name="ADGPSVELY" parameterTypeRef="ADGPSVEL_Type" shortDescription="Ephemeris Velocity (ECEF) Y"/>
+            <xtce:Parameter name="ADGPSVELZ" parameterTypeRef="ADGPSVEL_Type" shortDescription="Ephemeris Velocity (ECEF) Z"/>
+            <xtce:Parameter name="ADAET2DAY" parameterTypeRef="ADAETDAY_Type" shortDescription="Attitude Valid Time, Days Since 1/1/1958"/>
+            <xtce:Parameter name="ADAET2MS" parameterTypeRef="ADAETMS_Type" shortDescription="Attitude Valid Time, Milliseconds of Day"/>
+            <xtce:Parameter name="ADAET2US" parameterTypeRef="ADAETUS_Type" shortDescription="Attitude Valid Time, Microseconds of Milliseconds"/>
+            <xtce:Parameter name="ADCFAQ1" parameterTypeRef="ADCFAQ_Type" shortDescription="Control Frame Attitude Q1 (i)"/>
+            <xtce:Parameter name="ADCFAQ2" parameterTypeRef="ADCFAQ_Type" shortDescription="Control Frame Attitude Q2 (j)"/>
+            <xtce:Parameter name="ADCFAQ3" parameterTypeRef="ADCFAQ_Type" shortDescription="Control Frame Attitude Q3 (k)"/>
+            <xtce:Parameter name="ADCFAQ4" parameterTypeRef="ADCFAQ_Type" shortDescription="Control Frame Attitude Q4 (scalar)"/>
+        </xtce:ParameterSet>
+        <xtce:ContainerSet>
+            <xtce:SequenceContainer name="CCSDSPacket" abstract="true">
+                <xtce:LongDescription>Super-container for telemetry and command packets</xtce:LongDescription>
+                <xtce:EntryList>
+                    <xtce:ParameterRefEntry parameterRef="VERSION"/>
+                    <xtce:ParameterRefEntry parameterRef="TYPE"/>
+                    <xtce:ParameterRefEntry parameterRef="SEC_HDR_FLG"/>
+                    <xtce:ParameterRefEntry parameterRef="PKT_APID"/>
+                    <xtce:ParameterRefEntry parameterRef="SEQ_FLGS"/>
+                    <xtce:ParameterRefEntry parameterRef="SRC_SEQ_CTR"/>
+                    <xtce:ParameterRefEntry parameterRef="PKT_LEN"/>
+                </xtce:EntryList>
+            </xtce:SequenceContainer>
+            <xtce:SequenceContainer name="CCSDSTelemetryPacket" abstract="true">
+                <xtce:LongDescription>Super-container for all telemetry packets</xtce:LongDescription>
+                <xtce:EntryList/>
+                <xtce:BaseContainer containerRef="CCSDSPacket">
+                    <xtce:RestrictionCriteria>
+                        <xtce:ComparisonList>
+                            <xtce:Comparison parameterRef="VERSION" value="0" useCalibratedValue="false"/>
+                            <xtce:Comparison parameterRef="TYPE" value="0" useCalibratedValue="false"/>
+                        </xtce:ComparisonList>
+                    </xtce:RestrictionCriteria>
+                </xtce:BaseContainer>
+            </xtce:SequenceContainer>
+            <xtce:SequenceContainer name="SecondaryHeaderContainer" abstract="true">
+                <xtce:LongDescription>Container for telemetry secondary header items</xtce:LongDescription>
+                <xtce:EntryList>
+                    <xtce:ParameterRefEntry parameterRef="DOY"/>
+                    <xtce:ParameterRefEntry parameterRef="MSEC"/>
+                    <xtce:ParameterRefEntry parameterRef="USEC"/>
+                </xtce:EntryList>
+            </xtce:SequenceContainer>
+            <xtce:SequenceContainer name="JPSS_ATT_EPHEM" shortDescription="Spacecraft Attitude and Ephemeris">
+                <xtce:LongDescription>Spacecraft Attitude and Ephemeris packet used to geolocate mission data</xtce:LongDescription>
+                <xtce:EntryList>
+                    <xtce:ContainerRefEntry containerRef="SecondaryHeaderContainer"/>
+                    <xtce:ParameterRefEntry parameterRef="ADAESCID"/>
+                    <xtce:ParameterRefEntry parameterRef="ADAET1DAY"/>
+                    <xtce:ParameterRefEntry parameterRef="ADAET1MS"/>
+                    <xtce:ParameterRefEntry parameterRef="ADAET1US"/>
+                    <xtce:ParameterRefEntry parameterRef="ADGPSPOSX"/>
+                    <xtce:ParameterRefEntry parameterRef="ADGPSPOSY"/>
+                    <xtce:ParameterRefEntry parameterRef="ADGPSPOSZ"/>
+                    <xtce:ParameterRefEntry parameterRef="ADGPSVELX"/>
+                    <xtce:ParameterRefEntry parameterRef="ADGPSVELY"/>
+                    <xtce:ParameterRefEntry parameterRef="ADGPSVELZ"/>
+                    <xtce:ParameterRefEntry parameterRef="ADAET2DAY"/>
+                    <xtce:ParameterRefEntry parameterRef="ADAET2MS"/>
+                    <xtce:ParameterRefEntry parameterRef="ADAET2US"/>
+                    <xtce:ParameterRefEntry parameterRef="ADCFAQ1"/>
+                    <xtce:ParameterRefEntry parameterRef="ADCFAQ2"/>
+                    <xtce:ParameterRefEntry parameterRef="ADCFAQ3"/>
+                    <xtce:ParameterRefEntry parameterRef="ADCFAQ4"/>
+                </xtce:EntryList>
+                <xtce:BaseContainer containerRef="CCSDSTelemetryPacket">
+                    <xtce:RestrictionCriteria>
+                        <xtce:ComparisonList>
+                            <xtce:Comparison parameterRef="PKT_APID" value="11" useCalibratedValue="false"/>
+                        </xtce:ComparisonList>
+                    </xtce:RestrictionCriteria>
+                </xtce:BaseContainer>
+            </xtce:SequenceContainer>
+        </xtce:ContainerSet>
+    </xtce:TelemetryMetaData>
+</xtce:SpaceSystem>
