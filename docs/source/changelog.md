@@ -10,6 +10,10 @@ This is a log of changes made to the library over time
 ## Version Release Notes
 Release notes for the `space_packet_parser` library
 
+### v4.2.0 (unreleased)
+- Parse short and long descriptions of parameters
+- Implement equality checking for SequenceContainer objects and Parameter objects
+
 ### v4.1.1 (released)
 - Allow Python 3.12
 

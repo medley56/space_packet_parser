@@ -1868,10 +1868,11 @@ class BinaryParameterType(ParameterType):
         self.encoding = encoding
 
 
-class Parameter:
+class Parameter(AttrComparable):
     """<xtce:Parameter>"""
 
-    def __init__(self, name: str, parameter_type: ParameterType):
+    def __init__(self, name: str, parameter_type: ParameterType,
+                 short_description: str = None, long_description: str = None):
         """Constructor
 
         Parameters
@@ -1880,9 +1881,15 @@ class Parameter:
             Parameter name. Typically something like MSN__PARAMNAME
         parameter_type : ParameterType
             Parameter type object that describes how the parameter is stored.
+        short_description : str
+            Short description of parameter as parsed from XTCE
+        long_description : str
+            Long description of parameter as parsed from XTCE
         """
         self.name = name
         self.parameter_type = parameter_type
+        self.short_description = short_description
+        self.long_description = long_description
 
     def __repr__(self):
         module = self.__class__.__module__
@@ -1890,7 +1897,7 @@ class Parameter:
         return f"<{module}.{qualname} {self.name}>"
 
 
-class SequenceContainer:
+class SequenceContainer(AttrComparable):
     """<xtce:SequenceContainer>"""
 
     def __init__(self,
@@ -1970,6 +1977,7 @@ class XtcePacketDefinition:
         """
         self._sequence_container_cache = {}  # Lookup for parsed sequence container objects
         self._parameter_cache = {}  # Lookup for parsed parameter objects
+        self._parameter_type_cache = {}  # Lookup for parsed parameter type objects
         self.ns = ns or self._default_namespace
         self.type_tag_to_object = {k.format(**self.ns): v for k, v in
                                    self._tag_to_type_template.items()}
@@ -2008,10 +2016,7 @@ class XtcePacketDefinition:
         try:
             base_container, restriction_criteria = self._get_container_base_container(sequence_container)
             base_sequence_container = self.parse_sequence_container_contents(base_container)
-            #base_sequence_container.restriction_criteria = restriction_criteria
             base_container_name = base_sequence_container.name
-            # Prepend the base container. This is necessary for handling multiple inheritance.
-            #entry_list.insert(0, base_sequence_container)
         except ElementNotFoundError:
             base_container_name = None
             restriction_criteria = None
@@ -2028,14 +2033,32 @@ class XtcePacketDefinition:
                 else:
                     parameter_element = self._find_parameter(parameter_name)
                     parameter_type_name = parameter_element.attrib['parameterTypeRef']
-                    parameter_type_element = self._find_parameter_type(parameter_type_name)
-                    parameter_type_class = self.type_tag_to_object[parameter_type_element.tag]
+
+                    # If we've already parsed this parameter type for a different parameter
+                    if parameter_type_name in self._parameter_type_cache:
+                        parameter_type_object = self._parameter_type_cache[parameter_type_name]
+                    else:
+                        parameter_type_element = self._find_parameter_type(parameter_type_name)
+                        parameter_type_class = self.type_tag_to_object[parameter_type_element.tag]
+                        parameter_type_object = parameter_type_class.from_parameter_type_xml_element(
+                            parameter_type_element, self.ns)
+                        self._parameter_type_cache[parameter_type_name] = parameter_type_object  # Add to cache
+
+                    parameter_short_description = parameter_element.attrib['shortDescription'] if (
+                            'shortDescription' in parameter_element.attrib
+                    ) else None
+                    parameter_long_description = parameter_element.find('xtce:LongDescription', self.ns).text if (
+                            parameter_element.find('xtce:LongDescription', self.ns) is not None
+                    ) else None
+
                     parameter_object = Parameter(
                         name=parameter_name,
-                        parameter_type=parameter_type_class.from_parameter_type_xml_element(
-                            parameter_type_element, self.ns))
+                        parameter_type=parameter_type_object,
+                        short_description=parameter_short_description,
+                        long_description=parameter_long_description
+                    )
                     entry_list.append(parameter_object)
-                    self._parameter_cache[parameter_name] = parameter_object
+                    self._parameter_cache[parameter_name] = parameter_object  # Add to cache
             elif entry.tag == '{{{xtce}}}ContainerRefEntry'.format(**self.ns):  # pylint: disable=consider-using-f-string
                 nested_container = self._find_container(name=entry.attrib['containerRef'])
                 entry_list.append(self.parse_sequence_container_contents(nested_container))
@@ -2057,8 +2080,18 @@ class XtcePacketDefinition:
 
     @property
     def named_containers(self):
-        """Property accessor that returns the dict cache of SequenceContainer objecs"""
+        """Property accessor that returns the dict cache of SequenceContainer objects"""
         return self._sequence_container_cache
+
+    @property
+    def named_parameters(self):
+        """Property accessor that returns the dict cache of Parameter objects"""
+        return self._parameter_cache
+
+    @property
+    def named_parameter_types(self):
+        """Property accessor that returns the dict cache of ParameterType objects"""
+        return self._parameter_type_cache
 
     @property
     def flattened_containers(self):
