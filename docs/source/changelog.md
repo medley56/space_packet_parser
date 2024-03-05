@@ -1,15 +1,11 @@
 # Change Log
-This is a log of changes made to the library over time
-
-## Long Term To-Do List
-- Add frame transfer parsing layer on top of CCSDS parsing layer
-- Add ByteOrderList support to encodings in xtcedef (search for TODOs)
-- Support multiple `xtce:Unit` elements for compound units
+This is a log of changes made to the library over time. For planned upcoming changes, please check the GitHub issue 
+list and release milestones.
 
 ## Version Release Notes
 Release notes for the `space_packet_parser` library
 
-### v4.2.0 (unreleased)
+### v4.2.0 (released)
 - Parse short and long descriptions of parameters
 - Implement equality checking for SequenceContainer objects and Parameter objects
 - Include parameter short description and long description in ParsedDataItems
