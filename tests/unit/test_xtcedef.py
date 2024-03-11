@@ -714,7 +714,7 @@ def test_integer_data_encoding(xml_string: str, expectation):
         ("""
 <xtce:FloatDataEncoding xmlns:xtce="http://www.omg.org/space/xtce" sizeInBits="4" encoding="IEEE-754"/>
 """,
-         xtcedef.FloatDataEncoding(size_in_bits=4, encoding='IEEE-754')),
+         ValueError()),
         ("""
 <xtce:FloatDataEncoding xmlns:xtce="http://www.omg.org/space/xtce" sizeInBits="16">
     <xtce:DefaultCalibrator>
@@ -1111,6 +1111,16 @@ def test_integer_parameter_parsing(parameter_type, parsed_data, packet_data, exp
     <xtce:UnitSet>
         <xtce:Unit>smoot</xtce:Unit>
     </xtce:UnitSet>
+    <xtce:FloatDataEncoding sizeInBits="16"/>
+</xtce:FloatParameterType>
+""",
+         xtcedef.FloatParameterType(name='TEST_INT_Type', unit='smoot',
+                                    encoding=xtcedef.FloatDataEncoding(size_in_bits=16, encoding='IEEE-754'))),
+        ("""
+<xtce:FloatParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_INT_Type">
+    <xtce:UnitSet>
+        <xtce:Unit>smoot</xtce:Unit>
+    </xtce:UnitSet>
     <xtce:IntegerDataEncoding sizeInBits="16" encoding="unsigned"/>
 </xtce:FloatParameterType>
 """,
@@ -1377,6 +1387,109 @@ def test_binary_parameter_parsing(parameter_type, parsed_data, packet_data, expe
     """Test parsing binary parameters"""
     raw, _ = parameter_type.parse_value(bitstring.ConstBitStream(packet_data), parsed_data)
     assert raw == expected
+
+
+@pytest.mark.parametrize(
+    ('xml_string', 'expectation'),
+    [
+        ("""
+<xtce:BooleanParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
+    <xtce:UnitSet>
+        <xtce:Unit>smoot</xtce:Unit>
+    </xtce:UnitSet>
+    <xtce:BinaryDataEncoding>
+        <xtce:SizeInBits>
+            <xtce:FixedValue>1</xtce:FixedValue>
+        </xtce:SizeInBits>
+    </xtce:BinaryDataEncoding>
+</xtce:BooleanParameterType>
+""",
+         xtcedef.BooleanParameterType(name='TEST_PARAM_Type', unit='smoot',
+                                      encoding=xtcedef.BinaryDataEncoding(fixed_size_in_bits=1))),
+        ("""
+<xtce:BooleanParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
+    <xtce:UnitSet>
+        <xtce:Unit>smoot</xtce:Unit>
+    </xtce:UnitSet>
+    <xtce:IntegerDataEncoding encoding="unsigned" sizeInBits="1"/>
+</xtce:BooleanParameterType>
+""",
+         xtcedef.BooleanParameterType(name='TEST_PARAM_Type', unit='smoot',
+                                      encoding=xtcedef.IntegerDataEncoding(size_in_bits=1, encoding="unsigned"))),
+        ("""
+<xtce:BooleanParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
+    <xtce:UnitSet>
+        <xtce:Unit>smoot</xtce:Unit>
+    </xtce:UnitSet>
+    <xtce:StringDataEncoding encoding="utf-8">
+        <xtce:SizeInBits>
+            <xtce:TerminationChar>00</xtce:TerminationChar>
+        </xtce:SizeInBits>
+    </xtce:StringDataEncoding>
+</xtce:BooleanParameterType>
+""",
+         xtcedef.BooleanParameterType(name='TEST_PARAM_Type', unit='smoot',
+                                      encoding=xtcedef.StringDataEncoding(termination_character='00'))),
+    ]
+)
+def test_boolean_parameter_type(xml_string, expectation):
+    """Test parsing a BooleanParameterType from an XML string"""
+    element = ElementTree.fromstring(xml_string)
+
+    if isinstance(expectation, Exception):
+        with pytest.raises(type(expectation)):
+            xtcedef.BooleanParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+    else:
+        result = xtcedef.BooleanParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+        assert result == expectation
+
+
+@pytest.mark.parametrize(
+    ('parameter_type', 'parsed_data', 'packet_data', 'expected_raw', 'expected_derived'),
+    [
+        (xtcedef.BooleanParameterType(
+            'TEST_BOOL',
+            xtcedef.BinaryDataEncoding(fixed_size_in_bits=1)),
+         {},
+         '0b0011010000110010010100110000000001001011000000000100100100000000',
+         '0', True),
+        (xtcedef.BooleanParameterType(
+            'TEST_BOOL',
+            xtcedef.StringDataEncoding(encoding="utf-8", termination_character='00')),
+         {},
+         '0b0110011001100001011011000111001101100101010111110110100101110011010111110111010001110010011101010111010001101000011110010000000000101011010101',
+         'false_is_truthy', True),
+        (xtcedef.BooleanParameterType(
+            'TEST_BOOL',
+            xtcedef.IntegerDataEncoding(size_in_bits=2, encoding="unsigned")),
+         {},
+         '0b0011',
+         0, False),
+        (xtcedef.BooleanParameterType(
+            'TEST_BOOL',
+            xtcedef.IntegerDataEncoding(size_in_bits=2, encoding="unsigned")),
+         {},
+         '0b1111',
+         3, True),
+        (xtcedef.BooleanParameterType(
+            'TEST_BOOL',
+            xtcedef.FloatDataEncoding(size_in_bits=16)),
+         {},
+         '0b0101000101000000111111111',
+         42.0, True),
+        (xtcedef.BooleanParameterType(
+            'TEST_BOOL',
+            xtcedef.FloatDataEncoding(size_in_bits=16)),
+         {},
+         '0b0101000101000000111111111',
+         42.0, True),
+    ]
+)
+def test_boolean_parameter_parsing(parameter_type, parsed_data, packet_data, expected_raw, expected_derived):
+    """Test parsing boolean parameters"""
+    raw, derived = parameter_type.parse_value(bitstring.ConstBitStream(packet_data), parsed_data)
+    assert raw == expected_raw
+    assert derived == expected_derived
 
 
 # ---------------

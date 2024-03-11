@@ -1161,10 +1161,7 @@ class StringDataEncoding(DataEncoding):
                 strlen_bits = parsed_data[self.dynamic_length_reference].raw_value
             strlen_bits = int(strlen_bits)
         elif self.termination_character is not None:
-            print(f"hex termination character: {self.termination_character}")
             termination_char_utf8_bytes = bytes.fromhex(self.termination_character)
-            print(f"bytes termination character (utf-8): {termination_char_utf8_bytes}, "
-                  f"len={len(termination_char_utf8_bytes)}")
 
             if self.encoding in ['utf-16-le', 'utf-16-be']:
                 bytes_per_char = 2
@@ -1178,12 +1175,9 @@ class StringDataEncoding(DataEncoding):
             bits_per_byte = 8
             look_ahead_n_bytes = 0
             while look_ahead_n_bytes <= len(packet_data) - packet_data.pos:
-                print(f"looking ahead {look_ahead_n_bytes} bytes")
                 look_ahead = packet_data.peek(f'bytes:{look_ahead_n_bytes}')  # Outputs UTF-8 encoded byte string
                 look_ahead = look_ahead.decode('utf-8').encode(self.encoding)  # Force specified encoding
-                print(f"string so far: {look_ahead}")
                 if termination_char_utf8_bytes in look_ahead:
-                    print('Found termination character.')
                     # Implicit assumption of one termination character in specified encoding
                     tclen_bits = bytes_per_char * bits_per_byte
                     strlen_bits = (look_ahead_n_bytes * bits_per_byte) - tclen_bits
@@ -1431,6 +1425,9 @@ class FloatDataEncoding(NumericDataEncoding):
                              f"Must be one of {self._supported_encodings}.")
         if encoding == 'MIL-1750A':
             raise NotImplementedError("MIL-1750A encoded floats are not supported by this library yet.")
+        if encoding == 'IEEE-754' and size_in_bits not in (16, 32, 64):
+            raise ValueError(f"Invalid size_in_bits value for IEEE-754 FloatDataEncoding, {size_in_bits}. "
+                             "Must be 16, 32, or 64.")
         super().__init__(size_in_bits, encoding=encoding,
                          default_calibrator=default_calibrator, context_calibrators=context_calibrators)
 
@@ -1693,7 +1690,7 @@ class ParameterType(AttrComparable, metaclass=ABCMeta):
         """
         for data_encoding in [StringDataEncoding, IntegerDataEncoding, FloatDataEncoding, BinaryDataEncoding]:
             # Try to find each type of data encoding element. If we find one, we assume it's the only one.
-            element = parameter_type_element.find(f"xtce:{data_encoding.__name__}", ns)
+            element = parameter_type_element.find(f".//xtce:{data_encoding.__name__}", ns)
             if element is not None:
                 return data_encoding.from_data_encoding_xml_element(element, ns)
 
@@ -1868,6 +1865,51 @@ class BinaryParameterType(ParameterType):
         self.encoding = encoding
 
 
+class BooleanParameterType(ParameterType):
+    """<xtce:BooleanParameterType>"""
+
+    def __init__(self, name: str, encoding: DataEncoding, unit: str = None):
+        """Constructor that just issues a warning if the encoding is String or Binary"""
+        if isinstance(encoding, (BinaryDataEncoding, StringDataEncoding)):
+            warnings.warn(f"You are encoding a BooleanParameterType with a {type(encoding)} encoding."
+                          f"This is almost certainly a very bad idea because the behavior of string and binary "
+                          f"encoded booleans is not specified in XTCE. e.g. is the string \"0\" truthy?")
+        super().__init__(name, encoding, unit)
+
+    def parse_value(self, packet_data: bitstring.ConstBitStream, parsed_data: dict, **kwargs):
+        """Using the parameter type definition and associated data encoding, parse a value from a bit stream starting
+        at the current cursor position.
+
+        Parameters
+        ----------
+        packet_data : bitstring.ConstBitStream
+            Binary packet data with cursor at the beginning of this parameter's data field.
+        parsed_data : dict
+            Previously parsed data
+
+        Returns
+        -------
+        parsed_value : int
+            Raw encoded value
+        derived_value : str
+            Resulting boolean representation of the encoded raw value
+        """
+        raw, _ = super().parse_value(packet_data, parsed_data, **kwargs)
+        # Note: This behaves very strangely for String and Binary data encodings.
+        # Don't use those for Boolean parameters. The behavior isn't specified well in XTCE.
+        return raw, bool(raw)
+
+
+class AbsoluteTimeParameterType(ParameterType):
+    """<xtce:AbsoluteTimeParameterType>"""
+    pass
+
+
+class RelativeTimeParameterType(ParameterType):
+    """<xtce:RelativeTimeParameterType>"""
+    pass
+
+
 class Parameter(AttrComparable):
     """<xtce:Parameter>"""
 
@@ -1958,6 +2000,9 @@ class XtcePacketDefinition:
         '{{{xtce}}}FloatParameterType': FloatParameterType,
         '{{{xtce}}}EnumeratedParameterType': EnumeratedParameterType,
         '{{{xtce}}}BinaryParameterType': BinaryParameterType,
+        '{{{xtce}}}BooleanParameterType': BooleanParameterType,
+        '{{{xtce}}}AbsoluteTimeParameterType': AbsoluteTimeParameterType,
+        '{{{xtce}}}RelativeTimeParameterType': RelativeTimeParameterType,
     }
 
     def __init__(self, xtce_document: str or Path, ns: dict = None):
