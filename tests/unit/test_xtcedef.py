@@ -626,6 +626,10 @@ def test_string_data_encoding(xml_string: str, expectation):
 """,
          xtcedef.IntegerDataEncoding(size_in_bits=4, encoding='unsigned')),
         ("""
+<xtce:IntegerDataEncoding xmlns:xtce="http://www.omg.org/space/xtce" sizeInBits="4"/>
+""",
+         xtcedef.IntegerDataEncoding(size_in_bits=4, encoding='unsigned')),
+        ("""
 <xtce:IntegerDataEncoding xmlns:xtce="http://www.omg.org/space/xtce" sizeInBits="16" encoding="unsigned">
     <xtce:DefaultCalibrator>
         <xtce:PolynomialCalibrator>
@@ -1490,6 +1494,41 @@ def test_boolean_parameter_parsing(parameter_type, parsed_data, packet_data, exp
     raw, derived = parameter_type.parse_value(bitstring.ConstBitStream(packet_data), parsed_data)
     assert raw == expected_raw
     assert derived == expected_derived
+
+
+@pytest.mark.parametrize(
+    ('xml_string', 'expectation'),
+    [
+        ("""
+<xtce:AbsoluteTimeParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
+    <xtce:Encoding units="seconds">
+        <xtce:IntegerDataEncoding sizeInBits="32"/>
+    </xtce:Encoding>
+    <xtce:ReferenceTime>
+        <xtce:OffsetFrom parameterRef="MilliSeconds"/>
+        <xtce:Epoch>TAI</xtce:Epoch>
+    </xtce:ReferenceTime>
+</xtce:AbsoluteTimeParameterType>
+""",
+         xtcedef.AbsoluteTimeParameterType(name='TEST_PARAM_Type', unit='seconds',
+                                           encoding=xtcedef.IntegerDataEncoding(size_in_bits=32, encoding="unsigned"),
+                                           epoch="TAI", offset_from="MilliSeconds")),
+    ]
+)
+def test_absolute_time_parameter_type(xml_string, expectation):
+    """Test parsing an AbsoluteTimeParameterType from an XML string."""
+    element = ElementTree.fromstring(xml_string)
+
+    if isinstance(expectation, Exception):
+        with pytest.raises(type(expectation)):
+            xtcedef.AbsoluteTimeParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+    else:
+        result = xtcedef.AbsoluteTimeParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+        assert result == expectation
+
+
+def test_absolute_time_parameter_parsing():
+    pass
 
 
 # ---------------

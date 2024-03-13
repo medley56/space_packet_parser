@@ -160,6 +160,8 @@ class PacketParser:
         # We also just reparsed the CCSDS header though as well, so that's an additional 6 octets
         return 8 * (pkt_len + 1 + 6)
 
+    # DEPRECATED! Remove in next major release along with CSV parser
+    # pylint: disable=inconsistent-return-statements
     def _determine_packet_by_restrictions(self, parsed_header: dict) -> Tuple[str, list]:
         """Examines a dictionary representation of a CCSDS header and determines which packet type applies.
         This packet type must be unique. If the header data satisfies the restrictions for more than one packet
@@ -213,6 +215,7 @@ class PacketParser:
                 "Unable to choose a packet type to parse. "
                 "Note: Restricting container inheritance based on non-header data items is not possible in a "
                 "general way and is not supported by this package.", partial_data=parsed_header)
+        # pylint: enable=inconsistent-return-statements
 
     @staticmethod
     def parse_packet(packet_data: bitstring.ConstBitStream,
@@ -379,7 +382,7 @@ class PacketParser:
         if log is True:
             logger.info(loadbar)
 
-    def generator(self,
+    def generator(self,  # pylint: disable=too-many-branches,too-many-statements
                   binary_data: bitstring.ConstBitStream or BinaryIO or socket.socket,
                   parse_bad_pkts: bool = True,
                   skip_header_bits: int = 0,
@@ -473,7 +476,7 @@ class PacketParser:
                 buffer += new_bits
                 n_new_bits = len(new_bits)
             elif isinstance(source, io.TextIOWrapper):
-                raise IOError(f"Packet data file opened in TextIO mode. You must open packet data in binary mode.")
+                raise IOError("Packet data file opened in TextIO mode. You must open packet data in binary mode.")
             else:
                 raise IOError(f"Unrecognized data source: {source}")
 
