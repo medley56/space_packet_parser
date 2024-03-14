@@ -237,7 +237,7 @@ class Comparison(MatchCriteria):
         if isinstance(required_value, str):
             parsed_value = f"'{parsed_value}'"
             required_value = f"'{required_value}'"
-        return eval(f"{parsed_value} {operator} {required_value}")
+        return eval(f"{parsed_value} {operator} {required_value}")  # pylint: disable=eval-used
 
 
 class Condition(MatchCriteria):
@@ -392,7 +392,7 @@ class Condition(MatchCriteria):
         if isinstance(left_value, str):
             left_value = f"'{left_value}'"
             right_value = f"'{right_value}'"
-        return eval(f"{left_value} {operator} {right_value}")
+        return eval(f"{left_value} {operator} {right_value}")  # pylint: disable=eval-used
 
 
 Anded = namedtuple('Anded', ['conditions', 'ors'])
@@ -463,13 +463,15 @@ class BooleanExpression(MatchCriteria):
             return cls(expression=_parse_ored(element.find('xtce:ORedConditions', ns)))
         raise ValueError(f"Failed to parse {element}")
 
-    def evaluate(self, parsed_data: dict, **kwargs) -> bool:
+    def evaluate(self, parsed_data: dict, current_parsed_value: int or float = None) -> bool:
         """Evaluate the criteria in the BooleanExpression down to a single boolean.
 
         Parameters
         ----------
         parsed_data : dict
             Dictionary of parsed parameter data so far. Used to evaluate truthyness of the match criteria.
+        current_parsed_value : int or float, Optional
+            Current value being parsed.
 
         Returns
         -------
@@ -1140,6 +1142,7 @@ class StringDataEncoding(DataEncoding):
         : int or None
             Number of bits to skip after parsing the string
         """
+        # pylint: disable=too-many-branches
         skip_bits_after = 0  # Gets modified if we have a termination character
         if self.fixed_length:
             strlen_bits = self.fixed_length
@@ -1161,10 +1164,7 @@ class StringDataEncoding(DataEncoding):
                 strlen_bits = parsed_data[self.dynamic_length_reference].raw_value
             strlen_bits = int(strlen_bits)
         elif self.termination_character is not None:
-            print(f"hex termination character: {self.termination_character}")
             termination_char_utf8_bytes = bytes.fromhex(self.termination_character)
-            print(f"bytes termination character (utf-8): {termination_char_utf8_bytes}, "
-                  f"len={len(termination_char_utf8_bytes)}")
 
             if self.encoding in ['utf-16-le', 'utf-16-be']:
                 bytes_per_char = 2
@@ -1178,12 +1178,9 @@ class StringDataEncoding(DataEncoding):
             bits_per_byte = 8
             look_ahead_n_bytes = 0
             while look_ahead_n_bytes <= len(packet_data) - packet_data.pos:
-                print(f"looking ahead {look_ahead_n_bytes} bytes")
                 look_ahead = packet_data.peek(f'bytes:{look_ahead_n_bytes}')  # Outputs UTF-8 encoded byte string
                 look_ahead = look_ahead.decode('utf-8').encode(self.encoding)  # Force specified encoding
-                print(f"string so far: {look_ahead}")
                 if termination_char_utf8_bytes in look_ahead:
-                    print('Found termination character.')
                     # Implicit assumption of one termination character in specified encoding
                     tclen_bits = bytes_per_char * bits_per_byte
                     strlen_bits = (look_ahead_n_bytes * bits_per_byte) - tclen_bits
@@ -1199,6 +1196,7 @@ class StringDataEncoding(DataEncoding):
         if self.length_linear_adjuster is not None:
             strlen_bits = self.length_linear_adjuster(strlen_bits)
         return f"bytes:{strlen_bits // 8}", skip_bits_after
+        # pylint: enable=too-many-branches
 
     def parse_value(self, packet_data: bitstring.ConstBitStream, parsed_data: dict, **kwargs):
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
@@ -1228,7 +1226,8 @@ class StringDataEncoding(DataEncoding):
         Strings in XTCE can be described in three ways:
 
         1. Using a termination character that marks the end of the string.
-        2. Using a fixed length, which may be derived from referenced parameter either directly or via a discrete lookup table.
+        2. Using a fixed length, which may be derived from referenced parameter either directly or via a discrete
+           lookup table.
         3. Using a leading size field that describes the size of the following string.
 
         Parameters
@@ -1394,7 +1393,10 @@ class IntegerDataEncoding(NumericDataEncoding):
         : cls
         """
         size_in_bits = int(element.attrib['sizeInBits'])
-        encoding = element.attrib['encoding']
+        if 'encoding' in element.attrib:
+            encoding = element.attrib['encoding']
+        else:
+            encoding = "unsigned"
         calibrator = cls.get_default_calibrator(element, ns)
         context_calibrators = cls.get_context_calibrators(element, ns)
         return cls(size_in_bits=size_in_bits, encoding=encoding,
@@ -1431,6 +1433,9 @@ class FloatDataEncoding(NumericDataEncoding):
                              f"Must be one of {self._supported_encodings}.")
         if encoding == 'MIL-1750A':
             raise NotImplementedError("MIL-1750A encoded floats are not supported by this library yet.")
+        if encoding == 'IEEE-754' and size_in_bits not in (16, 32, 64):
+            raise ValueError(f"Invalid size_in_bits value for IEEE-754 FloatDataEncoding, {size_in_bits}. "
+                             "Must be 16, 32, or 64.")
         super().__init__(size_in_bits, encoding=encoding,
                          default_calibrator=default_calibrator, context_calibrators=context_calibrators)
 
@@ -1631,7 +1636,7 @@ class ParameterType(AttrComparable, metaclass=ABCMeta):
 
     @classmethod
     def from_parameter_type_xml_element(cls, element: ElementTree.Element, ns: dict):
-        """Create an IntegerParameterType from an <xtce:IntegerParameterType> XML element.
+        """Create a *ParameterType from an <xtce:*ParameterType> XML element.
 
         Parameters
         ----------
@@ -1642,7 +1647,7 @@ class ParameterType(AttrComparable, metaclass=ABCMeta):
 
         Returns
         -------
-        : IntegerParameterType
+        : ParameterType
         """
         name = element.attrib['name']
         unit = cls.get_units(element, ns)
@@ -1666,6 +1671,7 @@ class ParameterType(AttrComparable, metaclass=ABCMeta):
         -------
         : str or None
         """
+        # Assume we are not parsing a Time Parameter Type, which stores units differently
         units = parameter_type_element.findall('xtce:UnitSet/xtce:Unit', ns)
         # TODO: Implement multiple unit elements for compound unit definitions
         assert len(units) <= 1, f"Found {len(units)} <xtce:Unit> elements in a single <xtce:UnitSet>." \
@@ -1673,6 +1679,7 @@ class ParameterType(AttrComparable, metaclass=ABCMeta):
                                 f"and is not yet supported by this library."
         if units:
             return " ".join([u.text for u in units])
+        # Units are optional so return None if they aren't specified
         return None
 
     @staticmethod
@@ -1693,9 +1700,10 @@ class ParameterType(AttrComparable, metaclass=ABCMeta):
         """
         for data_encoding in [StringDataEncoding, IntegerDataEncoding, FloatDataEncoding, BinaryDataEncoding]:
             # Try to find each type of data encoding element. If we find one, we assume it's the only one.
-            element = parameter_type_element.find(f"xtce:{data_encoding.__name__}", ns)
+            element = parameter_type_element.find(f".//xtce:{data_encoding.__name__}", ns)
             if element is not None:
                 return data_encoding.from_data_encoding_xml_element(element, ns)
+        return None
 
     def parse_value(self, packet_data: bitstring.ConstBitStream, parsed_data: dict, **kwargs):
         """Using the parameter type definition and associated data encoding, parse a value from a bit stream starting
@@ -1868,6 +1876,217 @@ class BinaryParameterType(ParameterType):
         self.encoding = encoding
 
 
+class BooleanParameterType(ParameterType):
+    """<xtce:BooleanParameterType>"""
+
+    def __init__(self, name: str, encoding: DataEncoding, unit: str = None):
+        """Constructor that just issues a warning if the encoding is String or Binary"""
+        if isinstance(encoding, (BinaryDataEncoding, StringDataEncoding)):
+            warnings.warn(f"You are encoding a BooleanParameterType with a {type(encoding)} encoding."
+                          f"This is almost certainly a very bad idea because the behavior of string and binary "
+                          f"encoded booleans is not specified in XTCE. e.g. is the string \"0\" truthy?")
+        super().__init__(name, encoding, unit)
+
+    def parse_value(self, packet_data: bitstring.ConstBitStream, parsed_data: dict, **kwargs):
+        """Using the parameter type definition and associated data encoding, parse a value from a bit stream starting
+        at the current cursor position.
+
+        Parameters
+        ----------
+        packet_data : bitstring.ConstBitStream
+            Binary packet data with cursor at the beginning of this parameter's data field.
+        parsed_data : dict
+            Previously parsed data
+
+        Returns
+        -------
+        parsed_value : int
+            Raw encoded value
+        derived_value : str
+            Resulting boolean representation of the encoded raw value
+        """
+        raw, _ = super().parse_value(packet_data, parsed_data, **kwargs)
+        # Note: This behaves very strangely for String and Binary data encodings.
+        # Don't use those for Boolean parameters. The behavior isn't specified well in XTCE.
+        return raw, bool(raw)
+
+
+class TimeParameterType(ParameterType, metaclass=ABCMeta):
+    """Abstract class for time parameter types"""
+
+    def __init__(self, name: str, encoding: DataEncoding, unit: str = None,
+                 epoch: str = None, offset_from: str = None):
+        """Constructor
+
+        Parameters
+        ----------
+        name : str
+            Parameter type name. Usually something like 'MSN__PARAM_Type'.
+        encoding : DataEncoding
+            How the data is encoded. e.g. IntegerDataEncoding, StringDataEncoding, etc.
+        unit : str, Optional
+            String describing the unit for the stored value. Note that if a scale and offset are provided on
+            the Encoding element, the unit applies to the scaled value, not the raw value.
+        epoch : str, Optional
+            String describing the starting epoch for the date or datetime encoded in the parameter.
+            Must be xs:date, xs:dateTime, or one of the following: "TAI", "J2000", "UNIX", "POSIX", "GPS".
+        offset_from : str, Optional
+            Used to reference another time parameter by name. It allows
+            for the stringing together of several dissimilar but related time parameters.
+
+        Notes
+        -----
+        The XTCE spec is not very clear about OffsetFrom or what it is for. We parse it but don't use it for
+        anything.
+        """
+        super().__init__(name, encoding, unit=unit)
+        self.epoch = epoch
+        self.offset_from = offset_from
+
+    @classmethod
+    def from_parameter_type_xml_element(cls, element: ElementTree.Element, ns: dict):
+        """Create a *TimeParameterType from an <xtce:*TimeParameterType> XML element.
+
+        Parameters
+        ----------
+        element : ElementTree.Element
+            The XML element from which to create the object.
+        ns: dict
+            XML namespace dict
+
+        Returns
+        -------
+        : TimeParameterType
+        """
+        name = element.attrib['name']
+        unit = cls.get_units(element, ns)
+        encoding = cls.get_data_encoding(element, ns)
+        encoding_unit_scaler = cls.get_time_unit_linear_scaler(element, ns)
+        if encoding_unit_scaler:
+            encoding.default_calibrator = encoding_unit_scaler
+        epoch = cls.get_epoch(element, ns)
+        offset_from = cls.get_offset_from(element, ns)
+        return cls(name, encoding, unit, epoch, offset_from)
+
+    @staticmethod
+    def get_units(parameter_type_element: ElementTree.Element, ns: dict) -> str or None:
+        """Finds the units associated with a parameter type element and parsed them to return a unit string.
+        We assume only one <xtce:Unit> but this could be extended to support multiple units.
+        See section 4.3.2.2.4 of CCSDS 660.1-G-1
+
+        Parameters
+        ----------
+        parameter_type_element : ElementTree.Element
+            The parameter type element
+        ns : dict
+            XML namespace dictionary
+
+        Returns
+        -------
+        : str or None
+        """
+        encoding_element = parameter_type_element.find('xtce:Encoding', ns)
+        if encoding_element and "units" in encoding_element.attrib:
+            units = encoding_element.attrib["units"]
+            return units
+        # Units are optional so return None if they aren't specified
+        return None
+
+    @staticmethod
+    def get_time_unit_linear_scaler(
+            parameter_type_element: ElementTree.Element, ns: dict) -> PolynomialCalibrator or None:
+        """Finds the linear calibrator associated with the Encoding element for the parameter type element.
+        See section 4.3.2.4.8.3 of CCSDS 660.1-G-2
+
+        Parameters
+        ----------
+        parameter_type_element : ElementTree.Element
+            The parameter type element
+        ns : dict
+            XML namespace dictionary
+
+        Returns
+        -------
+        : PolynomialCalibrator or None
+        """
+        encoding_element = parameter_type_element.find('xtce:Encoding', ns)
+        coefficients = []
+
+        if "offset" in encoding_element.attrib:
+            offset = encoding_element.attrib["offset"]
+            c0 = PolynomialCoefficient(coefficient=float(offset), exponent=0)
+            coefficients.append(c0)
+
+        if "scale" in encoding_element.attrib:
+            scale = encoding_element.attrib["scale"]
+            c1 = PolynomialCoefficient(coefficient=float(scale), exponent=1)
+            coefficients.append(c1)
+        # If we have an offset but not a scale, we need to add a first order term with coefficient 1
+        elif "offset" in encoding_element.attrib:
+            c1 = PolynomialCoefficient(coefficient=1, exponent=1)
+            coefficients.append(c1)
+
+        if coefficients:
+            return PolynomialCalibrator(coefficients=coefficients)
+        # If we didn't find offset nor scale, return None (no calibrator)
+        return None
+
+    @staticmethod
+    def get_epoch(parameter_type_element: ElementTree.Element, ns: dict) -> str or None:
+        """Finds the epoch associated with a parameter type element and parses them to return an epoch string.
+        See section 4.3.2.4.9 of CCSDS 660.1-G-2
+
+        Parameters
+        ----------
+        parameter_type_element : ElementTree.Element
+            The parameter type element
+        ns : dict
+            XML namespace dictionary
+
+        Returns
+        -------
+        : str or None
+            The epoch string, which may be a datetime string or a named epoch such as TAI.
+        """
+        epoch_element = parameter_type_element.find('xtce:ReferenceTime/xtce:Epoch', ns)
+        if epoch_element is not None:
+            return epoch_element.text
+        return None
+
+    @staticmethod
+    def get_offset_from(parameter_type_element: ElementTree.Element, ns: dict) -> str or None:
+        """Finds the parameter referenced in OffsetFrom in a parameter type element and returns the name of the
+        referenced parameter (which must be of type TimeParameterType).
+        See section 4.3.2.4.9 of CCSDS 660.1-G-1
+
+        Parameters
+        ----------
+        parameter_type_element : ElementTree.Element
+            The parameter type element
+        ns : dict
+            XML namespace dictionary
+
+        Returns
+        -------
+        : str or None
+            The named of the referenced parameter.
+        """
+        offset_from_element = parameter_type_element.find('xtce:ReferenceTime/xtce:OffsetFrom', ns)
+        if offset_from_element is not None:
+            return offset_from_element.attrib['parameterRef']
+        return None
+
+
+class AbsoluteTimeParameterType(TimeParameterType):
+    """<xtce:AbsoluteTimeParameterType>"""
+    pass
+
+
+class RelativeTimeParameterType(TimeParameterType):
+    """<xtce:RelativeTimeParameterType>"""
+    pass
+
+
 class Parameter(AttrComparable):
     """<xtce:Parameter>"""
 
@@ -1958,6 +2177,9 @@ class XtcePacketDefinition:
         '{{{xtce}}}FloatParameterType': FloatParameterType,
         '{{{xtce}}}EnumeratedParameterType': EnumeratedParameterType,
         '{{{xtce}}}BinaryParameterType': BinaryParameterType,
+        '{{{xtce}}}BooleanParameterType': BooleanParameterType,
+        '{{{xtce}}}AbsoluteTimeParameterType': AbsoluteTimeParameterType,
+        '{{{xtce}}}RelativeTimeParameterType': RelativeTimeParameterType,
     }
 
     def __init__(self, xtce_document: str or Path, ns: dict = None):

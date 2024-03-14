@@ -14,6 +14,8 @@ Release notes for the `space_packet_parser` library
 - Parse short and long descriptions of parameters
 - Implement equality checking for SequenceContainer objects and Parameter objects
 - Include parameter short description and long description in ParsedDataItems
+- Add support for AbsoluteTimeParameterType and RelativeTimeParameterType
+- Drop support for bitstring <4.0.1
 
 ### v4.1.1 (released)
 - Allow Python 3.12
