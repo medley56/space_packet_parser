@@ -1513,6 +1513,77 @@ def test_boolean_parameter_parsing(parameter_type, parsed_data, packet_data, exp
          xtcedef.AbsoluteTimeParameterType(name='TEST_PARAM_Type', unit='seconds',
                                            encoding=xtcedef.IntegerDataEncoding(size_in_bits=32, encoding="unsigned"),
                                            epoch="TAI", offset_from="MilliSeconds")),
+        ("""
+<xtce:AbsoluteTimeParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
+    <xtce:Encoding scale="1E-6" offset="0" units="s">
+        <xtce:IntegerDataEncoding sizeInBits="32"/>
+    </xtce:Encoding>
+    <xtce:ReferenceTime>
+        <xtce:OffsetFrom parameterRef="MilliSeconds"/>
+        <xtce:Epoch>2009-10-10T12:00:00-05:00</xtce:Epoch>
+    </xtce:ReferenceTime>
+</xtce:AbsoluteTimeParameterType>
+""",
+         xtcedef.AbsoluteTimeParameterType(
+             name='TEST_PARAM_Type', unit='s',
+             encoding=xtcedef.IntegerDataEncoding(
+                 size_in_bits=32, encoding="unsigned",
+                 default_calibrator=xtcedef.PolynomialCalibrator(
+                     coefficients=[
+                         xtcedef.PolynomialCoefficient(0, 0),
+                         xtcedef.PolynomialCoefficient(1E-6, 1)
+                     ])),
+             epoch="2009-10-10T12:00:00-05:00", offset_from="MilliSeconds")),
+        ("""
+<xtce:AbsoluteTimeParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
+    <xtce:Encoding scale="1.31E-6" units="s">
+        <xtce:IntegerDataEncoding sizeInBits="32"/>
+    </xtce:Encoding>
+</xtce:AbsoluteTimeParameterType>
+""",
+         xtcedef.AbsoluteTimeParameterType(
+             name='TEST_PARAM_Type', unit='s',
+             encoding=xtcedef.IntegerDataEncoding(
+                 size_in_bits=32, encoding="unsigned",
+                 default_calibrator=xtcedef.PolynomialCalibrator(
+                     coefficients=[
+                         xtcedef.PolynomialCoefficient(1.31E-6, 1)
+                     ]))
+         )),
+        ("""
+<xtce:AbsoluteTimeParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
+    <xtce:Encoding offset="147.884" units="s">
+        <xtce:IntegerDataEncoding sizeInBits="32"/>
+    </xtce:Encoding>
+</xtce:AbsoluteTimeParameterType>
+""",
+         xtcedef.AbsoluteTimeParameterType(
+             name='TEST_PARAM_Type', unit='s',
+             encoding=xtcedef.IntegerDataEncoding(
+                 size_in_bits=32, encoding="unsigned",
+                 default_calibrator=xtcedef.PolynomialCalibrator(
+                     coefficients=[
+                         xtcedef.PolynomialCoefficient(147.884, 0),
+                         xtcedef.PolynomialCoefficient(1, 1)
+                     ]))
+         )),
+        ("""
+<xtce:AbsoluteTimeParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
+    <xtce:Encoding offset="147.884" units="s">
+        <xtce:FloatDataEncoding sizeInBits="32"/>
+    </xtce:Encoding>
+</xtce:AbsoluteTimeParameterType>
+""",
+         xtcedef.AbsoluteTimeParameterType(
+             name='TEST_PARAM_Type', unit='s',
+             encoding=xtcedef.FloatDataEncoding(
+                 size_in_bits=32, encoding="IEEE-754",
+                 default_calibrator=xtcedef.PolynomialCalibrator(
+                     coefficients=[
+                         xtcedef.PolynomialCoefficient(147.884, 0),
+                         xtcedef.PolynomialCoefficient(1, 1)
+                     ]))
+         )),
     ]
 )
 def test_absolute_time_parameter_type(xml_string, expectation):
@@ -1527,8 +1598,47 @@ def test_absolute_time_parameter_type(xml_string, expectation):
         assert result == expectation
 
 
-def test_absolute_time_parameter_parsing():
-    pass
+@pytest.mark.parametrize(
+    ('parameter_type', 'parsed_data', 'packet_data', 'expected_raw', 'expected_derived'),
+    [
+        (xtcedef.AbsoluteTimeParameterType(name='TEST_PARAM_Type', unit='seconds',
+                                           encoding=xtcedef.IntegerDataEncoding(size_in_bits=32, encoding="unsigned"),
+                                           epoch="TAI", offset_from="MilliSeconds"),
+         {},
+         '0b0011010000110010010100110000000001001011000000000100100100000000',
+         875713280, 875713280),
+        (xtcedef.AbsoluteTimeParameterType(
+             name='TEST_PARAM_Type', unit='s',
+             encoding=xtcedef.IntegerDataEncoding(
+                 size_in_bits=32, encoding="unsigned",
+                 default_calibrator=xtcedef.PolynomialCalibrator(
+                     coefficients=[
+                         xtcedef.PolynomialCoefficient(0, 0),
+                         xtcedef.PolynomialCoefficient(1E-6, 1)
+                     ])),
+             epoch="2009-10-10T12:00:00-05:00", offset_from="MilliSeconds"),
+         {},
+         '0b0011010000110010010100110000000001001011000000000100100100000000',
+         875713280, 875.7132799999999),
+        (xtcedef.AbsoluteTimeParameterType(
+             name='TEST_PARAM_Type', unit='s',
+             encoding=xtcedef.FloatDataEncoding(
+                 size_in_bits=32, encoding="IEEE-754",
+                 default_calibrator=xtcedef.PolynomialCalibrator(
+                     coefficients=[
+                         xtcedef.PolynomialCoefficient(147.884, 0),
+                         xtcedef.PolynomialCoefficient(1, 1)
+                     ]))),
+         {},
+         '0b01000000010010010000111111011011001001011000000000100100100000000',
+         3.1415927, 151.02559269999998),
+    ]
+)
+def test_absolute_time_parameter_parsing(parameter_type, parsed_data, packet_data, expected_raw, expected_derived):
+    raw, derived = parameter_type.parse_value(bitstring.ConstBitStream(packet_data), parsed_data)
+    assert round(raw, 5) == round(expected_raw, 5)
+    # NOTE: derived values are rounded for comparison due to imprecise storage of floats
+    assert round(derived, 5) == round(expected_derived, 5)
 
 
 # ---------------

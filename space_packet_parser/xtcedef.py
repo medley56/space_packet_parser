@@ -1925,7 +1925,8 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
         encoding : DataEncoding
             How the data is encoded. e.g. IntegerDataEncoding, StringDataEncoding, etc.
         unit : str, Optional
-            String describing the unit for the stored value.
+            String describing the unit for the stored value. Note that if a scale and offset are provided on
+            the Encoding element, the unit applies to the scaled value, not the raw value.
         epoch : str, Optional
             String describing the starting epoch for the date or datetime encoded in the parameter.
             Must be xs:date, xs:dateTime, or one of the following: "TAI", "J2000", "UNIX", "POSIX", "GPS".
@@ -1960,6 +1961,9 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
         name = element.attrib['name']
         unit = cls.get_units(element, ns)
         encoding = cls.get_data_encoding(element, ns)
+        encoding_unit_scaler = cls.get_time_unit_linear_scaler(element, ns)
+        if encoding_unit_scaler:
+            encoding.default_calibrator = encoding_unit_scaler
         epoch = cls.get_epoch(element, ns)
         offset_from = cls.get_offset_from(element, ns)
         return cls(name, encoding, unit, epoch, offset_from)
@@ -1986,6 +1990,45 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
             units = encoding_element.attrib["units"]
             return units
         # Units are optional so return None if they aren't specified
+        return None
+
+    @staticmethod
+    def get_time_unit_linear_scaler(
+            parameter_type_element: ElementTree.Element, ns: dict) -> PolynomialCalibrator or None:
+        """Finds the linear calibrator associated with the Encoding element for the parameter type element.
+        See section 4.3.2.4.8.3 of CCSDS 660.1-G-2
+
+        Parameters
+        ----------
+        parameter_type_element : ElementTree.Element
+            The parameter type element
+        ns : dict
+            XML namespace dictionary
+
+        Returns
+        -------
+        : PolynomialCalibrator or None
+        """
+        encoding_element = parameter_type_element.find('xtce:Encoding', ns)
+        coefficients = []
+
+        if "offset" in encoding_element.attrib:
+            offset = encoding_element.attrib["offset"]
+            c0 = PolynomialCoefficient(coefficient=float(offset), exponent=0)
+            coefficients.append(c0)
+
+        if "scale" in encoding_element.attrib:
+            scale = encoding_element.attrib["scale"]
+            c1 = PolynomialCoefficient(coefficient=float(scale), exponent=1)
+            coefficients.append(c1)
+        # If we have an offset but not a scale, we need to add a first order term with coefficient 1
+        elif "offset" in encoding_element.attrib:
+            c1 = PolynomialCoefficient(coefficient=1, exponent=1)
+            coefficients.append(c1)
+
+        if coefficients:
+            return PolynomialCalibrator(coefficients=coefficients)
+        # If we didn't find offset nor scale, return None (no calibrator)
         return None
 
     @staticmethod
@@ -2036,7 +2079,6 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
 
 class AbsoluteTimeParameterType(TimeParameterType):
     """<xtce:AbsoluteTimeParameterType>"""
-
     pass
 
 
