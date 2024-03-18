@@ -3,7 +3,6 @@ This is a log of changes made to the library over time
 
 ## Long Term To-Do List
 - Add frame transfer parsing layer on top of CCSDS parsing layer
-- Support BooleanExpression in a ContextCalibrator
 - Add ByteOrderList support to encodings in xtcedef (search for TODOs)
 - Support multiple `xtce:Unit` elements for compound units
 
@@ -15,7 +14,9 @@ Release notes for the `space_packet_parser` library
 - Implement equality checking for SequenceContainer objects and Parameter objects
 - Include parameter short description and long description in ParsedDataItems
 - Add support for AbsoluteTimeParameterType and RelativeTimeParameterType
+- Add support for BooleanParameterType
 - Drop support for bitstring <4.0.1
+- Support BooleanExpression in a ContextCalibrator
 
 ### v4.1.1 (released)
 - Allow Python 3.12

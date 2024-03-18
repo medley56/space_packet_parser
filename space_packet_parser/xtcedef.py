@@ -864,10 +864,12 @@ class ContextCalibrator(AttrComparable):
         if context_match_element.find('xtce:Comparison', ns) is not None:
             return [Comparison.from_match_criteria_xml_element(
                 context_match_element.find('xtce:Comparison', ns), ns)]
-        # TODO: Implement handling of BooleanExpression
-        raise NotImplementedError("ContextCalibrator doesn't contain Comparison on ComparisonList. This probably"
-                                  "means the match criteria is an unsupported type (BooleanExpression or "
-                                  "CustomAlgorithm).")
+        if context_match_element.find('xtce:BooleanExpression', ns) is not None:
+            return [BooleanExpression.from_match_criteria_xml_element(
+                context_match_element.find('xtce:BooleanExpression', ns), ns)]
+        raise NotImplementedError("ContextCalibrator doesn't contain Comparison, ComparisonList, or BooleanExpression. "
+                                  "This probably means the match criteria is an unsupported type "
+                                  "(CustomAlgorithm).")
 
     @classmethod
     def from_context_calibrator_xml_element(cls, element: ElementTree.Element, ns: dict):
