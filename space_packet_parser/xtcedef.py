@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 from typing import Tuple
 import warnings
-import xml.etree as ElementTree
+from xml.etree import ElementTree
 # Installed
 import bitstring
 
