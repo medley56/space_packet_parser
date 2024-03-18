@@ -1231,7 +1231,7 @@ class StringDataEncoding(DataEncoding):
         return parsed_value.decode(self.encoding.lower()), None
 
     @classmethod
-    def from_data_encoding_xml_element(cls, element: ElementTree._Element, ns: dict):
+    def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict):
         """Create a data encoding object from an <xtce:StringDataEncoding> XML element.
         Strings in XTCE can be described in three ways:
 
@@ -1399,7 +1399,7 @@ class IntegerDataEncoding(NumericDataEncoding):
         return f"{base}{endianness}:{self.size_in_bits}"
 
     @classmethod
-    def from_data_encoding_xml_element(cls, element: ElementTree._Element, ns: dict):
+    def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict):
         """Create a data encoding object from an <xtce:IntegerDataEncoding> XML element.
 
         Parameters
@@ -1474,7 +1474,7 @@ class FloatDataEncoding(NumericDataEncoding):
         return f"float{endianness}:{self.size_in_bits}"
 
     @classmethod
-    def from_data_encoding_xml_element(cls, element: ElementTree._Element, ns: dict):
+    def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict):
         """Create a data encoding object from an <xtce:FloatDataEncoding> XML element.
 
         Parameters
