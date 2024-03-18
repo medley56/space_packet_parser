@@ -387,7 +387,51 @@ def test_discrete_lookup(xml_string, test_parsed_data, expected_lookup_result):
                  xtcedef.PolynomialCoefficient(coefficient=-0.045, exponent=2),
                  xtcedef.PolynomialCoefficient(coefficient=1.25, exponent=3),
                  xtcedef.PolynomialCoefficient(coefficient=0.0025, exponent=4)
-             ])))
+             ]))),
+        ("""
+<xtce:ContextCalibrator xmlns:xtce="http://www.omg.org/space/xtce">
+    <xtce:ContextMatch>
+        <xtce:BooleanExpression xmlns:xtce="http://www.omg.org/space/xtce">
+            <xtce:ANDedConditions>
+                <xtce:Condition>
+                    <xtce:ParameterInstanceRef parameterRef="P1"/>
+                    <xtce:ComparisonOperator>==</xtce:ComparisonOperator>
+                    <xtce:Value>100</xtce:Value>
+                </xtce:Condition>
+                <xtce:Condition>
+                    <xtce:ParameterInstanceRef parameterRef="P4"/>
+                    <xtce:ComparisonOperator>!=</xtce:ComparisonOperator>
+                    <xtce:Value>99</xtce:Value>
+                </xtce:Condition>
+            </xtce:ANDedConditions>
+        </xtce:BooleanExpression>
+    </xtce:ContextMatch>
+    <xtce:Calibrator>
+        <xtce:PolynomialCalibrator>
+            <xtce:Term exponent="0" coefficient="0.5"/>
+            <xtce:Term exponent="1" coefficient="1.5"/>
+        </xtce:PolynomialCalibrator>
+    </xtce:Calibrator>
+</xtce:ContextCalibrator>
+""",
+         xtcedef.ContextCalibrator(
+             match_criteria=[
+                 xtcedef.BooleanExpression(
+                     expression=xtcedef.Anded(
+                         conditions=[
+                             xtcedef.Condition(left_param='P1', operator='==', right_value='100',
+                                               right_use_calibrated_value=False),
+                             xtcedef.Condition(left_param='P4', operator='!=', right_value='99',
+                                               right_use_calibrated_value=False)
+                         ],
+                         ors=[]
+                     )
+                 ),
+             ],
+             calibrator=xtcedef.PolynomialCalibrator(coefficients=[
+                 xtcedef.PolynomialCoefficient(coefficient=0.5, exponent=0),
+                 xtcedef.PolynomialCoefficient(coefficient=1.5, exponent=1),
+             ]))),
     ]
 )
 def test_context_calibrator(xml_string, expectation):
@@ -396,6 +440,90 @@ def test_context_calibrator(xml_string, expectation):
 
     result = xtcedef.ContextCalibrator.from_context_calibrator_xml_element(element, TEST_NAMESPACE)
     assert result == expectation
+
+
+@pytest.mark.parametrize(
+    ('context_calibrator', 'parsed_data', 'parsed_value', 'match_expectation', 'expectation'),
+    [
+        (xtcedef.ContextCalibrator(
+             match_criteria=[
+                 xtcedef.Comparison(required_value='678', referenced_parameter='EXI__FPGAT', operator='>=',
+                                    use_calibrated_value=True),
+                 xtcedef.Comparison(required_value='4096', referenced_parameter='EXI__FPGAT', operator='<',
+                                    use_calibrated_value=True),
+             ],
+             calibrator=xtcedef.PolynomialCalibrator(coefficients=[
+                 xtcedef.PolynomialCoefficient(coefficient=0.5, exponent=0),
+                 xtcedef.PolynomialCoefficient(coefficient=1.5, exponent=1)
+             ])),
+            {"EXI__FPGAT": parser.ParsedDataItem("EXI__FPGAT", 600, derived_value=700)},
+            42, True, 63.5),
+        (xtcedef.ContextCalibrator(
+             match_criteria=[
+                 xtcedef.Comparison(required_value='3.14', referenced_parameter='EXI__FPGAT', operator='!=',
+                                    use_calibrated_value=True),
+             ],
+             calibrator=xtcedef.PolynomialCalibrator(coefficients=[
+                 xtcedef.PolynomialCoefficient(coefficient=0.5, exponent=0),
+                 xtcedef.PolynomialCoefficient(coefficient=1.5, exponent=1),
+             ])),
+         {"EXI__FPGAT": parser.ParsedDataItem("EXI__FPGAT", 3.14, derived_value=700.0)},
+         42, True, 63.5),
+        (xtcedef.ContextCalibrator(
+             match_criteria=[
+                 xtcedef.BooleanExpression(
+                     expression=xtcedef.Anded(
+                         conditions=[
+                             xtcedef.Condition(left_param='P1', operator='==', right_value='700',
+                                               right_use_calibrated_value=False),
+                             xtcedef.Condition(left_param='P2', operator='!=', right_value='99',
+                                               right_use_calibrated_value=False)
+                         ],
+                         ors=[]
+                     )
+                 ),
+             ],
+             calibrator=xtcedef.PolynomialCalibrator(coefficients=[
+                 xtcedef.PolynomialCoefficient(coefficient=0.5, exponent=0),
+                 xtcedef.PolynomialCoefficient(coefficient=1.5, exponent=1),
+             ])),
+         {"P1": parser.ParsedDataItem("P1", 100.0, derived_value=700.0),
+          "P2": parser.ParsedDataItem("P2", 99, derived_value=700.0)},
+         42, True, 63.5),
+        (xtcedef.ContextCalibrator(
+             match_criteria=[
+                 xtcedef.BooleanExpression(
+                     expression=xtcedef.Ored(
+                         conditions=[  # Neither of these are true given the parsed data so far
+                             xtcedef.Condition(left_param='P1', operator='==', right_value='700',
+                                               left_use_calibrated_value=False,
+                                               right_use_calibrated_value=False),
+                             xtcedef.Condition(left_param='P2', operator='!=', right_value='700',
+                                               right_use_calibrated_value=False)
+                         ],
+                         ands=[]
+                     )
+                 ),
+             ],
+             calibrator=xtcedef.PolynomialCalibrator(coefficients=[
+                 xtcedef.PolynomialCoefficient(coefficient=0.5, exponent=0),
+                 xtcedef.PolynomialCoefficient(coefficient=1.5, exponent=1),
+             ])),
+         {"P1": parser.ParsedDataItem("P1", 100.0, derived_value=700.0),
+          "P2": parser.ParsedDataItem("P2", 99, derived_value=700.0)},
+         42, False, 63.5),
+    ]
+)
+def test_context_calibrator_calibrate(context_calibrator, parsed_data, parsed_value, match_expectation, expectation):
+    """Test context calibrator calibration"""
+    # Check if the context match is True or False given the parsed data so far
+    match = all(criterion.evaluate(parsed_data, parsed_value) for criterion in context_calibrator.match_criteria)
+    if match_expectation:
+        assert match
+    else:
+        assert not match
+    # Regardless of the context match, we still test the hypothetical result if the calibrator is evaluated
+    assert context_calibrator.calibrate(parsed_value) == expectation
 
 
 @pytest.mark.parametrize(
