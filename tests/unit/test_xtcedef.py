@@ -1,7 +1,7 @@
 """Tests for space_packet_parser.xtcedef"""
 import bitstring
 import pytest
-import lxml.etree as ElementTree
+import xml.etree as ElementTree
 
 from space_packet_parser import xtcedef, parser
 
@@ -626,6 +626,10 @@ def test_string_data_encoding(xml_string: str, expectation):
 """,
          xtcedef.IntegerDataEncoding(size_in_bits=4, encoding='unsigned')),
         ("""
+<xtce:IntegerDataEncoding xmlns:xtce="http://www.omg.org/space/xtce" sizeInBits="4"/>
+""",
+         xtcedef.IntegerDataEncoding(size_in_bits=4, encoding='unsigned')),
+        ("""
 <xtce:IntegerDataEncoding xmlns:xtce="http://www.omg.org/space/xtce" sizeInBits="16" encoding="unsigned">
     <xtce:DefaultCalibrator>
         <xtce:PolynomialCalibrator>
@@ -714,7 +718,7 @@ def test_integer_data_encoding(xml_string: str, expectation):
         ("""
 <xtce:FloatDataEncoding xmlns:xtce="http://www.omg.org/space/xtce" sizeInBits="4" encoding="IEEE-754"/>
 """,
-         xtcedef.FloatDataEncoding(size_in_bits=4, encoding='IEEE-754')),
+         ValueError()),
         ("""
 <xtce:FloatDataEncoding xmlns:xtce="http://www.omg.org/space/xtce" sizeInBits="16">
     <xtce:DefaultCalibrator>
@@ -1111,6 +1115,16 @@ def test_integer_parameter_parsing(parameter_type, parsed_data, packet_data, exp
     <xtce:UnitSet>
         <xtce:Unit>smoot</xtce:Unit>
     </xtce:UnitSet>
+    <xtce:FloatDataEncoding sizeInBits="16"/>
+</xtce:FloatParameterType>
+""",
+         xtcedef.FloatParameterType(name='TEST_INT_Type', unit='smoot',
+                                    encoding=xtcedef.FloatDataEncoding(size_in_bits=16, encoding='IEEE-754'))),
+        ("""
+<xtce:FloatParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_INT_Type">
+    <xtce:UnitSet>
+        <xtce:Unit>smoot</xtce:Unit>
+    </xtce:UnitSet>
     <xtce:IntegerDataEncoding sizeInBits="16" encoding="unsigned"/>
 </xtce:FloatParameterType>
 """,
@@ -1379,6 +1393,254 @@ def test_binary_parameter_parsing(parameter_type, parsed_data, packet_data, expe
     assert raw == expected
 
 
+@pytest.mark.parametrize(
+    ('xml_string', 'expectation'),
+    [
+        ("""
+<xtce:BooleanParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
+    <xtce:UnitSet>
+        <xtce:Unit>smoot</xtce:Unit>
+    </xtce:UnitSet>
+    <xtce:BinaryDataEncoding>
+        <xtce:SizeInBits>
+            <xtce:FixedValue>1</xtce:FixedValue>
+        </xtce:SizeInBits>
+    </xtce:BinaryDataEncoding>
+</xtce:BooleanParameterType>
+""",
+         xtcedef.BooleanParameterType(name='TEST_PARAM_Type', unit='smoot',
+                                      encoding=xtcedef.BinaryDataEncoding(fixed_size_in_bits=1))),
+        ("""
+<xtce:BooleanParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
+    <xtce:UnitSet>
+        <xtce:Unit>smoot</xtce:Unit>
+    </xtce:UnitSet>
+    <xtce:IntegerDataEncoding encoding="unsigned" sizeInBits="1"/>
+</xtce:BooleanParameterType>
+""",
+         xtcedef.BooleanParameterType(name='TEST_PARAM_Type', unit='smoot',
+                                      encoding=xtcedef.IntegerDataEncoding(size_in_bits=1, encoding="unsigned"))),
+        ("""
+<xtce:BooleanParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
+    <xtce:UnitSet>
+        <xtce:Unit>smoot</xtce:Unit>
+    </xtce:UnitSet>
+    <xtce:StringDataEncoding encoding="utf-8">
+        <xtce:SizeInBits>
+            <xtce:TerminationChar>00</xtce:TerminationChar>
+        </xtce:SizeInBits>
+    </xtce:StringDataEncoding>
+</xtce:BooleanParameterType>
+""",
+         xtcedef.BooleanParameterType(name='TEST_PARAM_Type', unit='smoot',
+                                      encoding=xtcedef.StringDataEncoding(termination_character='00'))),
+    ]
+)
+def test_boolean_parameter_type(xml_string, expectation):
+    """Test parsing a BooleanParameterType from an XML string"""
+    element = ElementTree.fromstring(xml_string)
+
+    if isinstance(expectation, Exception):
+        with pytest.raises(type(expectation)):
+            xtcedef.BooleanParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+    else:
+        result = xtcedef.BooleanParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+        assert result == expectation
+
+
+@pytest.mark.parametrize(
+    ('parameter_type', 'parsed_data', 'packet_data', 'expected_raw', 'expected_derived'),
+    [
+        (xtcedef.BooleanParameterType(
+            'TEST_BOOL',
+            xtcedef.BinaryDataEncoding(fixed_size_in_bits=1)),
+         {},
+         '0b0011010000110010010100110000000001001011000000000100100100000000',
+         '0', True),
+        (xtcedef.BooleanParameterType(
+            'TEST_BOOL',
+            xtcedef.StringDataEncoding(encoding="utf-8", termination_character='00')),
+         {},
+         '0b0110011001100001011011000111001101100101010111110110100101110011010111110111010001110010011101010111010001101000011110010000000000101011010101',
+         'false_is_truthy', True),
+        (xtcedef.BooleanParameterType(
+            'TEST_BOOL',
+            xtcedef.IntegerDataEncoding(size_in_bits=2, encoding="unsigned")),
+         {},
+         '0b0011',
+         0, False),
+        (xtcedef.BooleanParameterType(
+            'TEST_BOOL',
+            xtcedef.IntegerDataEncoding(size_in_bits=2, encoding="unsigned")),
+         {},
+         '0b1111',
+         3, True),
+        (xtcedef.BooleanParameterType(
+            'TEST_BOOL',
+            xtcedef.FloatDataEncoding(size_in_bits=16)),
+         {},
+         '0b0101000101000000111111111',
+         42.0, True),
+        (xtcedef.BooleanParameterType(
+            'TEST_BOOL',
+            xtcedef.FloatDataEncoding(size_in_bits=16)),
+         {},
+         '0b0101000101000000111111111',
+         42.0, True),
+    ]
+)
+def test_boolean_parameter_parsing(parameter_type, parsed_data, packet_data, expected_raw, expected_derived):
+    """Test parsing boolean parameters"""
+    raw, derived = parameter_type.parse_value(bitstring.ConstBitStream(packet_data), parsed_data)
+    assert raw == expected_raw
+    assert derived == expected_derived
+
+
+@pytest.mark.parametrize(
+    ('xml_string', 'expectation'),
+    [
+        ("""
+<xtce:AbsoluteTimeParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
+    <xtce:Encoding units="seconds">
+        <xtce:IntegerDataEncoding sizeInBits="32"/>
+    </xtce:Encoding>
+    <xtce:ReferenceTime>
+        <xtce:OffsetFrom parameterRef="MilliSeconds"/>
+        <xtce:Epoch>TAI</xtce:Epoch>
+    </xtce:ReferenceTime>
+</xtce:AbsoluteTimeParameterType>
+""",
+         xtcedef.AbsoluteTimeParameterType(name='TEST_PARAM_Type', unit='seconds',
+                                           encoding=xtcedef.IntegerDataEncoding(size_in_bits=32, encoding="unsigned"),
+                                           epoch="TAI", offset_from="MilliSeconds")),
+        ("""
+<xtce:AbsoluteTimeParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
+    <xtce:Encoding scale="1E-6" offset="0" units="s">
+        <xtce:IntegerDataEncoding sizeInBits="32"/>
+    </xtce:Encoding>
+    <xtce:ReferenceTime>
+        <xtce:OffsetFrom parameterRef="MilliSeconds"/>
+        <xtce:Epoch>2009-10-10T12:00:00-05:00</xtce:Epoch>
+    </xtce:ReferenceTime>
+</xtce:AbsoluteTimeParameterType>
+""",
+         xtcedef.AbsoluteTimeParameterType(
+             name='TEST_PARAM_Type', unit='s',
+             encoding=xtcedef.IntegerDataEncoding(
+                 size_in_bits=32, encoding="unsigned",
+                 default_calibrator=xtcedef.PolynomialCalibrator(
+                     coefficients=[
+                         xtcedef.PolynomialCoefficient(0, 0),
+                         xtcedef.PolynomialCoefficient(1E-6, 1)
+                     ])),
+             epoch="2009-10-10T12:00:00-05:00", offset_from="MilliSeconds")),
+        ("""
+<xtce:AbsoluteTimeParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
+    <xtce:Encoding scale="1.31E-6" units="s">
+        <xtce:IntegerDataEncoding sizeInBits="32"/>
+    </xtce:Encoding>
+</xtce:AbsoluteTimeParameterType>
+""",
+         xtcedef.AbsoluteTimeParameterType(
+             name='TEST_PARAM_Type', unit='s',
+             encoding=xtcedef.IntegerDataEncoding(
+                 size_in_bits=32, encoding="unsigned",
+                 default_calibrator=xtcedef.PolynomialCalibrator(
+                     coefficients=[
+                         xtcedef.PolynomialCoefficient(1.31E-6, 1)
+                     ]))
+         )),
+        ("""
+<xtce:AbsoluteTimeParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
+    <xtce:Encoding offset="147.884" units="s">
+        <xtce:IntegerDataEncoding sizeInBits="32"/>
+    </xtce:Encoding>
+</xtce:AbsoluteTimeParameterType>
+""",
+         xtcedef.AbsoluteTimeParameterType(
+             name='TEST_PARAM_Type', unit='s',
+             encoding=xtcedef.IntegerDataEncoding(
+                 size_in_bits=32, encoding="unsigned",
+                 default_calibrator=xtcedef.PolynomialCalibrator(
+                     coefficients=[
+                         xtcedef.PolynomialCoefficient(147.884, 0),
+                         xtcedef.PolynomialCoefficient(1, 1)
+                     ]))
+         )),
+        ("""
+<xtce:AbsoluteTimeParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
+    <xtce:Encoding offset="147.884" units="s">
+        <xtce:FloatDataEncoding sizeInBits="32"/>
+    </xtce:Encoding>
+</xtce:AbsoluteTimeParameterType>
+""",
+         xtcedef.AbsoluteTimeParameterType(
+             name='TEST_PARAM_Type', unit='s',
+             encoding=xtcedef.FloatDataEncoding(
+                 size_in_bits=32, encoding="IEEE-754",
+                 default_calibrator=xtcedef.PolynomialCalibrator(
+                     coefficients=[
+                         xtcedef.PolynomialCoefficient(147.884, 0),
+                         xtcedef.PolynomialCoefficient(1, 1)
+                     ]))
+         )),
+    ]
+)
+def test_absolute_time_parameter_type(xml_string, expectation):
+    """Test parsing an AbsoluteTimeParameterType from an XML string."""
+    element = ElementTree.fromstring(xml_string)
+
+    if isinstance(expectation, Exception):
+        with pytest.raises(type(expectation)):
+            xtcedef.AbsoluteTimeParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+    else:
+        result = xtcedef.AbsoluteTimeParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+        assert result == expectation
+
+
+@pytest.mark.parametrize(
+    ('parameter_type', 'parsed_data', 'packet_data', 'expected_raw', 'expected_derived'),
+    [
+        (xtcedef.AbsoluteTimeParameterType(name='TEST_PARAM_Type', unit='seconds',
+                                           encoding=xtcedef.IntegerDataEncoding(size_in_bits=32, encoding="unsigned"),
+                                           epoch="TAI", offset_from="MilliSeconds"),
+         {},
+         '0b0011010000110010010100110000000001001011000000000100100100000000',
+         875713280, 875713280),
+        (xtcedef.AbsoluteTimeParameterType(
+             name='TEST_PARAM_Type', unit='s',
+             encoding=xtcedef.IntegerDataEncoding(
+                 size_in_bits=32, encoding="unsigned",
+                 default_calibrator=xtcedef.PolynomialCalibrator(
+                     coefficients=[
+                         xtcedef.PolynomialCoefficient(0, 0),
+                         xtcedef.PolynomialCoefficient(1E-6, 1)
+                     ])),
+             epoch="2009-10-10T12:00:00-05:00", offset_from="MilliSeconds"),
+         {},
+         '0b0011010000110010010100110000000001001011000000000100100100000000',
+         875713280, 875.7132799999999),
+        (xtcedef.AbsoluteTimeParameterType(
+             name='TEST_PARAM_Type', unit='s',
+             encoding=xtcedef.FloatDataEncoding(
+                 size_in_bits=32, encoding="IEEE-754",
+                 default_calibrator=xtcedef.PolynomialCalibrator(
+                     coefficients=[
+                         xtcedef.PolynomialCoefficient(147.884, 0),
+                         xtcedef.PolynomialCoefficient(1, 1)
+                     ]))),
+         {},
+         '0b01000000010010010000111111011011001001011000000000100100100000000',
+         3.1415927, 151.02559269999998),
+    ]
+)
+def test_absolute_time_parameter_parsing(parameter_type, parsed_data, packet_data, expected_raw, expected_derived):
+    raw, derived = parameter_type.parse_value(bitstring.ConstBitStream(packet_data), parsed_data)
+    assert round(raw, 5) == round(expected_raw, 5)
+    # NOTE: derived values are rounded for comparison due to imprecise storage of floats
+    assert round(derived, 5) == round(expected_derived, 5)
+
+
 # ---------------
 # Parameter Tests
 # ---------------
@@ -1388,4 +1650,87 @@ def test_parameter():
                       parameter_type=xtcedef.IntegerParameterType(
                        name='TEST_INT_Type',
                        unit='floops',
-                       encoding=xtcedef.IntegerDataEncoding(size_in_bits=16, encoding='unsigned')))
+                       encoding=xtcedef.IntegerDataEncoding(size_in_bits=16, encoding='unsigned')),
+                      short_description="Param short desc",
+                      long_description="This is a long description of the parameter")
+
+
+# -----------------------
+# Full XTCE Document Test
+# -----------------------
+def test_parsing_xtce_document(test_data_dir):
+    """Tests parsing an entire XTCE document and makes assertions about the contents"""
+    with open(test_data_dir / "test_xtce.xml") as x:
+        xdef = xtcedef.XtcePacketDefinition(x, ns=TEST_NAMESPACE)
+
+    # Test Parameter Types
+    ptname = "USEC_Type"
+    pt = xdef.named_parameter_types[ptname]
+    assert pt.name == ptname
+    assert pt.unit == "us"
+    assert isinstance(pt.encoding, xtcedef.IntegerDataEncoding)
+
+    # Test Parameters
+    pname = "ADAET1DAY"  # Named parameter
+    p = xdef.named_parameters[pname]
+    assert p.name == pname
+    assert p.short_description == "Ephemeris Valid Time, Days Since 1/1/1958"
+    assert p.long_description is None
+
+    pname = "USEC"
+    p = xdef.named_parameters[pname]
+    assert p.name == pname
+    assert p.short_description == "Secondary Header Fine Time (microsecond)"
+    assert p.long_description == "CCSDS Packet 2nd Header Fine Time in microseconds."
+
+    # Test Sequence Containers
+    scname = "SecondaryHeaderContainer"
+    sc = xdef.named_containers[scname]
+    assert sc.name == scname
+    assert sc == xtcedef.SequenceContainer(
+        name=scname,
+        entry_list=[
+            xtcedef.Parameter(
+                name="DOY",
+                parameter_type=xtcedef.FloatParameterType(
+                    name="DOY_Type",
+                    encoding=xtcedef.IntegerDataEncoding(
+                        size_in_bits=16, encoding="unsigned"
+                    ),
+                    unit="day"
+                ),
+                short_description="Secondary Header Day of Year",
+                long_description="CCSDS Packet 2nd Header Day of Year in days."
+            ),
+            xtcedef.Parameter(
+                name="MSEC",
+                parameter_type=xtcedef.FloatParameterType(
+                    name="MSEC_Type",
+                    encoding=xtcedef.IntegerDataEncoding(
+                        size_in_bits=32, encoding="unsigned"
+                    ),
+                    unit="ms"
+                ),
+                short_description="Secondary Header Coarse Time (millisecond)",
+                long_description="CCSDS Packet 2nd Header Coarse Time in milliseconds."
+            ),
+            xtcedef.Parameter(
+                name="USEC",
+                parameter_type=xtcedef.FloatParameterType(
+                    name="USEC_Type",
+                    encoding=xtcedef.IntegerDataEncoding(
+                        size_in_bits=16, encoding="unsigned"
+                    ),
+                    unit="us"
+                ),
+                short_description="Secondary Header Fine Time (microsecond)",
+                long_description="CCSDS Packet 2nd Header Fine Time in microseconds."
+            )
+        ],
+        short_description=None,
+        long_description="Container for telemetry secondary header items",
+        base_container_name=None,
+        restriction_criteria=None,
+        abstract=True,
+        inheritors=None
+    )

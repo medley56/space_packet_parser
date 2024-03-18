@@ -9,7 +9,7 @@
 
 # Add files or directories to the blacklist. They should be base names, not
 # paths.
-ignore = CVS
+ignore = CVS,csvdef.py
 
 # Pickle collected data for later comparisons.
 persistent = yes
@@ -51,7 +51,7 @@ confidence =
 # --enable=similarities". If you want to run only the classes checker, but have
 # no Warning level messages displayed, use"--disable=all --enable=classes
 # --disable=W"
-disable = invalid-name,
+disable = invalid-name, fixme,
           too-many-instance-attributes, too-few-public-methods, too-many-public-methods, too-many-arguments,
           too-many-locals, cyclic-import, similarities,
           bare-except, broad-except, unused-argument, unnecessary-pass,

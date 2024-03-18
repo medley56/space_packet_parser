@@ -35,7 +35,8 @@ Packet = namedtuple('Packet', ['header', 'data'])
 class ParsedDataItem(xtcedef.AttrComparable):
     """Representation of a parsed parameter"""
 
-    def __init__(self, name: str, raw_value: any, unit: str = None, derived_value: float or str = None):
+    def __init__(self, name: str, raw_value: any, unit: str = None, derived_value: float or str = None,
+                 short_description: str = None, long_description: str = None):
         """Constructor
 
         Parameters
@@ -48,6 +49,10 @@ class ParsedDataItem(xtcedef.AttrComparable):
             Raw representation of the parsed value. May be lots of different types but most often an integer
         derived_value : float or str
             May be a calibrated value or an enum lookup
+        short_description : str
+            Parameter short description
+        long_description : str
+            Parameter long description
         """
         if name is None or raw_value is None:
             raise ValueError("Invalid ParsedDataItem. Must define name and raw_value.")
@@ -55,6 +60,8 @@ class ParsedDataItem(xtcedef.AttrComparable):
         self.raw_value = raw_value
         self.unit = unit
         self.derived_value = derived_value
+        self.short_description = short_description
+        self.long_description = long_description
 
     def __repr__(self):
         return (f"{self.__class__.__name__}("
@@ -153,6 +160,8 @@ class PacketParser:
         # We also just reparsed the CCSDS header though as well, so that's an additional 6 octets
         return 8 * (pkt_len + 1 + 6)
 
+    # DEPRECATED! Remove in next major release along with CSV parser
+    # pylint: disable=inconsistent-return-statements
     def _determine_packet_by_restrictions(self, parsed_header: dict) -> Tuple[str, list]:
         """Examines a dictionary representation of a CCSDS header and determines which packet type applies.
         This packet type must be unique. If the header data satisfies the restrictions for more than one packet
@@ -206,6 +215,7 @@ class PacketParser:
                 "Unable to choose a packet type to parse. "
                 "Note: Restricting container inheritance based on non-header data items is not possible in a "
                 "general way and is not supported by this package.", partial_data=parsed_header)
+        # pylint: enable=inconsistent-return-statements
 
     @staticmethod
     def parse_packet(packet_data: bitstring.ConstBitStream,
@@ -237,7 +247,9 @@ class PacketParser:
                 name=p.name,
                 unit=p.parameter_type.unit,
                 raw_value=parsed_value,
-                derived_value=derived_value
+                derived_value=derived_value,
+                short_description=p.short_description,
+                long_description=p.long_description
             )
 
         def _parse_sequence_container(sc: xtcedef.SequenceContainer):
@@ -320,7 +332,9 @@ class PacketParser:
                 name=parameter.name,
                 unit=parameter.parameter_type.unit,
                 raw_value=parsed_value,
-                derived_value=derived_value
+                derived_value=derived_value,
+                short_description=parameter.short_description,
+                long_description=parameter.long_description
             )
 
         return Packet(header=header, data=user_data)
@@ -368,7 +382,7 @@ class PacketParser:
         if log is True:
             logger.info(loadbar)
 
-    def generator(self,
+    def generator(self,  # pylint: disable=too-many-branches,too-many-statements
                   binary_data: bitstring.ConstBitStream or BinaryIO or socket.socket,
                   parse_bad_pkts: bool = True,
                   skip_header_bits: int = 0,
@@ -462,7 +476,7 @@ class PacketParser:
                 buffer += new_bits
                 n_new_bits = len(new_bits)
             elif isinstance(source, io.TextIOWrapper):
-                raise IOError(f"Packet data file opened in TextIO mode. You must open packet data in binary mode.")
+                raise IOError("Packet data file opened in TextIO mode. You must open packet data in binary mode.")
             else:
                 raise IOError(f"Unrecognized data source: {source}")
 
@@ -501,8 +515,15 @@ class PacketParser:
                 self.print_progress(current_bits=n_bits_parsed, total_bits=total_length_bits,
                                     start_time_ns=start_time, current_packets=n_packets_parsed)
 
+            start_pos = read_buffer.pos
+            if start_pos > 160_000_000:
+                # Only trim the buffer after 20 MB read to prevent modifying
+                # the bitstream and trimming after every packet
+                read_buffer = read_buffer[start_pos:]
+                start_pos = 0
+
             # Fill buffer enough to parse a header
-            while len(read_buffer) < skip_header_bits + CCSDS_HEADER_LENGTH_BITS:
+            while len(read_buffer) - start_pos < skip_header_bits + CCSDS_HEADER_LENGTH_BITS:
                 result = fill_read_buffer(binary_data, read_buffer,
                                           read_size_bytes=buffer_read_size_bytes)
                 if not result:  # If there is verifiably no more data to add, break
@@ -511,16 +532,19 @@ class PacketParser:
             read_buffer.pos += skip_header_bits
             header = self._parse_header(read_buffer, reset_cursor=True)
             specified_total_packet_length_bits = self._total_packet_bits_from_pkt_len(header['PKT_LEN'].raw_value)
-            n_packets_parsed += 1  # Consider it a counted packet once we've parsed the header
+            # Consider it a counted packet once we've parsed the header
+            # and update the number of bits parsed
+            n_packets_parsed += 1
+            n_bits_in_packet = skip_header_bits + specified_total_packet_length_bits
+            n_bits_parsed += n_bits_in_packet
             if ccsds_headers_only is True:
-                # Trim read buffer (this also reduces memory usage over time for reading a ConstBitStream)
-                n_bits_parsed += skip_header_bits + specified_total_packet_length_bits
-                read_buffer = read_buffer[specified_total_packet_length_bits + skip_header_bits:]
+                # Update the read_buffer to the end of the packet
+                read_buffer.pos = start_pos + n_bits_in_packet
                 yield Packet(header=header, data=None)
                 continue
 
             # Based on PKT_LEN fill buffer enough to read a full packet
-            while len(read_buffer) < skip_header_bits + specified_total_packet_length_bits:
+            while (len(read_buffer) - read_buffer.pos) < skip_header_bits + specified_total_packet_length_bits:
                 result = fill_read_buffer(binary_data, read_buffer,
                                           read_size_bytes=buffer_read_size_bytes)
                 if not result:  # If there is verifiably no more data to add, break
@@ -536,10 +560,9 @@ class PacketParser:
                     _, parameter_list = self._determine_packet_by_restrictions(header)
                     packet = self.legacy_parse_packet(read_buffer, parameter_list, word_size=self.word_size)
             except UnrecognizedPacketTypeError as e:
-                # Regardless of whether we handle the error, we still want to chop the read_buffer in preparation
-                # for parsing the next packet
-                n_bits_parsed += skip_header_bits + specified_total_packet_length_bits
-                read_buffer = read_buffer[skip_header_bits + specified_total_packet_length_bits:]
+                # Regardless of whether we handle the error, we still want to update the read_buffer
+                # in preparation for parsing the next packet
+                read_buffer.pos = start_pos + n_bits_in_packet
                 logger.debug(f"Unrecognized error on packet with APID {header['PKT_APID'].raw_value}'")
                 if yield_unrecognized_packet_errors is True:
                     # Yield the caught exception without raising it (raising ends generator)
@@ -553,9 +576,10 @@ class PacketParser:
                                  f"{packet.header['PKT_LEN'].raw_value}. This might be because the CCSDS header is "
                                  f"incorrectly represented in your packet definition document.")
 
-            actual_length_parsed = read_buffer.pos - skip_header_bits
+            actual_length_parsed = read_buffer.pos - start_pos - skip_header_bits
 
             if actual_length_parsed != specified_total_packet_length_bits:
+                read_buffer.pos = start_pos + n_bits_in_packet
                 logger.warning(f"Parsed packet length "
                                f"({actual_length_parsed}b) did not match "
                                f"length specified in header ({specified_total_packet_length_bits}b). "
@@ -564,8 +588,7 @@ class PacketParser:
                 if not parse_bad_pkts:
                     logger.warning("Skipping (not yielding) bad packet because parse_bad_pkts is falsy.")
                     continue
-            n_bits_parsed += skip_header_bits + specified_total_packet_length_bits
-            read_buffer = read_buffer[specified_total_packet_length_bits + skip_header_bits:]
+
             yield packet
 
         if show_progress is True:

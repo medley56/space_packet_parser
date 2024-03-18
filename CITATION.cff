@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 title: 'space_packet_parser'
 type: software
-version: '4.1.0'
+version: '4.1.1'
 description: A CCSDS telemetry packet decoding library based on the XTCE packet format description standard.
 license: BSD-3-Clause
 abstract: The space_packet_parser Python library is a generalized, configurable packet decoding library for CCSDS telemetry
@@ -21,9 +21,12 @@ authors:
 - email: michael.chambliss@lasp.colorado.edu
   name: Michael Chambliss
   orcid: "0009-0003-7493-0542"
+- email: greg.lucas@lasp.colorado.edu
+  name: Greg Lucas
+  orcid: "0000-0003-1331-1863"
 maintainers:
 - email: gavin.medley@lasp.colorado.edu
   name: Gavin Medley
   orcid: "0000-0002-3520-9715"
 repository-code: "https://github.com/medley56/space_packet_parser"
-url: "TBD"
+url: "https://space-packet-parser.readthedocs.io"

@@ -9,7 +9,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
-        bitstring-version: ["", "3.0.0", "4.1.2"]
+        bitstring-version: ["", "4.0.1", "4.1.4"]
     uses: ./.github/workflows/test-python-version.yml
     with:
       python-version: ${{ matrix.python-version }}

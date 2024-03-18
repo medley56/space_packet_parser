@@ -100,7 +100,6 @@ if __name__ == "__main__":
 
     sender, receiver = socket.socketpair()
     receiver.settimeout(3)
-    file = '/Users/game1390/Workspace/space/space_packet_parser/tests/test_data/jpss/J01_G011_LZ_2021-04-09T00-00-00Z_V01.DAT1'
     p = Process(target=send_data, args=(sender, idex_packet_file,))
     p.start()
 
