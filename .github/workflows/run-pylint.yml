@@ -1,0 +1,12 @@
+name: Run Pylint
+on: [push, pull_request]
+jobs:
+  pylint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build . --file Dockerfile --target lint --tag space-packet-parser-lint:latest
+      - name: Run Pylint in Docker
+        run: docker run -i space-packet-parser-lint:latest

@@ -1,7 +1,7 @@
 # Python version with which to test (must be supported and available on dockerhub)
 ARG BASE_IMAGE_PYTHON_VERSION
 
-FROM python:${BASE_IMAGE_PYTHON_VERSION}-slim
+FROM python:${BASE_IMAGE_PYTHON_VERSION:-3.11}-slim AS test
 
 # Optional bitstring version
 ARG BITSTRING_VERSION
@@ -51,3 +51,8 @@ ENTRYPOINT pytest --cov-report=xml:coverage.xml \
     --cov=space_packet_parser \
     --junitxml=junit.xml \
     tests
+
+
+FROM test AS lint
+
+ENTRYPOINT pylint space_packet_parser

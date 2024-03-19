@@ -1,9 +1,5 @@
 name: Test with Matrix of Python Versions
-on:
-  push:
-    branches: [ "main", "dev" ]
-  pull_request:
-    branches: [ "main", "dev" ]
+on: pull_request
 jobs:
   python-version-matrix:
     strategy:
