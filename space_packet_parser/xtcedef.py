@@ -1772,11 +1772,6 @@ class IntegerParameterType(ParameterType):
     pass
 
 
-class BooleanParameterType(ParameterType):
-    """<xtce:BooleanParameterType>"""
-    pass
-
-
 class FloatParameterType(ParameterType):
     """<xtce:FloatParameterType>"""
     pass
