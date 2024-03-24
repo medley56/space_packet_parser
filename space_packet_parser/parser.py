@@ -6,7 +6,7 @@ import io
 import logging
 import socket
 import time
-from typing import BinaryIO, Tuple
+from typing import BinaryIO, Optional, Tuple
 import warnings
 # Installed
 import bitstring
@@ -15,19 +15,19 @@ from space_packet_parser import xtcedef, csvdef
 
 logger = logging.getLogger(__name__)
 
-CcsdsPacketHeaderElement = namedtuple('CcsdsPacketHeaderElement', ['name', 'format_string'])
+CcsdsPacketHeaderElement = namedtuple('CcsdsPacketHeaderElement', ['name', 'nbits'])
 
 CCSDS_HEADER_DEFINITION = [
-    CcsdsPacketHeaderElement('VERSION', 'uint:3'),
-    CcsdsPacketHeaderElement('TYPE', 'uint:1'),
-    CcsdsPacketHeaderElement('SEC_HDR_FLG', 'uint:1'),
-    CcsdsPacketHeaderElement('PKT_APID', 'uint:11'),
-    CcsdsPacketHeaderElement('SEQ_FLGS', 'uint:2'),
-    CcsdsPacketHeaderElement('SRC_SEQ_CTR', 'uint:14'),
-    CcsdsPacketHeaderElement('PKT_LEN', 'uint:16')
+    CcsdsPacketHeaderElement('VERSION', 3),
+    CcsdsPacketHeaderElement('TYPE', 1),
+    CcsdsPacketHeaderElement('SEC_HDR_FLG', 1),
+    CcsdsPacketHeaderElement('PKT_APID', 11),
+    CcsdsPacketHeaderElement('SEQ_FLGS', 2),
+    CcsdsPacketHeaderElement('SRC_SEQ_CTR', 14),
+    CcsdsPacketHeaderElement('PKT_LEN', 16)
 ]
 
-CCSDS_HEADER_LENGTH_BITS = 48
+CCSDS_HEADER_LENGTH_BYTES = 6
 
 Packet = namedtuple('Packet', ['header', 'data'])
 
@@ -104,61 +104,27 @@ class PacketParser:
         self.word_size = word_size
 
     @staticmethod
-    def _parse_header(packet_data: bitstring.ConstBitStream,
-                      start_position: int = None,
-                      reset_cursor: bool = False) -> dict:
+    def _parse_header(packet_data: bytes) -> dict:
         """Parses the CCSDS standard header.
 
         Parameters
         ----------
-        packet_data : bitstring.ConstBitStream
-            Binary data stream of packet data.
-        start_position : int
-            Position from which to start parsing. If not provided, will start whenever the cursor currently is.
-        reset_cursor : bool
-            If True, upon parsing the header data, reset the cursor to the original position in the stream.
-            This still applies even if start_position is specified. start_position will be used only for parsing the
-            header and then the cursor will be returned to the location it was at before this function was called.
+        packet_data : bytes
+            6 bytes of binary data.
 
         Returns
         -------
         header : dict
             Dictionary of header items.
         """
-        original_cursor_position = packet_data.pos
-
-        if start_position:
-            packet_data.pos = start_position
-
-        header = {
-            item.name: ParsedDataItem(name=item.name, unit=None, raw_value=packet_data.read(item.format_string))
-            for item in CCSDS_HEADER_DEFINITION
-        }
-
-        if reset_cursor:
-            packet_data.pos = original_cursor_position
-
+        header = {}
+        current_bit = 0
+        for item in CCSDS_HEADER_DEFINITION:
+            header[item.name] = ParsedDataItem(name=item.name,
+                                               unit=None,
+                                               raw_value=_extract_bits(packet_data, current_bit, item.nbits))
+            current_bit += item.nbits
         return header
-
-    @staticmethod
-    def _total_packet_bits_from_pkt_len(pkt_len: int):
-        """Calculate the total length of a CCSDS packet in bits based on the PKT_LEN field in its header.
-
-        Parameters
-        ----------
-        pkt_len : int
-            PKT_LEN value from CCSDS header
-
-        Returns
-        -------
-        : int
-            Length, in bits of the packet
-
-        """
-        # 4.1.3.5.3 The length count C shall be expressed as:
-        #   C = (Total Number of Octets in the Packet Data Field) – 1
-        # We also just reparsed the CCSDS header though as well, so that's an additional 6 octets
-        return 8 * (pkt_len + 1 + 6)
 
     # DEPRECATED! Remove in next major release along with CSV parser
     # pylint: disable=inconsistent-return-statements
@@ -340,17 +306,17 @@ class PacketParser:
         return Packet(header=header, data=user_data)
 
     @staticmethod
-    def print_progress(current_bits: int, total_bits: int or None,
+    def print_progress(current_bytes: int, total_bytes: int or None,
                        start_time_ns: int, current_packets: int,
                        end: str = '\r', log: bool = False):
         """Prints a progress bar, including statistics on parsing rate.
 
         Parameters
         ----------
-        current_bits : int
-            Number of bits parsed so far.
-        total_bits : int
-            Number of total bits to parse (if known)
+        current_bytes : int
+            Number of bytes parsed so far.
+        total_bytes : int
+            Number of total bytes to parse (if known)
         current_packets : int
             Number of packets parsed so far.
         start_time_ns : int
@@ -363,19 +329,19 @@ class PacketParser:
         progress_char = "="
         bar_length = 20
 
-        if total_bits is not None:  # If we actually have an endpoint (i.e. not using a socket)
-            percentage = int((current_bits / total_bits) * 100)  # Percent Completed Calculation
-            progress = int((bar_length * current_bits) / total_bits)  # Progress Done Calculation
+        if total_bytes is not None:  # If we actually have an endpoint (i.e. not using a socket)
+            percentage = int((current_bytes / total_bytes) * 100)  # Percent Completed Calculation
+            progress = int((bar_length * current_bytes) / total_bytes)  # Progress Done Calculation
         else:
             percentage = "???"
             progress = 0
 
         elapsed_ns = time.time_ns() - start_time_ns
         delta = dt.timedelta(microseconds=elapsed_ns / 1E3)
-        kbps = int(current_bits * 1E6 / elapsed_ns)
+        kbps = int(current_bytes // 8 * 1E6 / elapsed_ns)
         pps = int(current_packets * 1E9 / elapsed_ns)
         info_str = f"[Elapsed: {delta}, " \
-                   f"Parsed {current_bits} bits ({current_packets} packets) " \
+                   f"Parsed {current_bytes} bytes ({current_packets} packets) " \
                    f"at {kbps}kb/s ({pps}pkts/s)]"
         loadbar = f"Progress: [{progress*progress_char:{bar_length}}]{percentage}% {info_str}"
         print(loadbar, end=end)
@@ -390,7 +356,7 @@ class PacketParser:
                   ccsds_headers_only: bool = False,
                   yield_unrecognized_packet_errors: bool = False,
                   show_progress: bool = False,
-                  buffer_read_size_bytes: int = 4096):
+                  buffer_read_size_bytes: Optional[int] = None):
         """Create and return a Packet generator that reads from a ConstBitStream or a filelike object or a socket.
 
         Creating a generator object to return allows the user to create
@@ -426,28 +392,24 @@ class PacketParser:
             ends.
         buffer_read_size_bytes : int, Optional
             Number of bytes to read from e.g. a BufferedReader or socket binary data source on each read attempt.
-            Default is 4096 bytes.
+            Default is 4096 bytes from a socket, -1 (full read) from a file.
 
         Yields
         -------
-        : Packet or UnrecognizedPacketTypeError
+        Packet or UnrecognizedPacketTypeError
             Generator yields Packet objects containing the parsed packet data for each subsequent packet.
             If yield_unrecognized_packet_errors is True, it will yield an unraised exception object,
             which can be raised or used for debugging purposes.
         """
 
-        def fill_read_buffer(source: bitstring.ConstBitStream or BinaryIO or socket.socket,
-                             buffer: bitstring.BitStream,
-                             read_size_bytes: int) -> int:
-            """Read data from a source and add it to an existing buffer (BitStream).
+        def read_bytes_from_source(source: bitstring.ConstBitStream or BinaryIO or socket.socket,
+                                   read_size_bytes: int) -> int:
+            """Read data from a source and return the bytes read.
 
             Parameters
             ----------
             source : bitstring.ConstBitStream or BinaryIO or socket.socket
                 Source of data.
-            buffer : bitstring.BitStream
-                A reference to a rotating buffer to which the new data is appended. Mutating this changes the data
-                available to the caller by reference so we don't return it.
             read_size_bytes : int
                 Max number of bytes to read from the source per read attempt. For sockets, this should be a small
                 power of 2 (e.g. 4096) due to networking and hardware conventions. For a file or ConstBitStream object
@@ -456,113 +418,120 @@ class PacketParser:
 
             Returns
             -------
-            result : int
-                Number of bits added to the buffer. Note that the buffer may still have nonzero length from previous
-                data even when this returns zero.
+            bytes
+                The bytes that were read from the source.
             """
-            curser_pos = buffer.pos  # Keep track of the original buffer cursor location
             if isinstance(source, io.BufferedIOBase):
-                new_bytes = source.read(read_size_bytes)
-                buffer += new_bytes
-                n_new_bits = len(new_bytes)*8
-            elif isinstance(source, socket.socket):
-                new_bytes = source.recv(read_size_bytes)
-                buffer += new_bytes  # Append BitStream with newly read bytes
-                n_new_bits = len(new_bytes)*8
-            elif isinstance(source, bitstring.ConstBitStream):
+                return source.read(read_size_bytes)
+            if isinstance(source, socket.socket):
+                return source.recv(read_size_bytes)
+            if isinstance(source, bitstring.ConstBitStream):
                 # This either reads read_size_bytes bytes or it just reads to the end of the data
                 new_bits = source[source.pos:source.pos + read_size_bytes * 8]
                 source.pos += len(new_bits)  # Set the source.pos to exactly where we read to
-                buffer += new_bits
-                n_new_bits = len(new_bits)
-            elif isinstance(source, io.TextIOWrapper):
+                return new_bits.tobytes()
+            if isinstance(source, io.TextIOWrapper):
                 raise IOError("Packet data file opened in TextIO mode. You must open packet data in binary mode.")
-            else:
-                raise IOError(f"Unrecognized data source: {source}")
-
-            # Reset buffer.pos to the original position before we extended it
-            buffer.pos = curser_pos
-            return n_new_bits
+            raise IOError(f"Unrecognized data source: {source}")
 
         # ========
         # Start of generator
         # ========
         if isinstance(binary_data, bitstring.ConstBitStream):
-            total_length_bits = len(binary_data)
+            total_length_bytes = len(binary_data) // 8
+            if buffer_read_size_bytes is None:
+                # Default to a full read of the bitstream
+                buffer_read_size_bytes = total_length_bytes
             logger.info(
-                f"Creating packet generator from pre-loaded ConstBitStream. Total length is {total_length_bits}")
+                f"Creating packet generator from pre-loaded ConstBitStream. Total length is {total_length_bytes} bytes")
         elif isinstance(binary_data, io.BufferedIOBase):
-            total_length_bits = 8 * binary_data.seek(0, io.SEEK_END)  # This is probably preferable to len
+            if buffer_read_size_bytes is None:
+                # Default to a full read of the file
+                buffer_read_size_bytes = -1
+            total_length_bytes = binary_data.seek(0, io.SEEK_END)  # This is probably preferable to len
             binary_data.seek(0, 0)
             logger.info(f"Creating packet generator from a filelike object, {binary_data}. "
-                        f"Total length is {total_length_bits}bits")
+                        f"Total length is {total_length_bytes} bytes")
         else:  # It's a socket and we don't know how much data we will get
             logger.info("Creating packet generator to read from a socket. Total length to parse is unknown.")
-            total_length_bits = None  # We don't know how long it is
+            total_length_bytes = None  # We don't know how long it is
+            if buffer_read_size_bytes is None:
+                # Default to 4096 bytes from a socket
+                buffer_read_size_bytes = 4096
 
         # ========
         # Packet loop. Each iteration of this loop yields a ParsedPacket object
         # ========
         start_time = time.time_ns()
-        n_bits_parsed = 0  # Keep track of how many bits we have parsed
+        n_bytes_parsed = 0  # Keep track of how many bytes we have parsed
         n_packets_parsed = 0  # Keep track of how many packets we have parsed
-        read_buffer = bitstring.BitStream()  # Not const because it's a rotating buffer
+        read_buffer = b""  # Empty bytes object to start
+        skip_header_bytes = skip_header_bits // 8  # Internally keep track of bytes
+        current_pos = 0  # Keep track of where we are in the buffer
         while True:
-            if total_length_bits and n_bits_parsed == total_length_bits:
+            if total_length_bytes and n_bytes_parsed == total_length_bytes:
                 break  # Exit if we know the length and we've reached it
 
             if show_progress is True:
-                self.print_progress(current_bits=n_bits_parsed, total_bits=total_length_bits,
+                self.print_progress(current_bytes=n_bytes_parsed, total_bytes=total_length_bytes,
                                     start_time_ns=start_time, current_packets=n_packets_parsed)
 
-            start_pos = read_buffer.pos
-            if start_pos > 160_000_000:
+            if current_pos > 20_000_000:
                 # Only trim the buffer after 20 MB read to prevent modifying
                 # the bitstream and trimming after every packet
-                read_buffer = read_buffer[start_pos:]
-                start_pos = 0
+                read_buffer = read_buffer[current_pos:]
+                current_pos = 0
 
             # Fill buffer enough to parse a header
-            while len(read_buffer) - start_pos < skip_header_bits + CCSDS_HEADER_LENGTH_BITS:
-                result = fill_read_buffer(binary_data, read_buffer,
-                                          read_size_bytes=buffer_read_size_bytes)
+            while len(read_buffer) - current_pos < skip_header_bytes + CCSDS_HEADER_LENGTH_BYTES:
+                result = read_bytes_from_source(binary_data, read_size_bytes=buffer_read_size_bytes)
                 if not result:  # If there is verifiably no more data to add, break
                     break
+                read_buffer += result
+            # Skip the header bytes
+            current_pos += skip_header_bytes
+            header_bytes = read_buffer[current_pos:current_pos + CCSDS_HEADER_LENGTH_BYTES]
+            header = self._parse_header(header_bytes)
 
-            read_buffer.pos += skip_header_bits
-            header = self._parse_header(read_buffer, reset_cursor=True)
-            specified_total_packet_length_bits = self._total_packet_bits_from_pkt_len(header['PKT_LEN'].raw_value)
+            # per the CCSDS spec
+            # 4.1.3.5.3 The length count C shall be expressed as:
+            #   C = (Total Number of Octets in the Packet Data Field) – 1
+            n_bytes_data = header['PKT_LEN'].raw_value + 1
+            n_bytes_packet = CCSDS_HEADER_LENGTH_BYTES + n_bytes_data
+
             # Consider it a counted packet once we've parsed the header
             # and update the number of bits parsed
             n_packets_parsed += 1
-            n_bits_in_packet = skip_header_bits + specified_total_packet_length_bits
-            n_bits_parsed += n_bits_in_packet
+            n_bytes_parsed += skip_header_bytes + n_bytes_packet
             if ccsds_headers_only is True:
-                # Update the read_buffer to the end of the packet
-                read_buffer.pos = start_pos + n_bits_in_packet
+                # update the current position to the end of the packet data
+                current_pos += n_bytes_packet
                 yield Packet(header=header, data=None)
                 continue
 
             # Based on PKT_LEN fill buffer enough to read a full packet
-            while (len(read_buffer) - read_buffer.pos) < skip_header_bits + specified_total_packet_length_bits:
-                result = fill_read_buffer(binary_data, read_buffer,
-                                          read_size_bytes=buffer_read_size_bytes)
+            while len(read_buffer) - current_pos < n_bytes_packet:
+                result = read_bytes_from_source(binary_data, read_size_bytes=buffer_read_size_bytes)
                 if not result:  # If there is verifiably no more data to add, break
                     break
+                read_buffer += result
 
+            # current_pos is still before the header, so we are reading the entire packet here
+            packet_bytes = read_buffer[current_pos:current_pos + n_bytes_packet]
+            current_pos += n_bytes_packet
+            # Send bitstring data to the parser for now
+            # TODO: Look into parsing the raw bytes directly
+            bitstring_packet = bitstring.ConstBitStream(packet_bytes)
             try:
                 if isinstance(self.packet_definition, xtcedef.XtcePacketDefinition):
-                    packet = self.parse_packet(read_buffer,
+                    packet = self.parse_packet(bitstring_packet,
                                                self.packet_definition.named_containers,
                                                root_container_name=root_container_name,
                                                word_size=self.word_size)
                 else:
                     _, parameter_list = self._determine_packet_by_restrictions(header)
-                    packet = self.legacy_parse_packet(read_buffer, parameter_list, word_size=self.word_size)
+                    packet = self.legacy_parse_packet(bitstring_packet, parameter_list, word_size=self.word_size)
             except UnrecognizedPacketTypeError as e:
-                # Regardless of whether we handle the error, we still want to update the read_buffer
-                # in preparation for parsing the next packet
-                read_buffer.pos = start_pos + n_bits_in_packet
                 logger.debug(f"Unrecognized error on packet with APID {header['PKT_APID'].raw_value}'")
                 if yield_unrecognized_packet_errors is True:
                     # Yield the caught exception without raising it (raising ends generator)
@@ -576,14 +545,12 @@ class PacketParser:
                                  f"{packet.header['PKT_LEN'].raw_value}. This might be because the CCSDS header is "
                                  f"incorrectly represented in your packet definition document.")
 
-            actual_length_parsed = read_buffer.pos - start_pos - skip_header_bits
-
-            if actual_length_parsed != specified_total_packet_length_bits:
-                read_buffer.pos = start_pos + n_bits_in_packet
+            actual_length_parsed = bitstring_packet.pos // 8
+            if actual_length_parsed != n_bytes_packet:
                 logger.warning(f"Parsed packet length "
-                               f"({actual_length_parsed}b) did not match "
-                               f"length specified in header ({specified_total_packet_length_bits}b). "
-                               f"Updating bit string position to correct position "
+                               f"({actual_length_parsed}B) did not match "
+                               f"length specified in header ({n_bytes_packet}B). "
+                               f"Updating the position to the correct position "
                                "indicated by CCSDS header.")
                 if not parse_bad_pkts:
                     logger.warning("Skipping (not yielding) bad packet because parse_bad_pkts is falsy.")
@@ -592,6 +559,32 @@ class PacketParser:
             yield packet
 
         if show_progress is True:
-            self.print_progress(current_bits=n_bits_parsed, total_bits=total_length_bits,
+            self.print_progress(current_bytes=n_bytes_parsed, total_bytes=total_length_bytes,
                                 start_time_ns=start_time, current_packets=n_packets_parsed,
                                 end="\n", log=True)
+
+
+def _extract_bits(data: bytes, start_bit: int, nbits: int):
+    """Extract nbits from the data starting from the least significant end.
+    
+    If data = b"abcdefgh", start_bit = 2, nbits = 3, then the bits extracted are
+    "cde" and those are turned into a Python integer and returned.
+
+    Parameters
+    ----------
+    data : bytes
+        Data to extract bits from
+    start_bit : int
+        Starting bit location
+    nbits : int
+        Number of bits to extract
+    
+    Returns
+    -------
+    int
+        Extracted bits as an integer
+    """
+    # Shift the value to the right to get the start bit to the least significant position
+    # Then mask out the bits we want to keep
+    value = int.from_bytes(data, byteorder="big")
+    return (value >> (len(data) * 8 - start_bit - nbits)) & (2 ** nbits - 1)
