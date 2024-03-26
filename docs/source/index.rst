@@ -29,3 +29,4 @@ The following programs are using space packet parser in some capacity (most for 
 * `IDEX <https://imap.princeton.edu/instruments/idex>`_
 * `CTIM-FD <https://esto.nasa.gov/invest/ctim/>`_
 * FEEPS
+* `IMAP <https://imap.princeton.edu/>`_

@@ -20,3 +20,7 @@ Resources:
 pip install space_packet_parser
 ```
 
+## Supported NASA Mission
+
+[<img src="https://imap.princeton.edu/sites/g/files/toruqf1601/files/imap-mark-hor-multicolor-dark.png" alt="IMAP" width="100" height="70"/>](https://imap.princeton.edu/)
+[<img src="https://clarreo-pathfinder.larc.nasa.gov/wp-content/uploads/sites/133/2019/08/clarreo_pathfinder_mission_patch_design_v4_decal_1_24_17.png" alt="IMAP" width="70" height="70%"/>](https://clarreo-pathfinder.larc.nasa.gov/)
