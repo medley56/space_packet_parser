@@ -25,7 +25,8 @@ Instruments and Missions
 The following programs are using space packet parser in some capacity (most for decoding science data packets).
 
 * `CLARREO Pathfinder <https://clarreo-pathfinder.larc.nasa.gov/>`_
-* `Libera <https://lasp.colorado.edu/home/libera/>`_
-* `IDEX <https://imap.princeton.edu/instruments/idex>`_
 * `CTIM-FD <https://esto.nasa.gov/invest/ctim/>`_
 * FEEPS
+* `IDEX <https://imap.princeton.edu/instruments/idex>`_
+* `IMAP <https://imap.princeton.edu/>`_
+* `Libera <https://lasp.colorado.edu/home/libera/>`_
