@@ -1,9 +1,12 @@
 """Test fixtures"""
-# Standard library
+# Standard
 from pathlib import Path
 import sys
-# External modules
+# Installed
 import pytest
+
+XTCE_URI = "http://www.omg.org/space/xtce"
+TEST_NAMESPACE = {'xtce': XTCE_URI}
 
 
 @pytest.fixture
