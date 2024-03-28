@@ -1,0 +1,116 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<xtce:SpaceSystem xmlns:xtce="http://www.omg.org/space/xtce" name="Space Packet Parser"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://www.omg.org/spec/XTCE/20180204/SpaceSystem.xsd">
+    <xtce:Header date="2024-03-05T13:36:00MST" version="1.0" author="Gavin Medley"/>
+    <xtce:TelemetryMetaData>
+        <xtce:ParameterTypeSet>
+            <xtce:ArrayParameterType name="TEST_ARRAY_Type" arrayTypeRef="TYPE_Type">
+                <xtce:DimensionList>
+                    <xtce:Dimension>
+                        <xtce:StartingIndex>
+                            <xtce:FixedValue>0</xtce:FixedValue>
+                        </xtce:StartingIndex>
+                        <xtce:EndingIndex>
+                            <xtce:FixedValue>4</xtce:FixedValue>
+                        </xtce:EndingIndex>
+                    </xtce:Dimension>
+                </xtce:DimensionList>
+            </xtce:ArrayParameterType>
+            <xtce:InvalidParameterType name="TEST_INVALID_Type" signed="false">
+                <xtce:UnitSet/>
+                <xtce:IntegerDataEncoding sizeInBits="3" encoding="unsigned"/>
+            </xtce:InvalidParameterType>
+            <xtce:IntegerParameterType name="VERSION_Type" signed="false">
+                <xtce:UnitSet/>
+                <xtce:IntegerDataEncoding sizeInBits="3" encoding="unsigned"/>
+            </xtce:IntegerParameterType>
+            <xtce:IntegerParameterType name="TYPE_Type" signed="false">
+                <xtce:UnitSet/>
+                <xtce:IntegerDataEncoding sizeInBits="1" encoding="unsigned"/>
+            </xtce:IntegerParameterType>
+            <xtce:IntegerParameterType name="SEC_HDR_FLG_Type" signed="false">
+                <xtce:UnitSet/>
+                <xtce:IntegerDataEncoding sizeInBits="1" encoding="unsigned"/>
+            </xtce:IntegerParameterType>
+            <xtce:IntegerParameterType name="PKT_APID_Type" signed="false">
+                <xtce:UnitSet/>
+                <xtce:IntegerDataEncoding sizeInBits="11" encoding="unsigned"/>
+            </xtce:IntegerParameterType>
+            <xtce:IntegerParameterType name="SEQ_FLGS_Type" signed="false">
+                <xtce:UnitSet/>
+                <xtce:IntegerDataEncoding sizeInBits="2" encoding="unsigned"/>
+            </xtce:IntegerParameterType>
+            <xtce:IntegerParameterType name="SRC_SEQ_CTR_Type" signed="false">
+                <xtce:UnitSet/>
+                <xtce:IntegerDataEncoding sizeInBits="14" encoding="unsigned"/>
+            </xtce:IntegerParameterType>
+            <xtce:IntegerParameterType name="PKT_LEN_Type" signed="false">
+                <xtce:UnitSet/>
+                <xtce:IntegerDataEncoding sizeInBits="16" encoding="unsigned"/>
+            </xtce:IntegerParameterType>
+        </xtce:ParameterTypeSet>
+        <xtce:ParameterSet>
+            <xtce:Parameter name="VERSION" parameterTypeRef="VERSION_Type">
+                <xtce:LongDescription>Not really used. We aren't changing the version of CCSDS that we use.
+                </xtce:LongDescription>
+            </xtce:Parameter>
+            <xtce:Parameter name="TYPE" parameterTypeRef="TYPE_Type">
+                <xtce:LongDescription>Indicates whether this packet is CMD or TLM. TLM is 0.</xtce:LongDescription>
+            </xtce:Parameter>
+            <xtce:Parameter name="SEC_HDR_FLG" parameterTypeRef="SEC_HDR_FLG_Type">
+                <xtce:LongDescription>Always 1 - indicates that there is a secondary header.</xtce:LongDescription>
+            </xtce:Parameter>
+            <xtce:Parameter name="PKT_APID" parameterTypeRef="PKT_APID_Type">
+                <xtce:LongDescription>Unique to each packet type.</xtce:LongDescription>
+            </xtce:Parameter>
+            <xtce:Parameter name="SEQ_FLGS" parameterTypeRef="SEQ_FLGS_Type">
+                <xtce:LongDescription>Always set to 1.</xtce:LongDescription>
+            </xtce:Parameter>
+            <xtce:Parameter name="SRC_SEQ_CTR" parameterTypeRef="SRC_SEQ_CTR_Type">
+                <xtce:LongDescription>Increments from 0 at reset for each packet issued of that APID. Rolls over at
+                    14b.
+                </xtce:LongDescription>
+            </xtce:Parameter>
+            <xtce:Parameter name="PKT_LEN" parameterTypeRef="PKT_LEN_Type">
+                <xtce:LongDescription>Number of bytes of the data field following the primary header -1. (To get the
+                    length of the whole packet, add 7)
+                </xtce:LongDescription>
+            </xtce:Parameter>
+            <xtce:Parameter name="ARRAY" parameterTypeRef="TEST_ARRAY_Type"/>
+        </xtce:ParameterSet>
+        <xtce:ContainerSet>
+            <xtce:SequenceContainer name="CCSDSPacket" abstract="true">
+                <xtce:LongDescription>Super-container for telemetry and command packets</xtce:LongDescription>
+                <xtce:EntryList>
+                    <xtce:ParameterRefEntry parameterRef="VERSION"/>
+                    <xtce:ParameterRefEntry parameterRef="TYPE"/>
+                    <xtce:ParameterRefEntry parameterRef="SEC_HDR_FLG"/>
+                    <xtce:ParameterRefEntry parameterRef="PKT_APID"/>
+                    <xtce:ParameterRefEntry parameterRef="SEQ_FLGS"/>
+                    <xtce:ParameterRefEntry parameterRef="SRC_SEQ_CTR"/>
+                    <xtce:ParameterRefEntry parameterRef="PKT_LEN"/>
+                </xtce:EntryList>
+            </xtce:SequenceContainer>
+            <xtce:SequenceContainer name="CCSDSTelemetryPacket" abstract="true">
+                <xtce:LongDescription>Super-container for all telemetry packets</xtce:LongDescription>
+                <xtce:EntryList>
+                    <xtce:ContainerRefEntry containerRef="TEST_CONTAINER"/>
+                </xtce:EntryList>
+                <xtce:BaseContainer containerRef="CCSDSPacket">
+                    <xtce:RestrictionCriteria>
+                        <xtce:ComparisonList>
+                            <xtce:Comparison parameterRef="VERSION" value="0" useCalibratedValue="false"/>
+                            <xtce:Comparison parameterRef="TYPE" value="0" useCalibratedValue="false"/>
+                        </xtce:ComparisonList>
+                    </xtce:RestrictionCriteria>
+                </xtce:BaseContainer>
+            </xtce:SequenceContainer>
+            <xtce:SequenceContainer name="TEST_CONTAINER" shortDescription="Test container">
+                <xtce:EntryList>
+                    <xtce:ParameterRefEntry parameterRef="ARRAY"/>
+                </xtce:EntryList>
+            </xtce:SequenceContainer>
+        </xtce:ContainerSet>
+    </xtce:TelemetryMetaData>
+</xtce:SpaceSystem>
