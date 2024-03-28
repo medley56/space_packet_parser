@@ -8,6 +8,20 @@ from space_packet_parser import xtcedef, parser
 TEST_NAMESPACE = {'xtce': 'http://www.omg.org/space/xtce'}
 
 
+def test_invalid_parameter_type_error(test_data_dir):
+    """Test proper reporting of an invalid parameter type element"""
+    with open(test_data_dir / "test_xtce_invalid.xml") as x:
+        with pytest.raises(xtcedef.InvalidParameterTypeError):
+            xtcedef.XtcePacketDefinition(x, ns=TEST_NAMESPACE)
+
+
+def test_unsupported_parameter_type_error(test_data_dir):
+    """Test proper reporting of an unsupported parameter type element"""
+    with open(test_data_dir / "test_xtce_unsupported_array_type.xml") as x:
+        with pytest.raises(NotImplementedError):
+            xtcedef.XtcePacketDefinition(x, ns=TEST_NAMESPACE)
+
+
 def test_attr_comparable():
     """Test abstract class that allows comparisons based on all non-callable attributes"""
     class TestClass(xtcedef.AttrComparable):
@@ -1790,6 +1804,8 @@ def test_parsing_xtce_document(test_data_dir):
     """Tests parsing an entire XTCE document and makes assertions about the contents"""
     with open(test_data_dir / "test_xtce.xml") as x:
         xdef = xtcedef.XtcePacketDefinition(x, ns=TEST_NAMESPACE)
+
+    xdef._populate_sequence_container_cache()
 
     # Test Parameter Types
     ptname = "USEC_Type"
