@@ -41,6 +41,11 @@ class CalibrationError(Exception):
     pass
 
 
+class InvalidParameterTypeError(Exception):
+    """Error raised when someone is using an invalid ParameterType element"""
+    pass
+
+
 # Common comparable mixin
 class AttrComparable(metaclass=ABCMeta):
     """Generic class that provides a notion of equality based on all non-callable, non-dunder attributes"""
@@ -962,10 +967,10 @@ class PacketData:
             return int.to_bytes(bytes_as_int, nbits // 8, "big")
         raise ValueError(f"Unsupported format type {name}")
 
-
     def peek(self, format_string):
         """peek nbits from the packet data"""
         return self.read(format_string, update_position=False)
+
 
 # DataEncoding definitions
 class DataEncoding(AttrComparable, metaclass=ABCMeta):
@@ -2257,17 +2262,22 @@ class XtcePacketDefinition:
                                    self._tag_to_type_template.items()}
         self.tree = ElementTree.parse(xtce_document)
 
+        self._populate_sequence_container_cache()
+
+    def __getitem__(self, item):
+        return self._sequence_container_cache[item]
+
+    def _populate_sequence_container_cache(self):
+        """Force populating sequence_container_cache by parsing all SequenceContainers"""
         for sequence_container in self.container_set.iterfind('xtce:SequenceContainer', self.ns):
             self._sequence_container_cache[
                 sequence_container.attrib['name']
             ] = self.parse_sequence_container_contents(sequence_container)
 
+        # Back-populate the list of inheritors for each container
         for name, sc in self._sequence_container_cache.items():
             if sc.base_container_name:
                 self._sequence_container_cache[sc.base_container_name].inheritors.append(name)
-
-    def __getitem__(self, item):
-        return self._sequence_container_cache[item]
 
     def parse_sequence_container_contents(self, sequence_container: ElementTree.Element) -> SequenceContainer:
         """Parses the list of parameters in a SequenceContainer element, recursively parsing nested SequenceContainers
@@ -2313,7 +2323,19 @@ class XtcePacketDefinition:
                         parameter_type_object = self._parameter_type_cache[parameter_type_name]
                     else:
                         parameter_type_element = self._find_parameter_type(parameter_type_name)
-                        parameter_type_class = self.type_tag_to_object[parameter_type_element.tag]
+                        try:
+                            parameter_type_class = self.type_tag_to_object[parameter_type_element.tag]
+                        except KeyError as e:
+                            if ("ArrayParameterType" in parameter_type_element.tag or
+                                    "AggregateParameterType" in parameter_type_element.tag):
+                                raise NotImplementedError(f"Unsupported parameter type {parameter_type_element.tag}. "
+                                                          "Supporting this parameter type is in the roadmap but has "
+                                                          "not yet been implemented.") from e
+                            raise InvalidParameterTypeError(f"Invalid parameter type {parameter_type_element.tag}. "
+                                                            "If you believe this is a valid XTCE parameter type, "
+                                                            "please open a feature request as a Github issue with a "
+                                                            "reference to the XTCE element description for the "
+                                                            "parameter type element.") from e
                         parameter_type_object = parameter_type_class.from_parameter_type_xml_element(
                             parameter_type_element, self.ns)
                         self._parameter_type_cache[parameter_type_name] = parameter_type_object  # Add to cache
@@ -2424,6 +2446,8 @@ class XtcePacketDefinition:
                     aggregated_entry_list.append(entry)
             return aggregated_entry_list, aggregated_restrictions
 
+        warnings.warn("The 'flattened_containers' property is deprecated to allow for dynamic container "
+                      "inheritance matching during parsing.", DeprecationWarning)
         return {
             name: FlattenedContainer(*flatten_container(sc))
             for name, sc in self._sequence_container_cache.items()

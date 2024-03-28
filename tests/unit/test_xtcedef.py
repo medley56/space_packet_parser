@@ -1,11 +1,88 @@
 """Tests for space_packet_parser.xtcedef"""
+# Standard
 import bitstring
+from io import StringIO
 import pytest
 from xml.etree import ElementTree
-
+# Local
 from space_packet_parser import xtcedef, parser
 
-TEST_NAMESPACE = {'xtce': 'http://www.omg.org/space/xtce'}
+XTCE_URI = "http://www.omg.org/space/xtce"
+TEST_NAMESPACE = {'xtce': XTCE_URI}
+
+
+def test_invalid_parameter_type_error(test_data_dir):
+    """Test proper reporting of an invalid parameter type element"""
+    # Test document contains an invalid "InvalidParameterType" element
+    test_xtce_document = """<?xml version='1.0' encoding='UTF-8'?>
+<xtce:SpaceSystem xmlns:xtce="http://www.omg.org/space/xtce" name="Space Packet Parser"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://www.omg.org/spec/XTCE/20180204/SpaceSystem.xsd">
+    <xtce:Header date="2024-03-05T13:36:00MST" version="1.0" author="Gavin Medley"/>
+    <xtce:TelemetryMetaData>
+        <xtce:ParameterTypeSet>
+            <xtce:InvalidParameterType name="TEST_INVALID_Type" signed="false">
+                <xtce:UnitSet/>
+                <xtce:IntegerDataEncoding sizeInBits="3" encoding="unsigned"/>
+            </xtce:InvalidParameterType>
+        </xtce:ParameterTypeSet>
+        <xtce:ParameterSet>
+            <xtce:Parameter name="INVALID" parameterTypeRef="TEST_INVALID_Type"/>
+        </xtce:ParameterSet>
+        <xtce:ContainerSet>
+            <xtce:SequenceContainer name="TEST_CONTAINER" shortDescription="Test container">
+                <xtce:EntryList>
+                    <xtce:ParameterRefEntry parameterRef="INVALID"/>
+                </xtce:EntryList>
+            </xtce:SequenceContainer>
+        </xtce:ContainerSet>
+    </xtce:TelemetryMetaData>
+</xtce:SpaceSystem>
+"""
+    x = StringIO(test_xtce_document)
+    with pytest.raises(xtcedef.InvalidParameterTypeError):
+        xtcedef.XtcePacketDefinition(x, ns=TEST_NAMESPACE)
+
+
+def test_unsupported_parameter_type_error(test_data_dir):
+    """Test proper reporting of an unsupported parameter type element"""
+    # Test document contains an unsupported array parameter type that is not yet implemented
+    test_xtce_document = """<?xml version='1.0' encoding='UTF-8'?>
+<xtce:SpaceSystem xmlns:xtce="http://www.omg.org/space/xtce" name="Space Packet Parser"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://www.omg.org/spec/XTCE/20180204/SpaceSystem.xsd">
+    <xtce:Header date="2024-03-05T13:36:00MST" version="1.0" author="Gavin Medley"/>
+    <xtce:TelemetryMetaData>
+        <xtce:ParameterTypeSet>
+            <xtce:ArrayParameterType name="TEST_ARRAY_Type" arrayTypeRef="TYPE_Type">
+                <xtce:DimensionList>
+                    <xtce:Dimension>
+                        <xtce:StartingIndex>
+                            <xtce:FixedValue>0</xtce:FixedValue>
+                        </xtce:StartingIndex>
+                        <xtce:EndingIndex>
+                            <xtce:FixedValue>4</xtce:FixedValue>
+                        </xtce:EndingIndex>
+                    </xtce:Dimension>
+                </xtce:DimensionList>
+            </xtce:ArrayParameterType>
+        </xtce:ParameterTypeSet>
+        <xtce:ParameterSet>
+            <xtce:Parameter name="ARRAY" parameterTypeRef="TEST_ARRAY_Type"/>
+        </xtce:ParameterSet>
+        <xtce:ContainerSet>
+            <xtce:SequenceContainer name="TEST_CONTAINER" shortDescription="Test container">
+                <xtce:EntryList>
+                    <xtce:ParameterRefEntry parameterRef="ARRAY"/>
+                </xtce:EntryList>
+            </xtce:SequenceContainer>
+        </xtce:ContainerSet>
+    </xtce:TelemetryMetaData>
+</xtce:SpaceSystem>
+"""
+    x = StringIO(test_xtce_document)
+    with pytest.raises(NotImplementedError):
+        xtcedef.XtcePacketDefinition(x, ns=TEST_NAMESPACE)
 
 
 def test_attr_comparable():
@@ -1864,6 +1941,7 @@ def test_parsing_xtce_document(test_data_dir):
         abstract=True,
         inheritors=None
     )
+
 
 @pytest.mark.parametrize("start, nbits", [(0, 1), (0, 16), (0, 8), (0, 9),
                                         (3, 5), (3, 8), (3, 13),
