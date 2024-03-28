@@ -228,11 +228,7 @@ class PacketParser:
         parsed_items = {}
         current_container: xtcedef.SequenceContainer = containers[root_container_name]
         while True:
-            for entry in current_container.entry_list:
-                if isinstance(entry, xtcedef.Parameter):
-                    _parse_parameter(entry)
-                elif isinstance(entry, xtcedef.SequenceContainer):
-                    _parse_sequence_container(entry)
+            _parse_sequence_container(current_container)
 
             valid_inheritors = []
             for inheritor_name in current_container.inheritors:
