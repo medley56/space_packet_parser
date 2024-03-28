@@ -19,6 +19,10 @@ extensions = [
     "autoapi.extension"
 ]
 
+myst_enable_extensions = [
+    "html_image"
+]
+
 autoapi_type = 'python'
 autoapi_dirs = ['../../space_packet_parser']
 

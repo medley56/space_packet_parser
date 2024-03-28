@@ -1,4 +1,4 @@
-# User Documentation
+# User Documentation (Getting Started)
 ## Installation
 This package is distributed via PyPI. To install it with pip, run:
 
