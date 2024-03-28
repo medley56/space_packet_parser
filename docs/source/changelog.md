@@ -18,6 +18,7 @@ Release notes for the `space_packet_parser` library
 - Drop support for bitstring <4.0.1
 - Support BooleanExpression in a ContextCalibrator
 - Default read size is changed to a full file read on file-like objects
+- Improve error handling for invalid/unsupported parameter types
 
 ### v4.1.1 (released)
 - Allow Python 3.12
