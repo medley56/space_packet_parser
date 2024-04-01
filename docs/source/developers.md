@@ -18,11 +18,11 @@ docker-compose up --build && docker-compose down
 ```
 
 ## Making a Pull Request
-Feel free to fork this repo and submit a PR! We do trunk-based development so all PRs should be destined for the
-`main` branch. Reviews are required before merging and our automated tests must pass. Please see the following
-checklist for a basic set of requirements before we will merge a PR.
-
-Please use the PR template when submitting a PR.
+Feel free to fork this repo and submit a PR! 
+- If you are working on an issue, link your PR to that issue.
+- All PRs should be destined for the `main` branch (trunk-based development).
+- Reviews are required before merging and our automated tests must pass.
+- Please fill out the PR template that is populated when creating a PR in the GitHub interface.
 
 ## Release Process
 Reference: [https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow)
