@@ -17,6 +17,15 @@ To run all tests in docker containers (tests against many versions of python), r
 docker-compose up --build && docker-compose down
 ```
 
+
+## Making a Pull Request
+Feel free to fork this repo and submit a PR! 
+- If you are working on an issue, link your PR to that issue.
+- All PRs should be destined for the `main` branch (trunk-based development).
+- Reviews are required before merging and our automated tests must pass.
+- Please fill out the PR template that is populated when creating a PR in the GitHub interface.
+
+
 ## Release Process
 Reference: [https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow)
 

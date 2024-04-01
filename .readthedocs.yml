@@ -8,11 +8,11 @@ build:
     post_create_environment:
       # Install poetry
       - pip install poetry
-      # Tell poetry to not use a virtual environment
+      # Tell poetry to not create a new virtual environment but use the current one
       - poetry config virtualenvs.create false
     post_install:
       # Install dependencies. Our doc building dependencies are part of the dev group
-      - poetry install
+      - VIRTUAL_ENV=$READTHEDOCS_VIRTUALENV_PATH poetry install
 
 sphinx:
   configuration: docs/source/conf.py
