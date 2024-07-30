@@ -71,12 +71,12 @@ class MatchCriteria(AttrComparable, metaclass=ABCMeta):
     #   Python's XML parser doesn't appear to support &eq; &ne; &le; or &ge;
     # We have implemented support for bash-style comparisons just in case.
     _valid_operators = {
-        "==": "==", "eq": "==",  # equal to
-        "!=": "!=", "neq": "!=",  # not equal to
-        "&lt;": "<", "lt": "<",  # less than
-        "&gt;": ">", "gt": ">",  # greater than
-        "&lt;=": "<=", "leq": "<=",  # less than or equal to
-        "&gt;=": ">=", "geq": ">=",  # greater than or equal to
+        "==": "__eq__", "eq": "__eq__",  # equal to
+        "!=": "__ne__", "neq": "__ne__",  # not equal to
+        "&lt;": "__lt__", "lt": "__lt__", "<": "__lt__",  # less than
+        "&gt;": "__gt__", "gt": "__gt__",  ">": "__gt__",  # greater than
+        "&lt;=": "__le__", "leq": "__le__", "<=": "__le__",  # less than or equal to
+        "&gt;=": "__ge__", "geq": "__ge__",  ">=": "__ge__",  # greater than or equal to
     }
 
     @classmethod
@@ -150,10 +150,10 @@ class Comparison(MatchCriteria):
         -------
         None
         """
-        if not (self.operator in self._valid_operators or self.operator in self._valid_operators.values()):
+        if self.operator not in self._valid_operators:
             raise ValueError(f"Unrecognized operator syntax {self.operator}. "
                              f"Must be one of "
-                             f"{set(list(self._valid_operators.values()) + list(self._valid_operators.keys()))}")
+                             f"{set(self._valid_operators.keys())}")
 
     @classmethod
     def from_match_criteria_xml_element(cls, element: ElementTree.Element, ns: dict):
@@ -221,9 +221,7 @@ class Comparison(MatchCriteria):
                              "appear in the parsed data so far and no current raw value was passed "
                              "to compare with.")
 
-        operator = (self.operator
-                    if self.operator in self._valid_operators.values()
-                    else self._valid_operators[self.operator])
+        operator = self._valid_operators[self.operator]
         t_comparate = type(parsed_value)
         try:
             required_value = t_comparate(self.required_value)
@@ -233,10 +231,9 @@ class Comparison(MatchCriteria):
         if required_value is None or parsed_value is None:
             raise ValueError(f"Error in Comparison. Cannot compare {required_value} with {parsed_value}. "
                              "Neither should be None.")
-        if isinstance(required_value, str):
-            parsed_value = f"'{parsed_value}'"
-            required_value = f"'{required_value}'"
-        return eval(f"{parsed_value} {operator} {required_value}")  # pylint: disable=eval-used
+
+        # x.__le__(y) style call
+        return getattr(parsed_value, operator)(required_value)
 
 
 class Condition(MatchCriteria):
@@ -279,10 +276,10 @@ class Condition(MatchCriteria):
         -------
         None
         """
-        if not (self.operator in self._valid_operators or self.operator in self._valid_operators.values()):
+        if self.operator not in self._valid_operators:
             raise ValueError(f"Unrecognized operator syntax {self.operator}. "
                              f"Must be one of "
-                             f"{set(list(self._valid_operators.values()) + list(self._valid_operators.keys()))}")
+                             f"{set(self._valid_operators.keys())}")
         if self.right_param and self.right_value:
             raise ComparisonError(f"Received both a right_value and a right_param reference to Condition {self}.")
         if self.right_value and self.right_use_calibrated_value:
@@ -374,10 +371,8 @@ class Condition(MatchCriteria):
         #    should be calibrated. Note that only one of the parameters can be used this way and it must reference
         #    an uncalibrated value so the logic and error handling must be done carefully.
         left_value = _get_parsed_value(self.left_param, self.left_use_calibrated_value)
-        # Convert XML operator representation to a python-compatible operator (e.g. '&gt;' to '>')
-        operator = (self.operator
-                    if self.operator in self._valid_operators.values()
-                    else self._valid_operators[self.operator])
+        # Convert XML operator representation to a python-compatible operator (e.g. '&gt;' to '__gt__')
+        operator = self._valid_operators[self.operator]
 
         if self.right_param is not None:
             right_value = _get_parsed_value(self.right_param, self.right_use_calibrated_value)
@@ -388,10 +383,9 @@ class Condition(MatchCriteria):
             raise ValueError(f"Error when evaluating condition {self}. Neither right_param nor right_value is set.")
         if left_value is None or right_value is None:
             raise ComparisonError(f"Error comparing {left_value} and {right_value}. Neither should be None.")
-        if isinstance(left_value, str):
-            left_value = f"'{left_value}'"
-            right_value = f"'{right_value}'"
-        return eval(f"{left_value} {operator} {right_value}")  # pylint: disable=eval-used
+
+        # x.__le__(y) style call
+        return getattr(left_value, operator)(right_value)
 
 
 Anded = namedtuple('Anded', ['conditions', 'ors'])
