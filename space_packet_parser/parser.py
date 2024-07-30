@@ -122,7 +122,8 @@ class PacketParser:
         for item in CCSDS_HEADER_DEFINITION:
             header[item.name] = ParsedDataItem(name=item.name,
                                                unit=None,
-                                               raw_value=_extract_bits(packet_data, current_bit, item.nbits))
+                                               # pylint: disable=protected-access
+                                               raw_value=xtcedef._extract_bits(packet_data, current_bit, item.nbits))
             current_bit += item.nbits
         return header
 
@@ -184,7 +185,7 @@ class PacketParser:
         # pylint: enable=inconsistent-return-statements
 
     @staticmethod
-    def parse_packet(packet_data: bitstring.ConstBitStream,
+    def parse_packet(packet_data: xtcedef.PacketData,
                      containers: dict,
                      root_container_name: str = "CCSDSPacket",
                      **parse_value_kwargs) -> Packet:
@@ -192,7 +193,7 @@ class PacketParser:
 
         Parameters
         ----------
-        packet_data : bitstring.BitString
+        packet_data : xtcedef.PacketData
             Binary packet data to parse into Packets
         containers : dict
             Dictionary of named containers, including their inheritance information.
@@ -517,7 +518,8 @@ class PacketParser:
             current_pos += n_bytes_packet
             # Send bitstring data to the parser for now
             # TODO: Look into parsing the raw bytes directly
-            bitstring_packet = bitstring.ConstBitStream(packet_bytes)
+            # bitstring_packet = bitstring.ConstBitStream(packet_bytes)
+            bitstring_packet = xtcedef.PacketData(packet_bytes)
             try:
                 if isinstance(self.packet_definition, xtcedef.XtcePacketDefinition):
                     packet = self.parse_packet(bitstring_packet,
@@ -526,6 +528,7 @@ class PacketParser:
                                                word_size=self.word_size)
                 else:
                     _, parameter_list = self._determine_packet_by_restrictions(header)
+                    bitstring_packet = bitstring.ConstBitStream(packet_bytes)
                     packet = self.legacy_parse_packet(bitstring_packet, parameter_list, word_size=self.word_size)
             except UnrecognizedPacketTypeError as e:
                 logger.debug(f"Unrecognized error on packet with APID {header['PKT_APID'].raw_value}'")
@@ -558,29 +561,3 @@ class PacketParser:
             self.print_progress(current_bytes=n_bytes_parsed, total_bytes=total_length_bytes,
                                 start_time_ns=start_time, current_packets=n_packets_parsed,
                                 end="\n", log=True)
-
-
-def _extract_bits(data: bytes, start_bit: int, nbits: int):
-    """Extract nbits from the data starting from the least significant end.
-    
-    If data = b"abcdefgh", start_bit = 2, nbits = 3, then the bits extracted are
-    "cde" and those are turned into a Python integer and returned.
-
-    Parameters
-    ----------
-    data : bytes
-        Data to extract bits from
-    start_bit : int
-        Starting bit location
-    nbits : int
-        Number of bits to extract
-    
-    Returns
-    -------
-    int
-        Extracted bits as an integer
-    """
-    # Shift the value to the right to get the start bit to the least significant position
-    # Then mask out the bits we want to keep
-    value = int.from_bytes(data, byteorder="big")
-    return (value >> (len(data) * 8 - start_bit - nbits)) & (2 ** nbits - 1)

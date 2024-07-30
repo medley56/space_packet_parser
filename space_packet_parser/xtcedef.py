@@ -5,11 +5,10 @@ from collections import namedtuple
 import inspect
 import logging
 from pathlib import Path
+import struct
 from typing import Tuple
 import warnings
 from xml.etree import ElementTree
-# Installed
-import bitstring
 
 logger = logging.getLogger(__name__)
 
@@ -917,6 +916,63 @@ class ContextCalibrator(AttrComparable):
         return self.calibrator.calibrate(parsed_value)
 
 
+class PacketData:
+    """Raw packet data stored as bytes"""
+    def __init__(self, data: bytes):
+        """The raw packet data stored as bytes
+
+        Intended to be used to ``read`` and ``peek`` at data within the packet.
+        Iterating through and keeping track of the current position read from.
+        Similar to the bitstring module's objects, but with less capability
+        and thus faster for these specific use-cases.
+
+        Parameters
+        ----------
+        data : bytes
+            The binary data for a single packet.
+        """
+        self.data = data
+        self.pos = 0
+        self._nbits = len(data) * 8
+
+    def read(self, format_string, update_position=True):
+        """read nbits from the packet data"""
+        name, nbits = format_string.split(":")
+        nbits = int(nbits)
+        if self.pos + nbits > self._nbits:
+            raise ValueError("End of packet reached")
+
+        # Get the bytes we're interested in as an integer
+        bytes_as_int = _extract_bits(self.data, self.pos, nbits)
+        if update_position:
+            self.pos += nbits
+
+        if name == "uint":
+            return bytes_as_int
+        if name == "int":
+            return int.from_bytes(int.to_bytes(bytes_as_int, nbits // 8 + 1, byteorder="big"),
+                                  byteorder="big", signed=True)
+        if name == "floatbe":
+            if nbits == 32:
+                name = "f"
+            elif nbits == 64:
+                name = "d"
+            else:
+                raise ValueError(f"Unsupported float size {nbits}, only 32 and 64 are supported")
+            return struct.unpack(name, int.to_bytes(bytes_as_int, nbits // 8, byteorder="big"))[0]
+        if name == "bin":
+            # Binary string
+            return f"{bytes_as_int:0{nbits}b}"
+        if name == "bytes":
+            # Binary data directly returned
+            return int.to_bytes(bytes_as_int, nbits // 8, "big")
+        raise ValueError(f"Unsupported format type {name}")
+
+
+    def peek(self, format_string):
+        """peek nbits from the packet data"""
+        return self.read(format_string, update_position=False)
+
 # DataEncoding definitions
 class DataEncoding(AttrComparable, metaclass=ABCMeta):
     """Abstract base class for XTCE data encodings"""
@@ -1029,7 +1085,7 @@ class DataEncoding(AttrComparable, metaclass=ABCMeta):
             return adjuster
         return None
 
-    def _get_format_string(self, packet_data: bitstring.ConstBitStream, parsed_data: dict):
+    def _get_format_string(self, packet_data: PacketData, parsed_data: dict):
         """Infer a bitstring format string, possibly using previously parsed data. This is called by parse_value only
         so it's private.
 
@@ -1045,12 +1101,12 @@ class DataEncoding(AttrComparable, metaclass=ABCMeta):
         """
         raise NotImplementedError()
 
-    def parse_value(self, packet_data: bitstring.ConstBitStream, parsed_data: dict, **kwargs):
+    def parse_value(self, packet_data: PacketData, parsed_data: dict, **kwargs):
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
         ----------
-        packet_data: bitstring.ConstBitStream
+        packet_data: PacketData
             Binary data coming up next in the packet.
         parsed_data: dict
             Previously parsed data items from which to infer parsing details (e.g. length of a field).
@@ -1126,14 +1182,14 @@ class StringDataEncoding(DataEncoding):
         self.discrete_lookup_length = discrete_lookup_length
         self.length_linear_adjuster = length_linear_adjuster
 
-    def _get_format_string(self, packet_data: bitstring.ConstBitStream, parsed_data: dict):
+    def _get_format_string(self, packet_data: PacketData, parsed_data: dict):
         """Infer a bitstring format string
 
         Parameters
         ----------
         parsed_data: dict
             Dictionary of previously parsed data items for use in determining the format string if necessary.
-        packet_data: bitstring.ConstBitStream
+        packet_data: PacketData
             Packet data, which can be used to determine the string length from a leading value
             or from a termination character.
 
@@ -1200,12 +1256,12 @@ class StringDataEncoding(DataEncoding):
         return f"bytes:{strlen_bits // 8}", skip_bits_after
         # pylint: enable=too-many-branches
 
-    def parse_value(self, packet_data: bitstring.ConstBitStream, parsed_data: dict, **kwargs):
+    def parse_value(self, packet_data: PacketData, parsed_data: dict, **kwargs):
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
         ----------
-        packet_data: bitstring.ConstBitStream
+        packet_data: PacketData
             Binary data coming up next in the packet.
         parsed_data: dict, Optional
             Previously parsed data items from which to infer parsing details (e.g. length of a field).
@@ -1323,12 +1379,12 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
         self.default_calibrator = default_calibrator
         self.context_calibrators = context_calibrators
 
-    def parse_value(self, packet_data: bitstring.ConstBitStream, parsed_data: dict, **kwargs):
+    def parse_value(self, packet_data: PacketData, parsed_data: dict, **kwargs):
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
         ----------
-        packet_data: bitstring.ConstBitStream
+        packet_data: PacketData
             Binary data coming up next in the packet.
         parsed_data: dict, Optional
             Previously parsed data items from which to infer parsing details (e.g. length of a field).
@@ -1360,7 +1416,7 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
 class IntegerDataEncoding(NumericDataEncoding):
     """<xtce:IntegerDataEncoding>"""
 
-    def _get_format_string(self, packet_data: bitstring.ConstBitStream, parsed_data: dict):
+    def _get_format_string(self, packet_data: PacketData, parsed_data: dict):
         """Infer a bitstring format string
 
         Returns
@@ -1441,7 +1497,7 @@ class FloatDataEncoding(NumericDataEncoding):
         super().__init__(size_in_bits, encoding=encoding,
                          default_calibrator=default_calibrator, context_calibrators=context_calibrators)
 
-    def _get_format_string(self, packet_data: bitstring.ConstBitStream, parsed_data: dict):
+    def _get_format_string(self, packet_data: PacketData, parsed_data: dict):
         """Infer a bitstring format string
 
         Returns
@@ -1509,7 +1565,7 @@ class BinaryDataEncoding(DataEncoding):
         self.size_discrete_lookup_list = size_discrete_lookup_list
         self.linear_adjuster = linear_adjuster
 
-    def _get_format_string(self, packet_data: bitstring.ConstBitStream, parsed_data: dict):
+    def _get_format_string(self, packet_data: PacketData, parsed_data: dict):
         """Infer a bitstring format string
 
         Returns
@@ -1541,12 +1597,12 @@ class BinaryDataEncoding(DataEncoding):
             len_bits = self.linear_adjuster(len_bits)
         return f"bin:{len_bits}"
 
-    def parse_value(self, packet_data: bitstring.ConstBitStream, parsed_data: dict, word_size: int = None, **kwargs):
+    def parse_value(self, packet_data: PacketData, parsed_data: dict, word_size: int = None, **kwargs):
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
         ----------
-        packet_data: bitstring.ConstBitStream
+        packet_data: PacketData
             Binary data coming up next in the packet.
         parsed_data: dict, Optional
             Previously parsed data items from which to infer parsing details (e.g. length of a field).
@@ -1707,13 +1763,13 @@ class ParameterType(AttrComparable, metaclass=ABCMeta):
                 return data_encoding.from_data_encoding_xml_element(element, ns)
         return None
 
-    def parse_value(self, packet_data: bitstring.ConstBitStream, parsed_data: dict, **kwargs):
+    def parse_value(self, packet_data: PacketData, parsed_data: dict, **kwargs):
         """Using the parameter type definition and associated data encoding, parse a value from a bit stream starting
         at the current cursor position.
 
         Parameters
         ----------
-        packet_data : bitstring.ConstBitStream
+        packet_data : PacketData
             Binary packet data with cursor at the beginning of this parameter's data field.
         parsed_data: dict
             Previously parsed data to inform parsing.
@@ -1829,13 +1885,13 @@ class EnumeratedParameterType(ParameterType):
             for el in enumeration_list.iterfind('xtce:Enumeration', ns)
         }
 
-    def parse_value(self, packet_data: bitstring.ConstBitStream, parsed_data: dict, **kwargs):
+    def parse_value(self, packet_data: PacketData, parsed_data: dict, **kwargs):
         """Using the parameter type definition and associated data encoding, parse a value from a bit stream starting
         at the current cursor position.
 
         Parameters
         ----------
-        packet_data : bitstring.ConstBitStream
+        packet_data : PacketData
             Binary packet data with cursor at the beginning of this parameter's data field.
         parsed_data : dict
             Previously parsed data
@@ -1889,13 +1945,13 @@ class BooleanParameterType(ParameterType):
                           f"encoded booleans is not specified in XTCE. e.g. is the string \"0\" truthy?")
         super().__init__(name, encoding, unit)
 
-    def parse_value(self, packet_data: bitstring.ConstBitStream, parsed_data: dict, **kwargs):
+    def parse_value(self, packet_data: PacketData, parsed_data: dict, **kwargs):
         """Using the parameter type definition and associated data encoding, parse a value from a bit stream starting
         at the current cursor position.
 
         Parameters
         ----------
-        packet_data : bitstring.ConstBitStream
+        packet_data : PacketData
             Binary packet data with cursor at the beginning of this parameter's data field.
         parsed_data : dict
             Previously parsed data
@@ -2509,3 +2565,39 @@ class XtcePacketDefinition:
         else:
             restrictions = []
         return self._find_container(base_container_element.attrib['containerRef']), restrictions
+
+
+def _extract_bits(data: bytes, start_bit: int, nbits: int):
+    """Extract nbits from the data starting from the least significant end.
+    
+    If data = b"abcdefgh", start_bit = 2, nbits = 3, then the bits extracted are
+    "cde" and those are turned into a Python integer and returned.
+
+    Parameters
+    ----------
+    data : bytes
+        Data to extract bits from
+    start_bit : int
+        Starting bit location
+    nbits : int
+        Number of bits to extract
+    
+    Returns
+    -------
+    int
+        Extracted bits as an integer
+    """
+    # Get the bits from the packet data
+    # Select the bytes that contain the bits we want
+    start_byte = start_bit // 8
+    end_byte = start_byte + (nbits + 7) // 8
+    data = data[start_byte:end_byte]
+    # Convert the bytes to an integer for bitwise operations
+    value = int.from_bytes(data, byteorder="big")
+    if start_bit % 8 == 0 and nbits % 8 == 0:
+        # If we're extracting whole bytes, we don't need any bitshifting
+        # This is faster, especially for large binary chunks
+        return value
+    # Shift the value to the right to get the start bit to the least significant position
+    # Then mask out the bits we want to keep
+    return (value >> (len(data) * 8 - (start_bit % 8) - nbits)) & (2 ** nbits - 1)
