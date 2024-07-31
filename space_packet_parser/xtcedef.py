@@ -2,10 +2,11 @@
 # Standard
 from abc import ABCMeta
 from collections import namedtuple
+from dataclasses import dataclass, field
 import inspect
 import logging
 import struct
-from typing import Tuple, Union, Optional, Any, List, TextIO, Dict
+from typing import Tuple, Union, Optional, Protocol, Any, List, TextIO, Dict
 import warnings
 # Installed
 import lxml.etree as ElementTree
@@ -61,6 +62,36 @@ class AttrComparable(metaclass=ABCMeta):
                 return False
         return True
 
+
+@dataclass
+class ParsedDataItem:
+    """Representation of a parsed parameter
+
+    Parameters
+    ----------
+    name : str
+        Parameter name
+    unit : str
+        Parameter units
+    raw_value : any
+        Raw representation of the parsed value. May be lots of different types but most often an integer
+    derived_value : float or str
+        May be a calibrated value or an enum lookup
+    short_description : str
+        Parameter short description
+    long_description : str
+        Parameter long description
+    """
+    name: str
+    raw_value: Any
+    unit: Optional[str] = None
+    derived_value: Optional[Union[float, str]] = None
+    short_description: Optional[str] = None
+    long_description: Optional[str] = None
+
+    def __post_init__(self):
+        if self.name is None or self.raw_value is None:
+            raise ValueError("ParsedDataItem must have a name and a raw value.")
 
 # Matching logical objects
 class MatchCriteria(AttrComparable, metaclass=ABCMeta):
@@ -2322,84 +2353,98 @@ class RelativeTimeParameterType(TimeParameterType):
     pass
 
 
-class Parameter(AttrComparable):
-    """<xtce:Parameter>"""
+class Parseable(Protocol):
+    """Defines an object that can be parsed from packet data."""
+    def parse(self, packet_data: PacketData, parsed_items: dict, **parse_value_kwargs) -> dict:
+        """Parse this entry from the packet data and add the necessary items to the parsed_items dictionary."""
 
-    def __init__(self, name: str, parameter_type: ParameterType,
-                 short_description: Optional[str] = None, long_description: Optional[str] = None):
-        """Constructor
 
-        Parameters
-        ----------
-        name : str
-            Parameter name. Typically something like MSN__PARAMNAME
-        parameter_type : ParameterType
-            Parameter type object that describes how the parameter is stored.
-        short_description : Optional[str]
-            Short description of parameter as parsed from XTCE
-        long_description : Optional[str]
-            Long description of parameter as parsed from XTCE
+@dataclass
+class Parameter(Parseable):
+    """<xtce:Parameter>
+
+    Parameters
+    ----------
+    name : str
+        Parameter name. Typically something like MSN__PARAMNAME
+    parameter_type : ParameterType
+        Parameter type object that describes how the parameter is stored.
+    short_description : str
+        Short description of parameter as parsed from XTCE
+    long_description : str
+        Long description of parameter as parsed from XTCE
+    """
+    name: str
+    parameter_type: ParameterType
+    short_description: Optional[str] = None
+    long_description: Optional[str] = None
+
+
+    def parse(self, packet_data: PacketData, parsed_items: dict, **parse_value_kwargs) -> dict:
+        """Parse this parameter from the packet data.
+        
+        Create a ``ParsedDataItem`` and add it to the parsed_items dictionary.
         """
-        self.name = name
-        self.parameter_type = parameter_type
-        self.short_description = short_description
-        self.long_description = long_description
+        parsed_value, derived_value = self.parameter_type.parse_value(
+            packet_data, parsed_data=parsed_items, **parse_value_kwargs)
 
-    def __repr__(self):
-        module = self.__class__.__module__
-        qualname = self.__class__.__qualname__
-        return f"<{module}.{qualname} {self.name}>"
+        parsed_items[self.name] = ParsedDataItem(
+            name=self.name,
+            unit=self.parameter_type.unit,
+            raw_value=parsed_value,
+            derived_value=derived_value,
+            short_description=self.short_description,
+            long_description=self.long_description
+        )
+        return parsed_items
 
 
-class SequenceContainer(AttrComparable):
-    """<xtce:SequenceContainer>"""
+@dataclass
+class SequenceContainer(Parseable):
+    """<xtce:SequenceContainer>
 
-    def __init__(self,
-                 name: str,
-                 entry_list: list,
-                 short_description: Optional[str] = None,
-                 long_description: Optional[str] = None,
-                 base_container_name: Optional[str] = None,
-                 restriction_criteria: Optional[list] = None,
-                 abstract: bool = False,
-                 inheritors: Optional[List['SequenceContainer']] = None):
-        """Object representation of <xtce:SequenceContainer>
+    Parameters
+    ----------
+    name : str
+        Container name
+    entry_list : list
+        List of Parameter objects
+    long_description : str
+        Long description of the container
+    base_container_name : str
+        Name of the base container from which this may inherit if restriction criteria are met.
+    restriction_criteria : list
+        A list of MatchCriteria elements that evaluate to determine whether the SequenceContainer should
+        be included.
+    abstract : bool
+        True if container has abstract=true attribute. False otherwise.
+    inheritors : list, Optional
+        List of SequenceContainer objects that may inherit this one's entry list if their restriction criteria
+        are met. Any SequenceContainers with this container as base_container_name should be listed here.
+    """
+    name: str
+    entry_list: list  # List of Parameter objects, found by reference
+    short_description: Optional[str] = None
+    long_description: Optional[str] = None
+    base_container_name: Optional[str] = None
+    restriction_criteria: Optional[list] = field(default_factory=lambda : [])
+    abstract: bool = False
+    inheritors: Optional[List['SequenceContainer']] = field(default_factory=lambda : [])
 
-        Parameters
-        ----------
-        name : str
-            Container name
-        entry_list : list
-            List of Parameter objects
-        short_description : Optional[str]
-        long_description : Optional[str]
-            Long description of the container
-        base_container_name : Optional[str]
-            Name of the base container from which this may inherit if restriction criteria are met.
-        restriction_criteria : Optional[list]
-            A list of MatchCriteria elements that evaluate to determine whether the SequenceContainer should
-            be included.
-        abstract : bool
-            True if container has abstract=true attribute. False otherwise.
-            Default False.
-        inheritors : Optional[List[SequenceContainer]]
-            List of SequenceContainer objects that may inherit this one's entry list if their restriction criteria
-            are met. Any SequenceContainers with this container as base_container_name should be listed here.
+    def __post_init__(self):
+        # Handle the explicit None passing for default values
+        self.restriction_criteria = self.restriction_criteria or []
+        self.inheritors = self.inheritors or []
+
+
+    def parse(self, packet_data: PacketData, parsed_items: dict, **parse_value_kwargs) -> dict:
+        """Parse the entry list of parameters/containers in the order they are expected in the packet.
+        
+        This could be recursive if the entry list contains SequenceContainers.
         """
-        self.name = name
-        self.entry_list = entry_list  # List of Parameter objects, found by reference
-        self.short_description = short_description
-        self.long_description = long_description
-        self.base_container_name = base_container_name
-        self.restriction_criteria = restriction_criteria if restriction_criteria else []
-        self.abstract = abstract
-        self.inheritors = inheritors if inheritors else []
-
-    def __repr__(self):
-        module = self.__class__.__module__
-        qualname = self.__class__.__qualname__
-        return f"<{module}.{qualname} {self.name}>"
-
+        for entry in self.entry_list:
+            parsed_items = entry.parse(packet_data=packet_data, parsed_items=parsed_items, **parse_value_kwargs)
+        return parsed_items
 
 FlattenedContainer = namedtuple('FlattenedContainer', ['entry_list', 'restrictions'])
 
