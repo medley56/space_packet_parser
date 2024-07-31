@@ -2590,14 +2590,15 @@ def _extract_bits(data: bytes, start_bit: int, nbits: int):
     # Get the bits from the packet data
     # Select the bytes that contain the bits we want
     start_byte = start_bit // 8
-    end_byte = start_byte + (nbits + 7) // 8
+    start_bit %= 8
+    end_byte = start_byte + (start_bit + nbits + 7) // 8
     data = data[start_byte:end_byte]
     # Convert the bytes to an integer for bitwise operations
     value = int.from_bytes(data, byteorder="big")
-    if start_bit % 8 == 0 and nbits % 8 == 0:
+    if start_bit == 0 and nbits % 8 == 0:
         # If we're extracting whole bytes, we don't need any bitshifting
         # This is faster, especially for large binary chunks
         return value
     # Shift the value to the right to get the start bit to the least significant position
     # Then mask out the bits we want to keep
-    return (value >> (len(data) * 8 - (start_bit % 8) - nbits)) & (2 ** nbits - 1)
+    return (value >> (len(data) * 8 - start_bit - nbits)) & (2 ** nbits - 1)

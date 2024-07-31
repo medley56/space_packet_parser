@@ -1862,3 +1862,15 @@ def test_parsing_xtce_document(test_data_dir):
         abstract=True,
         inheritors=None
     )
+
+@pytest.mark.parametrize("start, nbits", [(0, 1), (0, 16), (0, 8), (0, 9),
+                                        (3, 5), (3, 8), (3, 13),
+                                        (7, 1), (7, 2), (7, 8),
+                                        (8, 1), (8, 8), (15, 1)])
+def test__extract_bits(start, nbits):
+    """Test the _extract_bits function with various start and nbits values"""
+    # Test extracting bits from a bitstream
+    s = '0000111100001111'
+    data = int(s, 2).to_bytes(2, byteorder="big")
+
+    assert xtcedef._extract_bits(data, start, nbits) == int(s[start:start+nbits], 2)
