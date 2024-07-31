@@ -28,43 +28,8 @@ CCSDS_HEADER_DEFINITION = [
 CCSDS_HEADER_LENGTH_BYTES = 6
 
 Packet = namedtuple('Packet', ['header', 'data'])
-
-
-class ParsedDataItem(xtcedef.AttrComparable):
-    """Representation of a parsed parameter"""
-
-    def __init__(self, name: str, raw_value: any, unit: str = None, derived_value: Optional[Union[float, str]] = None,
-                 short_description: str = None, long_description: str = None):
-        """Constructor
-
-        Parameters
-        ----------
-        name : str
-            Parameter name
-        unit : str
-            Parameter units
-        raw_value : any
-            Raw representation of the parsed value. May be lots of different types but most often an integer
-        derived_value : Union[float, str]
-            May be a calibrated value or an enum lookup
-        short_description : str
-            Parameter short description
-        long_description : str
-            Parameter long description
-        """
-        if name is None or raw_value is None:
-            raise ValueError("Invalid ParsedDataItem. Must define name and raw_value.")
-        self.name = name
-        self.raw_value = raw_value
-        self.unit = unit
-        self.derived_value = derived_value
-        self.short_description = short_description
-        self.long_description = long_description
-
-    def __repr__(self):
-        return (f"{self.__class__.__name__}("
-                f"{self.name}, raw={self.raw_value}, derived={self.derived_value}, unit={self.unit}"
-                f")")
+# Bring this into the namespace for backwards compatibility
+ParsedDataItem = xtcedef.ParsedDataItem
 
 
 class UnrecognizedPacketTypeError(Exception):
@@ -118,7 +83,7 @@ class PacketParser:
         header = {}
         current_bit = 0
         for item in CCSDS_HEADER_DEFINITION:
-            header[item.name] = ParsedDataItem(name=item.name,
+            header[item.name] = xtcedef.ParsedDataItem(name=item.name,
                                                unit=None,
                                                # pylint: disable=protected-access
                                                raw_value=xtcedef._extract_bits(packet_data, current_bit, item.nbits))
@@ -203,31 +168,12 @@ class PacketParser:
         Packet
             A Packet object container header and data attributes.
         """
-
-        def _parse_parameter(p: xtcedef.Parameter):
-            parsed_value, derived_value = p.parameter_type.parse_value(
-                packet_data, parsed_data=parsed_items, **parse_value_kwargs)
-
-            parsed_items[p.name] = ParsedDataItem(
-                name=p.name,
-                unit=p.parameter_type.unit,
-                raw_value=parsed_value,
-                derived_value=derived_value,
-                short_description=p.short_description,
-                long_description=p.long_description
-            )
-
-        def _parse_sequence_container(sc: xtcedef.SequenceContainer):
-            for e in sc.entry_list:
-                if isinstance(e, xtcedef.SequenceContainer):
-                    _parse_sequence_container(e)
-                else:
-                    _parse_parameter(e)
-
         parsed_items = {}
         current_container: xtcedef.SequenceContainer = containers[root_container_name]
         while True:
-            _parse_sequence_container(current_container)
+            parsed_items = current_container.parse(packet_data=packet_data,
+                                                   parsed_items=parsed_items,
+                                                   **parse_value_kwargs)
 
             valid_inheritors = []
             for inheritor_name in current_container.inheritors:
@@ -276,7 +222,7 @@ class PacketParser:
         for parameter in entry_list[0:7]:
             parsed_value, _ = parameter.parameter_type.parse_value(packet_data, header)
 
-            header[parameter.name] = ParsedDataItem(
+            header[parameter.name] = xtcedef.ParsedDataItem(
                 name=parameter.name,
                 unit=parameter.parameter_type.unit,
                 raw_value=parsed_value
@@ -289,7 +235,7 @@ class PacketParser:
             parsed_value, derived_value = parameter.parameter_type.parse_value(
                 packet_data, parsed_data=combined_parsed_data, **parse_value_kwargs)
 
-            user_data[parameter.name] = ParsedDataItem(
+            user_data[parameter.name] = xtcedef.ParsedDataItem(
                 name=parameter.name,
                 unit=parameter.parameter_type.unit,
                 raw_value=parsed_value,
