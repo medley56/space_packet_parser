@@ -4,9 +4,8 @@ from abc import ABCMeta
 from collections import namedtuple
 import inspect
 import logging
-from pathlib import Path
 import struct
-from typing import Tuple, Union, Optional, Any, List
+from typing import Tuple, Union, Optional, Any, List, TextIO, Dict
 import warnings
 from xml.etree import ElementTree
 
@@ -159,7 +158,7 @@ class Comparison(MatchCriteria):
                              f"{set(self._valid_operators.keys())}")
 
     @classmethod
-    def from_match_criteria_xml_element(cls, element: ElementTree.Element, ns: dict):
+    def from_match_criteria_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'Comparison':
         """Create
 
         Parameters
@@ -171,7 +170,7 @@ class Comparison(MatchCriteria):
 
         Returns
         -------
-        : cls
+        : Comparison
         """
         use_calibrated_value = True  # Default
         if 'useCalibratedValue' in element.attrib:
@@ -245,8 +244,13 @@ class Condition(MatchCriteria):
     but it's functionally close enough that we inherit the class here.
     """
 
-    def __init__(self, left_param: str, operator: str, right_param: Optional[str] = None, right_value: Optional[Any] = None,
-                 left_use_calibrated_value: bool = True, right_use_calibrated_value: bool = True):
+    def __init__(self,
+                 left_param: str,
+                 operator: str,
+                 right_param: Optional[str] = None,
+                 right_value: Optional[Any] = None,
+                 left_use_calibrated_value: bool = True,
+                 right_use_calibrated_value: bool = True):
         """Constructor
 
         Parameters
@@ -404,7 +408,7 @@ class BooleanExpression(MatchCriteria):
         self.expression = expression
 
     @classmethod
-    def from_match_criteria_xml_element(cls, element: ElementTree.Element, ns: dict):
+    def from_match_criteria_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'BooleanExpression':
         """Abstract classmethod to create a match criteria object from an XML element.
 
         Parameters
@@ -416,10 +420,10 @@ class BooleanExpression(MatchCriteria):
 
         Returns
         -------
-        : cls
+        : BooleanExpression
         """
 
-        def _parse_anded(anded_el: ElementTree.Element):
+        def _parse_anded(anded_el: ElementTree.Element) -> Anded:
             """Create an Anded object from an xtce:ANDedConditions element
 
             Parameters
@@ -436,7 +440,7 @@ class BooleanExpression(MatchCriteria):
             anded_ors = [_parse_ored(anded_or) for anded_or in anded_el.findall('xtce:ORedConditions', ns)]
             return Anded(conditions, anded_ors)
 
-        def _parse_ored(ored_el: ElementTree.Element):
+        def _parse_ored(ored_el: ElementTree.Element) -> Ored:
             """Create an Ored object from an xtce:ARedConditions element
 
             Parameters
@@ -523,7 +527,7 @@ class DiscreteLookup(AttrComparable):
         self.lookup_value = lookup_value
 
     @classmethod
-    def from_discrete_lookup_xml_element(cls, element: ElementTree.Element, ns: dict):
+    def from_discrete_lookup_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'DiscreteLookup':
         """Create a DiscreteLookup object from an <xtce:DiscreteLookup> XML element
 
         Parameters
@@ -535,7 +539,7 @@ class DiscreteLookup(AttrComparable):
 
         Returns
         -------
-        : cls
+        : DiscreteLookup
         """
         lookup_value = float(element.attrib['value'])
         if element.find('xtce:ComparisonList', ns) is not None:
@@ -549,7 +553,7 @@ class DiscreteLookup(AttrComparable):
 
         return cls(match_criteria, lookup_value)
 
-    def evaluate(self, parsed_data: dict, current_parsed_value: Optional[Union[int, float]] = None):
+    def evaluate(self, parsed_data: dict, current_parsed_value: Optional[Union[int, float]] = None) -> Any:
         """Evaluate the lookup to determine if it is valid.
 
         Parameters
@@ -576,7 +580,7 @@ class Calibrator(AttrComparable, metaclass=ABCMeta):
     """Abstract base class for XTCE calibrators"""
 
     @classmethod
-    def from_calibrator_xml_element(cls, element: ElementTree.Element, ns: dict):
+    def from_calibrator_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'Calibrator':
         """Abstract classmethod to create a default_calibrator object from an XML element.
 
         Parameters
@@ -592,7 +596,7 @@ class Calibrator(AttrComparable, metaclass=ABCMeta):
         """
         return NotImplemented
 
-    def calibrate(self, uncalibrated_value: Union[int, float]):
+    def calibrate(self, uncalibrated_value: Union[int, float]) -> Union[int, float]:
         """Takes an integer-encoded or float-encoded value and returns a calibrated version.
 
         Parameters
@@ -637,7 +641,7 @@ class SplineCalibrator(Calibrator):
         self.extrapolate = extrapolate
 
     @classmethod
-    def from_calibrator_xml_element(cls, element: ElementTree.Element, ns: dict):
+    def from_calibrator_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'SplineCalibrator':
         """Create a spline default_calibrator object from an <xtce:SplineCalibrator> XML element."""
         point_elements = element.findall('xtce:SplinePoint', ns)
         spline_points = [
@@ -648,7 +652,7 @@ class SplineCalibrator(Calibrator):
         extrapolate = element.attrib['extrapolate'].lower() == 'true' if 'extrapolate' in element.attrib else False
         return cls(order=order, points=spline_points, extrapolate=extrapolate)
 
-    def calibrate(self, uncalibrated_value: float):
+    def calibrate(self, uncalibrated_value: float) -> float:
         """Take an integer-encoded value and returns a calibrated version according to the spline points.
 
         Parameters
@@ -667,7 +671,7 @@ class SplineCalibrator(Calibrator):
             return self._first_order_spline_interp(uncalibrated_value)
         raise NotImplementedError(f"SplineCalibrator is not implemented for spline order {self.order}.")
 
-    def _zero_order_spline_interp(self, query_point: float):
+    def _zero_order_spline_interp(self, query_point: float) -> float:
         """Abstraction for zero order spline interpolation. If extrapolation is set to a truthy value, we use
         the nearest point to extrapolate outside the range of the given spline points. Within the range of spline
         points, we use nearest lower point interpolation.
@@ -694,7 +698,7 @@ class SplineCalibrator(Calibrator):
         raise CalibrationError(f"Extrapolation is set to a falsy value ({self.extrapolate}) but query value "
                                f"{query_point} falls outside the range of spline points {self.points}")
 
-    def _first_order_spline_interp(self, query_point: float):
+    def _first_order_spline_interp(self, query_point: float) -> float:
         """Abstraction for first order spline interpolation. If extrapolation is set to a truthy value, we use the
         end points to make a linear function and use it to extrapolate.
 
@@ -709,7 +713,7 @@ class SplineCalibrator(Calibrator):
             Calibrated value.
         """
 
-        def linear_func(xq: float, x0: float, x1: float, y0: float, y1: float):
+        def linear_func(xq: float, x0: float, x1: float, y0: float, y1: float) -> float:
             """Evaluate a linear function through points (x0, y0), (x1, y1) at point xq
 
             Parameters
@@ -760,7 +764,7 @@ class PolynomialCalibrator(Calibrator):
         self.coefficients = coefficients  # Coefficients should be a list of PolynomialCoefficients
 
     @classmethod
-    def from_calibrator_xml_element(cls, element: ElementTree.Element, ns: dict):
+    def from_calibrator_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'PolynomialCalibrator':
         """Create a polynomial default_calibrator object from an <xtce:PolynomialCalibrator> XML element.
 
         Parameters
@@ -781,7 +785,7 @@ class PolynomialCalibrator(Calibrator):
         ]
         return cls(coefficients=coefficients)
 
-    def calibrate(self, uncalibrated_value: float):
+    def calibrate(self, uncalibrated_value: float) -> float:
         """Evaluate the polynomial defined by object coefficients at the specified uncalibrated point.
 
         Parameters
@@ -809,7 +813,7 @@ class MathOperationCalibrator(Calibrator):
         raise NotImplementedError(self.err_msg)
 
     @classmethod
-    def from_calibrator_xml_element(cls, element: ElementTree.Element, ns: dict):
+    def from_calibrator_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'MathOperationCalibrator':
         """Create a math operation default_calibrator from an <xtce:MathOperationCalibrator> XML element."""
         raise NotImplementedError(cls.err_msg)
 
@@ -846,7 +850,7 @@ class ContextCalibrator(AttrComparable):
         self.calibrator = calibrator
 
     @staticmethod
-    def get_context_match_criteria(element: ElementTree.Element, ns: dict):
+    def get_context_match_criteria(element: ElementTree.Element, ns: dict) -> List[MatchCriteria]:
         """Parse contextual requirements from a Comparison, ComparisonList, or BooleanExpression
 
         Parameters
@@ -858,7 +862,7 @@ class ContextCalibrator(AttrComparable):
 
         Returns
         -------
-        : list
+        : List[MatchCriteria]
             List of Comparisons that can be evaluated to determine whether this calibrator should be used.
         """
         context_match_element = element.find('xtce:ContextMatch', ns)
@@ -876,7 +880,7 @@ class ContextCalibrator(AttrComparable):
                                   "(CustomAlgorithm).")
 
     @classmethod
-    def from_context_calibrator_xml_element(cls, element: ElementTree.Element, ns: dict):
+    def from_context_calibrator_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'ContextCalibrator':
         """Create a ContextCalibrator object from an <xtce:ContextCalibrator> XML element
 
         Parameters
@@ -905,7 +909,7 @@ class ContextCalibrator(AttrComparable):
 
         return cls(match_criteria=match_criteria, calibrator=calibrator)
 
-    def calibrate(self, parsed_value: Union[int, float]):
+    def calibrate(self, parsed_value: Union[int, float]) -> Union[int, float]:
         """Wrapper method for the internal `Calibrator.calibrate`
 
         Parameters
@@ -924,7 +928,7 @@ class ContextCalibrator(AttrComparable):
 class PacketData:
     """Raw packet data stored as bytes"""
 
-    def __init__(self, data: bytes):
+    def __init__(self, data: bytes, pos: int = 0):
         """The raw packet data stored as bytes
 
         Intended to be used to ``read`` and ``peek`` at data within the packet.
@@ -936,15 +940,41 @@ class PacketData:
         ----------
         data : bytes
             The binary data for a single packet.
+        pos : int
+            The bit cursor position in the packet. Default 0.
         """
         self.data = data
-        self.pos = 0
+        self.pos = pos
         self._nbits = len(data) * 8
 
-    def read(self, format_string, update_position=True):
-        """read nbits from the packet data"""
-        name, nbits = format_string.split(":")
-        nbits = int(nbits)
+    def __len__(self):
+        """The length of the full packet data object, in bits"""
+        return self._nbits
+
+    def read(self, format_string: str, update_position: bool = True) -> Union[int, float, str, bytes]:
+        """Read bits from the packet data according to the format specifier.
+
+        Starts reading at the current cursor position `pos` where pos is in bits.
+
+        Parameters
+        ----------
+        format_string : str
+            A  bitstring-style format string, e.g. `uint:14`
+        update_position : bool
+            Whether to update the cursor position in the packet. Default True.
+
+        Returns
+        -------
+        : Union[int, float, str, bytes]
+            Value read from the packet data according to the format specifier.
+        """
+        # pylint: disable=too-many-branches
+        name, n_things = format_string.split(":")
+        if name == "bytes":
+            nbits = int(n_things) * 8
+        else:
+            nbits = int(n_things)
+
         if self.pos + nbits > self._nbits:
             raise ValueError("End of packet reached")
 
@@ -956,13 +986,17 @@ class PacketData:
         if name == "uint":
             return bytes_as_int
         if name == "int":
-            return int.from_bytes(int.to_bytes(bytes_as_int, nbits // 8 + 1, byteorder="big"),
-                                  byteorder="big", signed=True)
+            # Compute two's complement for signed integer of any size (nbits)
+            if (bytes_as_int & (1 << (nbits - 1))) != 0:  # if sign bit is set e.g., 8bit: 128-255
+                return bytes_as_int - (1 << nbits)  # compute negative value
+            return bytes_as_int  # return positive value as is
         if name == "floatbe":
-            if nbits == 32:
-                name = "f"
+            if nbits == 16:
+                name = "!e"
+            elif nbits == 32:
+                name = "!f"
             elif nbits == 64:
-                name = "d"
+                name = "!d"
             else:
                 raise ValueError(f"Unsupported float size {nbits}, only 32 and 64 are supported")
             return struct.unpack(name, int.to_bytes(bytes_as_int, nbits // 8, byteorder="big"))[0]
@@ -974,8 +1008,21 @@ class PacketData:
             return int.to_bytes(bytes_as_int, nbits // 8, "big")
         raise ValueError(f"Unsupported format type {name}")
 
-    def peek(self, format_string):
-        """peek nbits from the packet data"""
+    def peek(self, format_string: str):
+        """Peek from the packet data according to the format specifier.
+
+        Does not update the current cursor position in the data.
+
+        Parameters
+        ----------
+        format_string : str
+            Bitstring-style format string, e.g. `uint:14`
+
+        Returns
+        -------
+        : Union[int, float, str, bytes]
+            Read value from the packet data according to the format specifier.
+        """
         return self.read(format_string, update_position=False)
 
 
@@ -984,7 +1031,7 @@ class DataEncoding(AttrComparable, metaclass=ABCMeta):
     """Abstract base class for XTCE data encodings"""
 
     @classmethod
-    def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict):
+    def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'DataEncoding':
         """Abstract classmethod to create a data encoding object from an XML element.
 
         Parameters
@@ -996,12 +1043,12 @@ class DataEncoding(AttrComparable, metaclass=ABCMeta):
 
         Returns
         -------
-        cls
+        : DataEncoding
         """
         return NotImplemented
 
     @staticmethod
-    def get_default_calibrator(data_encoding_element: ElementTree.Element, ns: dict):
+    def get_default_calibrator(data_encoding_element: ElementTree.Element, ns: dict) -> Union[Calibrator, None]:
         """Gets the default_calibrator for the data encoding element
 
         Parameters
@@ -1013,7 +1060,7 @@ class DataEncoding(AttrComparable, metaclass=ABCMeta):
 
         Returns
         -------
-        Calibrator
+        : Union[Calibrator, None]
         """
         for calibrator in [SplineCalibrator, PolynomialCalibrator, MathOperationCalibrator]:
             # Try to find each type of data encoding element. If we find one, we assume it's the only one.
@@ -1023,7 +1070,8 @@ class DataEncoding(AttrComparable, metaclass=ABCMeta):
         return None
 
     @staticmethod
-    def get_context_calibrators(data_encoding_element: ElementTree.Element, ns: dict) -> Union[list, None]:
+    def get_context_calibrators(
+            data_encoding_element: ElementTree.Element, ns: dict) -> Union[List[ContextCalibrator], None]:
         """Get the context default_calibrator(s) for the data encoding element
 
         Parameters
@@ -1035,7 +1083,7 @@ class DataEncoding(AttrComparable, metaclass=ABCMeta):
 
         Returns
         -------
-        : Union[list, None]
+        : Union[List[ContextCalibrator], None]
             List of ContextCalibrator objects or None if there are no context calibrators
         """
         if data_encoding_element.find('xtce:ContextCalibratorList', ns):
@@ -1092,7 +1140,7 @@ class DataEncoding(AttrComparable, metaclass=ABCMeta):
             return adjuster
         return None
 
-    def _get_format_string(self, packet_data: PacketData, parsed_data: dict):
+    def _get_format_string(self, packet_data: PacketData, parsed_data: dict) -> str:
         """Infer a bitstring format string, possibly using previously parsed data. This is called by parse_value only
         so it's private.
 
@@ -1108,7 +1156,7 @@ class DataEncoding(AttrComparable, metaclass=ABCMeta):
         """
         raise NotImplementedError()
 
-    def parse_value(self, packet_data: PacketData, parsed_data: dict, **kwargs):
+    def parse_value(self, packet_data: PacketData, parsed_data: dict, **kwargs) -> Tuple[Any, Any]:
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
@@ -1161,7 +1209,7 @@ class StringDataEncoding(DataEncoding):
         leading_length_size : Optional[int]
             Fixed size in bits of a leading field that contains the length of the subsequent string.
         dynamic_length_reference : Optional[str]
-            Name of referenced parameter for dynamic length. May be combined with a linear_adjuster
+            Name of referenced parameter for dynamic length, in bits. May be combined with a linear_adjuster
         use_calibrated_value: bool
             Whether to use the calibrated value on the referenced parameter in dynamic_length_reference.
             Default is True.
@@ -1176,7 +1224,11 @@ class StringDataEncoding(DataEncoding):
                 f"Got encoding={encoding}. Encoding must be one of utf-8, utf-16-le, or utf-16-be (note that"
                 f"endianness must be specified for utf-16 encoding.")
         self.encoding = encoding
-        if termination_character and len(bytes.fromhex(termination_character).decode(encoding).encode('utf-8')) != 1:
+        # Check that the termination character is a single character in the specified encoding
+        # e.g. b'\x58' in utf-8 is "X"
+        # b'\x21\00' in utf-16-le is "!"
+        # b'\x00\x21' in utf-16-be is "!"
+        if termination_character and len(bytes.fromhex(termination_character).decode(encoding)) != 1:
             raise ValueError(f"Termination character {termination_character} appears to be malformed. Expected a "
                              f"hex string representation of a single character, e.g. '58' for character 'X' in utf-8 "
                              f"or '5800' for character 'X' in utf-16-le. Note that variable-width encoding is not "
@@ -1189,7 +1241,7 @@ class StringDataEncoding(DataEncoding):
         self.discrete_lookup_length = discrete_lookup_length
         self.length_linear_adjuster = length_linear_adjuster
 
-    def _get_format_string(self, packet_data: PacketData, parsed_data: dict):
+    def _get_format_string(self, packet_data: PacketData, parsed_data: dict) -> Tuple[str, int]:
         """Infer a bitstring format string
 
         Parameters
@@ -1202,9 +1254,9 @@ class StringDataEncoding(DataEncoding):
 
         Returns
         -------
-        : Union[str, None]
-            Format string in the bitstring format. e.g. uint:16
-        : Union[int, None]
+        : str
+            Format string in the bitstring format. e.g. `uint:16`
+        : int
             Number of bits to skip after parsing the string
         """
         # pylint: disable=too-many-branches
@@ -1214,6 +1266,10 @@ class StringDataEncoding(DataEncoding):
         elif self.leading_length_size is not None:  # strlen_bits is determined from a preceding integer
             leading_strlen_bitstring_format = f"uint:{self.leading_length_size}"
             strlen_bits = packet_data.read(leading_strlen_bitstring_format)
+            if strlen_bits % 8 != 0:
+                warnings.warn(f"String length (in bits) is {strlen_bits}, which is not a multiple of 8. "
+                              f"This likely means something is wrong since strings are expected to be integer numbers "
+                              f"of bytes.")
         elif self.discrete_lookup_length is not None:
             for discrete_lookup in self.discrete_lookup_length:
                 strlen_bits = discrete_lookup.evaluate(parsed_data)
@@ -1229,7 +1285,8 @@ class StringDataEncoding(DataEncoding):
                 strlen_bits = parsed_data[self.dynamic_length_reference].raw_value
             strlen_bits = int(strlen_bits)
         elif self.termination_character is not None:
-            termination_char_utf8_bytes = bytes.fromhex(self.termination_character)
+            # Literal bytes object (no encoding assumed yet)
+            termination_char_bytes = bytes.fromhex(self.termination_character)
 
             if self.encoding in ['utf-16-le', 'utf-16-be']:
                 bytes_per_char = 2
@@ -1241,29 +1298,48 @@ class StringDataEncoding(DataEncoding):
                     f"endianness must be specified for utf-16 encoding.")
 
             bits_per_byte = 8
-            look_ahead_n_bytes = 0
-            while look_ahead_n_bytes <= len(packet_data) - packet_data.pos:
-                look_ahead = packet_data.peek(f'bytes:{look_ahead_n_bytes}')  # Outputs UTF-8 encoded byte string
-                look_ahead = look_ahead.decode('utf-8').encode(self.encoding)  # Force specified encoding
-                if termination_char_utf8_bytes in look_ahead:
+
+            # If we are starting mid-byte, there may not be an integer number of bytes between the string and the
+            # end of the packet
+            n_full_bytes_left_in_packet = (len(packet_data) - packet_data.pos) // bits_per_byte
+
+            # Start by looking ahead at most 16 chars.
+            look_ahead_n_chars = min(16, n_full_bytes_left_in_packet // bytes_per_char)
+
+            # Peek at 64 characters at a time. 64, 128, 192, ...
+            # Remember in utf-16-be/le, each character will be 2 bytes
+            look_ahead_n_bytes = bytes_per_char * look_ahead_n_chars
+
+            while look_ahead_n_bytes <= n_full_bytes_left_in_packet:
+                # Outputs byte string (encoding is irrelevant, they are just bytes)
+                look_ahead = packet_data.peek(f'bytes:{look_ahead_n_bytes}')
+                # Check if the termination character byte string is in the look ahead bytes we peeked at
+                if termination_char_bytes in look_ahead:
                     # Implicit assumption of one termination character in specified encoding
                     tclen_bits = bytes_per_char * bits_per_byte
-                    strlen_bits = (look_ahead_n_bytes * bits_per_byte) - tclen_bits
+                    # Split the look ahead bytes string at the termination character and get its length (in bits)
+                    strlen_bits = len(look_ahead.split(termination_char_bytes)[0]) * bits_per_byte
+                    # Tell the parser to skip the termination character
                     skip_bits_after = tclen_bits
                     break
-                look_ahead_n_bytes += bytes_per_char
+                # Increment look ahead length by one char (1 or 2 bytes, based on encoding)
+                look_ahead_n_bytes += bytes_per_char * look_ahead_n_chars
+                # Ensure we never go over the total length of the packet, in bits
+                look_ahead_n_bytes = min(look_ahead_n_bytes, n_full_bytes_left_in_packet)
             else:
                 raise ValueError(f"Reached end of binary string without finding "
                                  f"termination character {self.termination_character}.")
         else:
             raise ValueError("Unable to parse StringParameterType. "
                              "Didn't contain any way to constrain the length of the string.")
-        if self.length_linear_adjuster is not None:
+        if not self.termination_character and self.length_linear_adjuster is not None:
+            # Only adjust if we are not doing this by termination character. Adjusting a length that is objectively
+            # determined via termination character is nonsensical.
             strlen_bits = self.length_linear_adjuster(strlen_bits)
         return f"bytes:{strlen_bits // 8}", skip_bits_after
         # pylint: enable=too-many-branches
 
-    def parse_value(self, packet_data: PacketData, parsed_data: dict, **kwargs):
+    def parse_value(self, packet_data: PacketData, parsed_data: dict, **kwargs) -> Tuple[str, None]:
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
@@ -1275,9 +1351,9 @@ class StringDataEncoding(DataEncoding):
 
         Returns
         -------
-        : any
+        : str
             Parsed value
-        : any
+        : None
             Calibrated value
         """
         bitstring_format, skip_bits_after = self._get_format_string(packet_data, parsed_data)
@@ -1286,7 +1362,7 @@ class StringDataEncoding(DataEncoding):
         return parsed_value.decode(self.encoding), None
 
     @classmethod
-    def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict):
+    def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'StringDataEncoding':
         """Create a data encoding object from an <xtce:StringDataEncoding> XML element.
         Strings in XTCE can be described in three ways:
 
@@ -1387,7 +1463,9 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
         self.default_calibrator = default_calibrator
         self.context_calibrators = context_calibrators
 
-    def parse_value(self, packet_data: PacketData, parsed_data: dict, **kwargs):
+    def parse_value(self,
+                    packet_data: PacketData,
+                    parsed_data: dict, **kwargs) -> Tuple[Union[int, float], Union[int, float]]:
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
@@ -1424,7 +1502,7 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
 class IntegerDataEncoding(NumericDataEncoding):
     """<xtce:IntegerDataEncoding>"""
 
-    def _get_format_string(self, packet_data: PacketData, parsed_data: dict):
+    def _get_format_string(self, packet_data: PacketData, parsed_data: dict) -> str:
         """Infer a bitstring format string
 
         Returns
@@ -1444,7 +1522,7 @@ class IntegerDataEncoding(NumericDataEncoding):
         return f"{base}:{self.size_in_bits}"
 
     @classmethod
-    def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict):
+    def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'IntegerDataEncoding':
         """Create a data encoding object from an <xtce:IntegerDataEncoding> XML element.
 
         Parameters
@@ -1506,7 +1584,7 @@ class FloatDataEncoding(NumericDataEncoding):
         super().__init__(size_in_bits, encoding=encoding,
                          default_calibrator=default_calibrator, context_calibrators=context_calibrators)
 
-    def _get_format_string(self, packet_data: PacketData, parsed_data: dict):
+    def _get_format_string(self, packet_data: PacketData, parsed_data: dict) -> str:
         """Infer a bitstring format string
 
         Returns
@@ -1517,7 +1595,7 @@ class FloatDataEncoding(NumericDataEncoding):
         return f"floatbe:{self.size_in_bits}"
 
     @classmethod
-    def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict):
+    def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'FloatDataEncoding':
         """Create a data encoding object from an <xtce:FloatDataEncoding> XML element.
 
         Parameters
@@ -1574,7 +1652,7 @@ class BinaryDataEncoding(DataEncoding):
         self.size_discrete_lookup_list = size_discrete_lookup_list
         self.linear_adjuster = linear_adjuster
 
-    def _get_format_string(self, packet_data: PacketData, parsed_data: dict):
+    def _get_format_string(self, packet_data: PacketData, parsed_data: dict) -> str:
         """Infer a bitstring format string
 
         Returns
@@ -1636,7 +1714,7 @@ class BinaryDataEncoding(DataEncoding):
         return parsed_value, None
 
     @classmethod
-    def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict):
+    def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'BinaryDataEncoding':
         """Create a data encoding object from an <xtce:BinaryDataEncoding> XML element.
 
         Parameters
@@ -1648,7 +1726,7 @@ class BinaryDataEncoding(DataEncoding):
 
         Returns
         -------
-        : cls
+        : BinaryDataEncoding
         """
         fixed_value_element = element.find('xtce:SizeInBits/xtce:FixedValue', ns)
         if fixed_value_element is not None:
@@ -1702,7 +1780,7 @@ class ParameterType(AttrComparable, metaclass=ABCMeta):
         return f"<{module}.{qualname} {self.name}>"
 
     @classmethod
-    def from_parameter_type_xml_element(cls, element: ElementTree.Element, ns: dict):
+    def from_parameter_type_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'ParameterType':
         """Create a *ParameterType from an <xtce:*ParameterType> XML element.
 
         Parameters
@@ -2256,7 +2334,7 @@ class XtcePacketDefinition:
         '{{{xtce}}}RelativeTimeParameterType': RelativeTimeParameterType,
     }
 
-    def __init__(self, xtce_document: Union[str, Path], ns: Optional[dict] = None):
+    def __init__(self, xtce_document: TextIO, ns: Optional[dict] = None):
         """Instantiate an object representation of a CCSDS packet definition, according to a format specified in an XTCE
         XML document. The parser iteratively builds sequences of parameters according to the
         SequenceContainers specified in the XML document's ContainerSet element. The notions of container inheritance
@@ -2266,7 +2344,7 @@ class XtcePacketDefinition:
 
         Parameters
         ----------
-        xtce_document : Union[str, Path]
+        xtce_document : TextIO
             Path to XTCE XML document containing packet definition.
         ns : Optional[dict]
             Optional different namespace than the default xtce namespace.
@@ -2372,8 +2450,8 @@ class XtcePacketDefinition:
                     )
                     entry_list.append(parameter_object)
                     self._parameter_cache[parameter_name] = parameter_object  # Add to cache
-            elif entry.tag == '{{{xtce}}}ContainerRefEntry'.format(
-                    **self.ns):  # pylint: disable=consider-using-f-string
+            elif entry.tag == '{{{xtce}}}ContainerRefEntry'.format(  # pylint: disable=consider-using-f-string
+                    **self.ns):
                 nested_container = self._find_container(name=entry.attrib['containerRef'])
                 entry_list.append(self.parse_sequence_container_contents(nested_container))
 
@@ -2393,20 +2471,21 @@ class XtcePacketDefinition:
                                  long_description=long_description)
 
     @property
-    def named_containers(self):
+    def named_containers(self) -> Dict[str, SequenceContainer]:
         """Property accessor that returns the dict cache of SequenceContainer objects"""
         return self._sequence_container_cache
 
     @property
-    def named_parameters(self):
+    def named_parameters(self) -> Dict[str, Parameter]:
         """Property accessor that returns the dict cache of Parameter objects"""
         return self._parameter_cache
 
     @property
-    def named_parameter_types(self):
+    def named_parameter_types(self) -> Dict[str, ParameterType]:
         """Property accessor that returns the dict cache of ParameterType objects"""
         return self._parameter_type_cache
 
+    # DEPRECATED! This is only used by CSV-parser code. Remove for 5.0.0 release
     @property
     def flattened_containers(self):
         """Accesses a flattened, generic representation of non-abstract packet definitions along with their
@@ -2473,17 +2552,17 @@ class XtcePacketDefinition:
         }
 
     @property
-    def container_set(self):
+    def container_set(self) -> ElementTree.Element:
         """Property that returns the <xtce:ContainerSet> element, containing all the sequence container elements."""
         return self.tree.getroot().find('xtce:TelemetryMetaData/xtce:ContainerSet', self.ns)
 
     @property
-    def parameter_type_set(self):
+    def parameter_type_set(self) -> ElementTree.Element:
         """Property that returns the <xtce:ParameterTypeSet> element, containing all parameter type elements."""
         return self.tree.getroot().find('xtce:TelemetryMetaData/xtce:ParameterTypeSet', self.ns)
 
     @property
-    def parameter_set(self):
+    def parameter_set(self) -> ElementTree.Element:
         """Property that returns the <xtce:ParameterSet> element, containing all parameter elements."""
         return self.tree.getroot().find('xtce:TelemetryMetaData/xtce:ParameterSet', self.ns)
 
@@ -2556,7 +2635,9 @@ class XtcePacketDefinition:
                                   f"Parameter type names are expected to exist and be unique."
         return matches[0]
 
-    def _get_container_base_container(self, container_element: ElementTree.Element) -> Tuple[ElementTree.Element, list]:
+    def _get_container_base_container(
+            self,
+            container_element: ElementTree.Element) -> Tuple[ElementTree.Element, List[MatchCriteria]]:
         """Examines the container_element and returns information about its inheritance.
 
         Parameters
@@ -2606,15 +2687,15 @@ class XtcePacketDefinition:
 def _extract_bits(data: bytes, start_bit: int, nbits: int):
     """Extract nbits from the data starting from the least significant end.
     
-    If data = b"abcdefgh", start_bit = 2, nbits = 3, then the bits extracted are
-    "cde" and those are turned into a Python integer and returned.
+    If data = 00110101 11001010, start_bit = 2, nbits = 9, then the bits extracted are "110101110".
+    Those bits are turned into a Python integer and returned.
 
     Parameters
     ----------
     data : bytes
         Data to extract bits from
     start_bit : int
-        Starting bit location
+        Starting bit location within the data
     nbits : int
         Number of bits to extract
     
@@ -2624,17 +2705,18 @@ def _extract_bits(data: bytes, start_bit: int, nbits: int):
         Extracted bits as an integer
     """
     # Get the bits from the packet data
-    # Select the bytes that contain the bits we want
-    start_byte = start_bit // 8
-    start_bit %= 8
-    end_byte = start_byte + (start_bit + nbits + 7) // 8
-    data = data[start_byte:end_byte]
+    # Select the bytes that contain the bits we want.
+    start_byte = start_bit // 8  # Byte index containing the start_bit
+    start_bit_within_byte = start_bit % 8  # Bit index within the start_byte
+    end_byte = start_byte + (start_bit_within_byte + nbits + 7) // 8
+    data = data[start_byte:end_byte]  # Chunk of bytes containing the data item we want to parse
     # Convert the bytes to an integer for bitwise operations
     value = int.from_bytes(data, byteorder="big")
-    if start_bit == 0 and nbits % 8 == 0:
-        # If we're extracting whole bytes, we don't need any bitshifting
+    if start_bit_within_byte == 0 and nbits % 8 == 0:
+        # If we're extracting whole bytes starting at a byte boundary, we don't need any bitshifting
         # This is faster, especially for large binary chunks
         return value
-    # Shift the value to the right to get the start bit to the least significant position
-    # Then mask out the bits we want to keep
-    return (value >> (len(data) * 8 - start_bit - nbits)) & (2 ** nbits - 1)
+
+    # Shift the value to the right to move the LSB of the data item we want to parse
+    # to the least significant position, then mask out the number of bits we want to keep
+    return (value >> (len(data) * 8 - start_bit_within_byte - nbits)) & (2 ** nbits - 1)
