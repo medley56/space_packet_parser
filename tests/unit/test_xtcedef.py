@@ -1366,12 +1366,14 @@ def test_float_parameter_parsing(parameter_type, parsed_data, packet_data, expec
         <xtce:Enumeration label="BOOT_RETURN" value="1"/>
         <xtce:Enumeration label="OP_LOW" value="2"/>
         <xtce:Enumeration label="OP_HIGH" value="3"/>
+        <xtce:Enumeration label="OP_HIGH" value="4"/>
     </xtce:EnumerationList>
 </xtce:EnumeratedParameterType>
 """,
          xtcedef.EnumeratedParameterType(name='TEST_ENUM_Type',
                                          encoding=xtcedef.IntegerDataEncoding(size_in_bits=2, encoding='unsigned'),
-                                         enumeration={'BOOT_POR': 0, 'BOOT_RETURN': 1, 'OP_LOW': 2, 'OP_HIGH': 3})),
+                                         # NOTE: Duplicate final value is on purpose to make sure we handle that case
+                                         enumeration={0: 'BOOT_POR', 1: 'BOOT_RETURN', 2: 'OP_LOW', 3: 'OP_HIGH', 4: 'OP_HIGH'})),
     ]
 )
 def test_enumerated_parameter_type(xml_string: str, expectation):
@@ -1389,11 +1391,11 @@ def test_enumerated_parameter_type(xml_string: str, expectation):
 @pytest.mark.parametrize(
     ('parameter_type', 'parsed_data', 'packet_data', 'expected'),
     [
-        (xtcedef.EnumeratedParameterType('TEST_ENUM', xtcedef.IntegerDataEncoding(16, 'unsigned'), {'NOMINAL': 32768}),
+        (xtcedef.EnumeratedParameterType('TEST_ENUM', xtcedef.IntegerDataEncoding(16, 'unsigned'), {32768: 'NOMINAL'}),
          {}, '0b1000000000000000', 'NOMINAL'),
         (xtcedef.EnumeratedParameterType(
             'TEST_FLOAT',
-            xtcedef.IntegerDataEncoding(16, 'signed'),  {'VAL_LOW': -42}),
+            xtcedef.IntegerDataEncoding(16, 'signed'),  {-42: 'VAL_LOW'}),
          {}, '0b1111111111010110', 'VAL_LOW'),
     ]
 )

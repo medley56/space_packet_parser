@@ -5,6 +5,9 @@ list and release milestones.
 ## Version Release Notes
 Release notes for the `space_packet_parser` library
 
+### vXXX (unreleased)
+- Fix EnumeratedParameterType to handle duplicate labels
+
 ### v4.2.0 (released)
 - Parse short and long descriptions of parameters
 - Implement equality checking for SequenceContainer objects and Parameter objects

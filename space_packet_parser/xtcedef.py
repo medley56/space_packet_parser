@@ -1881,7 +1881,7 @@ class EnumeratedParameterType(ParameterType):
             raise ValueError("An EnumeratedParameterType must contain an EnumerationList.")
 
         return {
-            el.attrib['label']: int(el.attrib['value'])
+            int(el.attrib['value']): el.attrib['label']
             for el in enumeration_list.iterfind('xtce:Enumeration', ns)
         }
 
@@ -1907,8 +1907,8 @@ class EnumeratedParameterType(ParameterType):
         # Note: The enum lookup only operates on raw values. This is specified in 4.3.2.4.3.6 of the XTCE spec "
         # CCSDS 660.1-G-2
         try:
-            label = next(key for key, value in self.enumeration.items() if value == raw)
-        except StopIteration as exc:
+            label = self.enumeration[raw]
+        except KeyError as exc:
             raise ValueError(f"Failed to find raw value {raw} in enum lookup list {self.enumeration}.") from exc
         return raw, label
 
