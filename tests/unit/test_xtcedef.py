@@ -1,6 +1,5 @@
 """Tests for space_packet_parser.xtcedef"""
 # Standard
-import bitstring
 from io import StringIO
 import pytest
 from xml.etree import ElementTree
@@ -1135,11 +1134,11 @@ def test_string_parameter_type(xml_string: str, expectation):
         # Fixed length test
         (xtcedef.StringParameterType(
             'TEST_STRING',
-            xtcedef.StringDataEncoding(fixed_length=3,
+            xtcedef.StringDataEncoding(fixed_length=3,  # Giving length in bytes
                                        length_linear_adjuster=lambda x: 8*x)),
          {},  # Don't need parsed_data for leading length parsing
-         # This is still 123X456 but with 011 prepended (a 3-bit representation of the number 3)
-         '0b00110001001100100011001101011000001101000011010100110110',
+         # This still 123X456
+         xtcedef.PacketData(b'123X456'),
          '123'),
         # Dynamic reference length
         (xtcedef.StringParameterType(
@@ -1148,7 +1147,7 @@ def test_string_parameter_type(xml_string: str, expectation):
                                        use_calibrated_value=False,
                                        length_linear_adjuster=lambda x: 8*x)),
          {'STR_LEN': parser.ParsedDataItem('STR_LEN', 8, None)},
-         '0b01000010010000010100010000100000010101110100111101001100010001100100011101000001010100100100001001000001',
+         xtcedef.PacketData(b'BAD WOLF'),
          'BAD WOLF'),
         # Discrete lookup test
         (xtcedef.StringParameterType(
@@ -1160,7 +1159,7 @@ def test_string_parameter_type(xml_string: str, expectation):
                 ], lookup_value=8)
             ], length_linear_adjuster=lambda x: 8*x)),
          {'P1': parser.ParsedDataItem('P1', 7, None, 7.55), 'P2': parser.ParsedDataItem('P2', 99, None, 100)},
-         '0b01000010010000010100010000100000010101110100111101001100010001100100011101000001010100100100001001000001',
+         xtcedef.PacketData(b'BAD WOLF'),
          'BAD WOLF'),
         # Termination character tests
         (xtcedef.StringParameterType(
@@ -1168,37 +1167,69 @@ def test_string_parameter_type(xml_string: str, expectation):
             xtcedef.StringDataEncoding(encoding='utf-8',
                                        termination_character='58')),
          {},  # Don't need parsed_data for termination character
-         # 123X456, termination character is X
-         '0b00110001001100100011001101011000001101000011010100110110',
+         # 123X456 + extra characters, termination character is X
+         xtcedef.PacketData(b'123X456000000000000000000000000000000000000000000000'),
          '123'),
+        (xtcedef.StringParameterType(
+            'TEST_STRING',
+            xtcedef.StringDataEncoding(encoding='utf-8',
+                                       termination_character='58')),
+         {},  # Don't need parsed_data for termination character
+         # 56bits + 123X456 + extra characters, termination character is X
+         xtcedef.PacketData(b'9090909123X456000000000000000000000000000000000000000000000', pos=56),
+         '123'),
+        (xtcedef.StringParameterType(
+            'TEST_STRING',
+            xtcedef.StringDataEncoding(encoding='utf-8',
+                                       termination_character='58')),
+         {},  # Don't need parsed_data for termination character
+         # 53bits + 123X456 + extra characters, termination character is X
+         # This is the same string as above but bit-shifted left by 3 bits
+         xtcedef.PacketData(b'\x03K;s{\x93)\x89\x91\x9a\xc1\xa1\xa9\xb3K;s{\x93(', pos=53),
+         '123'),
+        (xtcedef.StringParameterType(
+            "TEST_STRING",
+            xtcedef.StringDataEncoding(encoding="utf-8",
+                                       termination_character='00')),
+         {},
+         xtcedef.PacketData("false_is_truthy".encode("utf-8") + b'\x00ABCD'),
+         'false_is_truthy'),
+        (xtcedef.StringParameterType(
+            "TEST_STRING",
+            xtcedef.StringDataEncoding(encoding="utf-16-be",
+                                       termination_character='0021')),
+         {},
+         xtcedef.PacketData("false_is_truthy".encode("utf-16-be") + b'\x00\x21ignoreme'),
+         'false_is_truthy'),
         (xtcedef.StringParameterType(
             'TEST_STRING',
             xtcedef.StringDataEncoding(encoding='utf-16-le',
                                        termination_character='5800')),
          {},  # Don't need parsed_data for termination character
          # 123X456, termination character is X
-         '0b0011000100000000001100100000000000110011000000000101100000000000001101000000000000110101000000000011011000000000',
+         xtcedef.PacketData('123X456'.encode('utf-16-le')),
          '123'),
         (xtcedef.StringParameterType(
             'TEST_STRING',
             xtcedef.StringDataEncoding(encoding='utf-16-be',
                                        termination_character='0058')),
          {},  # Don't need parsed_data for termination character
-         '0b0000000000110001000000000011001000000000001100110000000001011000000000000011010000000000001101010000000000110110',
+         xtcedef.PacketData('123X456'.encode('utf-16-be')),
          '123'),
         # Leading length test
         (xtcedef.StringParameterType(
             'TEST_STRING',
             xtcedef.StringDataEncoding(leading_length_size=5)),
          {},  # Don't need parsed_data for leading length parsing
-         # This is still 123X456 but with 011 prepended (a 3-bit representation of the number 3)
-         '0b1100000110001001100100011001101011000001101000011010100110110',
+         # This is still 123X456 but with 11000 prepended (a 5-bit representation of the number 24)
+         # This represents a string length (in bits) of 24 bits.
+         xtcedef.PacketData(0b1100000110001001100100011001101011000001101000011010100110110000.to_bytes(8, byteorder="big")),
          '123'),
     ]
 )
 def test_string_parameter_parsing(parameter_type, parsed_data, packet_data, expected):
     """Test parsing a string parameter"""
-    raw, _ = parameter_type.parse_value(bitstring.ConstBitStream(packet_data), parsed_data)
+    raw, _ = parameter_type.parse_value(packet_data, parsed_data)
     assert raw == expected
 
 
@@ -1284,10 +1315,18 @@ def test_integer_parameter_type(xml_string: str, expectation):
 @pytest.mark.parametrize(
     ('parameter_type', 'parsed_data', 'packet_data', 'expected'),
     [
+        # 16-bit unsigned starting at byte boundary
         (xtcedef.IntegerParameterType('TEST_INT', xtcedef.IntegerDataEncoding(16, 'unsigned')),
-         {}, '0b1000000000000000', 32768),
+         {},
+         xtcedef.PacketData(0b1000000000000000.to_bytes(length=2, byteorder='big')),
+         32768),
+        # 16-bit signed starting at byte boundary
         (xtcedef.IntegerParameterType('TEST_INT', xtcedef.IntegerDataEncoding(16, 'signed')),
-         {}, '0b1111111111010110', -42),
+         {},
+         xtcedef.PacketData(0b1111111111010110.to_bytes(length=2, byteorder='big')),
+         -42),
+        # 16-bit signed integer starting at a byte boundary,
+        # calibrated by a polynomial y = (x*2 + 5); x = -42; y = -84 + 5 = -79
         (xtcedef.IntegerParameterType(
             'TEST_INT',
             xtcedef.IntegerDataEncoding(
@@ -1300,12 +1339,57 @@ def test_integer_parameter_type(xml_string: str, expectation):
                         xtcedef.PolynomialCalibrator([xtcedef.PolynomialCoefficient(5, 0),
                                                       xtcedef.PolynomialCoefficient(2, 1)]))
                 ])),
-         {'PKT_APID': parser.ParsedDataItem('PKT_APID', 1101)}, '0b1111111111010110', -79),
+         {'PKT_APID': parser.ParsedDataItem('PKT_APID', 1101)},
+         xtcedef.PacketData(0b1111111111010110.to_bytes(length=2, byteorder='big')),
+         -79),
+        # 12-bit unsigned integer starting at bit 4 of the first byte
+        (xtcedef.IntegerParameterType('TEST_INT', xtcedef.IntegerDataEncoding(12, 'unsigned')),
+         {},
+         # 11111000 00000000
+         #     |--uint:12--|
+         xtcedef.PacketData(0b1111100000000000.to_bytes(length=2, byteorder='big'), pos=4),
+         2048),
+        # 13-bit unsigned integer starting on bit 2 of the second byte
+        (xtcedef.IntegerParameterType('TEST_INT', xtcedef.IntegerDataEncoding(13, 'unsigned')),
+         {},
+         # 10101010 11100000 00000001
+         #            |--uint:13---|
+         xtcedef.PacketData(0b101010101110000000000001.to_bytes(length=3, byteorder='big'), pos=10),
+         4096),
+        # 16-bit unsigned integer starting on bit 2 of the first byte
+        (xtcedef.IntegerParameterType('TEST_INT', xtcedef.IntegerDataEncoding(16, 'unsigned')),
+         {},
+         # 10101010 11100000 00000001
+         #   |----uint:16-----|
+         xtcedef.PacketData(0b101010101110000000000001.to_bytes(length=3, byteorder='big'), pos=2),
+         43904),
+        # 12-bit signed integer starting on bit 4 of the first byte
+        (xtcedef.IntegerParameterType('TEST_INT', xtcedef.IntegerDataEncoding(12, 'signed')),
+         {},
+         # 11111000 00000000
+         #     |---int:12--|
+         xtcedef.PacketData(0b1111100000000000.to_bytes(length=2, byteorder='big'), pos=4),
+         -2048),
+        # 12-bit signed integer starting on bit 6 of the first byte
+        (xtcedef.IntegerParameterType('TEST_INT', xtcedef.IntegerDataEncoding(12, 'signed')),
+         {},
+         # 12-bit signed integer starting on bit 4 of the first byte
+         #  11111110 00000000 00111111 10101010
+         #        |---int:12---|
+         xtcedef.PacketData(0b11111110000000000011111110101010.to_bytes(length=4, byteorder='big'), pos=6),
+         -2048),
+        (xtcedef.IntegerParameterType('TEST_INT', xtcedef.IntegerDataEncoding(3, 'twosComplement')),
+         {},
+         # 3-bit signed integer starting at bit 7 of the first byte
+         #  00000001      11000000       00000000
+         #         |-int:3-|
+         xtcedef.PacketData(0b000000011100000000000000.to_bytes(length=3, byteorder='big'), pos=7),
+         -1),
     ]
 )
 def test_integer_parameter_parsing(parameter_type, parsed_data, packet_data, expected):
     """Testing parsing an integer parameters"""
-    raw, derived = parameter_type.parse_value(bitstring.ConstBitStream(packet_data), parsed_data)
+    raw, derived = parameter_type.parse_value(packet_data, parsed_data)
     if derived:
         assert derived == expected
     else:
@@ -1405,7 +1489,13 @@ def test_float_parameter_type(xml_string: str, expectation):
     ('parameter_type', 'parsed_data', 'packet_data', 'expected'),
     [
         (xtcedef.FloatParameterType('TEST_FLOAT', xtcedef.FloatDataEncoding(32)),
-         {}, '0b01000000010010010000111111010000', 3.14159),
+         {},
+         xtcedef.PacketData(0b01000000010010010000111111010000.to_bytes(length=4, byteorder='big')),
+         3.14159),
+        (xtcedef.FloatParameterType('TEST_FLOAT', xtcedef.FloatDataEncoding(64)),
+         {},
+         xtcedef.PacketData(b'\x3F\xF9\xE3\x77\x9B\x97\xF4\xA8'),  # 64-bit IEEE 754 value of Phi
+         1.61803),
         (xtcedef.FloatParameterType(
             'TEST_FLOAT',
             xtcedef.IntegerDataEncoding(
@@ -1418,12 +1508,14 @@ def test_float_parameter_type(xml_string: str, expectation):
                         xtcedef.PolynomialCalibrator([xtcedef.PolynomialCoefficient(5.6, 0),
                                                       xtcedef.PolynomialCoefficient(2.1, 1)]))
                 ])),
-         {'PKT_APID': parser.ParsedDataItem('PKT_APID', 1101)}, '0b1111111111010110', -82.600000),
+         {'PKT_APID': parser.ParsedDataItem('PKT_APID', 1101)},
+         xtcedef.PacketData(0b1111111111010110.to_bytes(length=2, byteorder='big')),
+         -82.600000),
     ]
 )
 def test_float_parameter_parsing(parameter_type, parsed_data, packet_data, expected):
     """Test parsing float parameters"""
-    raw, derived = parameter_type.parse_value(bitstring.ConstBitStream(packet_data), parsed_data)
+    raw, derived = parameter_type.parse_value(packet_data, parsed_data)
     if derived:
         # NOTE: These results are rounded due to the imprecise storage of floats
         assert round(derived, 5) == expected
@@ -1468,17 +1560,23 @@ def test_enumerated_parameter_type(xml_string: str, expectation):
 @pytest.mark.parametrize(
     ('parameter_type', 'parsed_data', 'packet_data', 'expected'),
     [
-        (xtcedef.EnumeratedParameterType('TEST_ENUM', xtcedef.IntegerDataEncoding(16, 'unsigned'), {32768: 'NOMINAL'}),
-         {}, '0b1000000000000000', 'NOMINAL'),
+        (xtcedef.EnumeratedParameterType(
+            'TEST_ENUM',
+            xtcedef.IntegerDataEncoding(16, 'unsigned'), {32768: 'NOMINAL'}),
+         {},
+         xtcedef.PacketData(0b1000000000000000.to_bytes(length=2, byteorder='big')),
+         'NOMINAL'),
         (xtcedef.EnumeratedParameterType(
             'TEST_FLOAT',
             xtcedef.IntegerDataEncoding(16, 'signed'),  {-42: 'VAL_LOW'}),
-         {}, '0b1111111111010110', 'VAL_LOW'),
+         {},
+         xtcedef.PacketData(0b1111111111010110.to_bytes(length=2, byteorder='big')),
+         'VAL_LOW'),
     ]
 )
 def test_enumerated_parameter_parsing(parameter_type, parsed_data, packet_data, expected):
     """"Test parsing enumerated parameters"""
-    raw, derived = parameter_type.parse_value(bitstring.ConstBitStream(packet_data), parsed_data)
+    raw, derived = parameter_type.parse_value(packet_data, parsed_data)
     if derived:
         # NOTE: These results are rounded due to the imprecise storage of floats
         assert derived == expected
@@ -1570,7 +1668,7 @@ def test_binary_parameter_type(xml_string: str, expectation):
             'TEST_BIN',
             xtcedef.BinaryDataEncoding(fixed_size_in_bits=16)),
          {},
-         '0b0011010000110010010100110000000001001011000000000100100100000000',
+         xtcedef.PacketData(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big')),
          '0011010000110010'),
         # discrete lookup list size
         (xtcedef.BinaryParameterType(
@@ -1582,7 +1680,7 @@ def test_binary_parameter_type(xml_string: str, expectation):
                 ], lookup_value=2)
             ], linear_adjuster=lambda x: 8*x)),
          {'P1': parser.ParsedDataItem('P1', 1, None, 7.4)},
-         '0b0011010000110010010100110000000001001011000000000100100100000000',
+         xtcedef.PacketData(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big')),
          '0011010000110010'),
         # dynamic size reference to other parameter
         (xtcedef.BinaryParameterType(
@@ -1590,13 +1688,13 @@ def test_binary_parameter_type(xml_string: str, expectation):
             xtcedef.BinaryDataEncoding(size_reference_parameter='BIN_LEN',
                                        use_calibrated_value=False, linear_adjuster=lambda x: 8*x)),
          {'BIN_LEN': parser.ParsedDataItem('BIN_LEN', 2, None)},
-         '0b0011010000110010010100110000000001001011000000000100100100000000',
+         xtcedef.PacketData(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big')),
          '0011010000110010'),
     ]
 )
 def test_binary_parameter_parsing(parameter_type, parsed_data, packet_data, expected):
     """Test parsing binary parameters"""
-    raw, _ = parameter_type.parse_value(bitstring.ConstBitStream(packet_data), parsed_data)
+    raw, _ = parameter_type.parse_value(packet_data, parsed_data)
     assert raw == expected
 
 
@@ -1662,43 +1760,43 @@ def test_boolean_parameter_type(xml_string, expectation):
             'TEST_BOOL',
             xtcedef.BinaryDataEncoding(fixed_size_in_bits=1)),
          {},
-         '0b0011010000110010010100110000000001001011000000000100100100000000',
+         xtcedef.PacketData(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=64, byteorder='big')),
          '0', True),
         (xtcedef.BooleanParameterType(
             'TEST_BOOL',
             xtcedef.StringDataEncoding(encoding="utf-8", termination_character='00')),
          {},
-         '0b0110011001100001011011000111001101100101010111110110100101110011010111110111010001110010011101010111010001101000011110010000000000101011010101',
+         xtcedef.PacketData(0b011001100110000101101100011100110110010101011111011010010111001101011111011101000111001001110101011101000110100001111001000000000010101101010111.to_bytes(length=18, byteorder='big')),
          'false_is_truthy', True),
         (xtcedef.BooleanParameterType(
             'TEST_BOOL',
             xtcedef.IntegerDataEncoding(size_in_bits=2, encoding="unsigned")),
          {},
-         '0b0011',
+         xtcedef.PacketData(0b0011.to_bytes(length=1, byteorder='big')),
          0, False),
         (xtcedef.BooleanParameterType(
             'TEST_BOOL',
             xtcedef.IntegerDataEncoding(size_in_bits=2, encoding="unsigned")),
          {},
-         '0b1111',
+         xtcedef.PacketData(0b00001111.to_bytes(length=1, byteorder='big'), pos=4),
          3, True),
         (xtcedef.BooleanParameterType(
             'TEST_BOOL',
             xtcedef.FloatDataEncoding(size_in_bits=16)),
          {},
-         '0b0101000101000000111111111',
+         xtcedef.PacketData(0b01010001010000001111111110000000.to_bytes(length=4, byteorder='big')),
          42.0, True),
         (xtcedef.BooleanParameterType(
             'TEST_BOOL',
             xtcedef.FloatDataEncoding(size_in_bits=16)),
          {},
-         '0b0101000101000000111111111',
+         xtcedef.PacketData(0b00000000101000101000000111111111.to_bytes(length=4, byteorder='big'), pos=7),
          42.0, True),
     ]
 )
 def test_boolean_parameter_parsing(parameter_type, parsed_data, packet_data, expected_raw, expected_derived):
     """Test parsing boolean parameters"""
-    raw, derived = parameter_type.parse_value(bitstring.ConstBitStream(packet_data), parsed_data)
+    raw, derived = parameter_type.parse_value(packet_data, parsed_data)
     assert raw == expected_raw
     assert derived == expected_derived
 
@@ -1812,7 +1910,8 @@ def test_absolute_time_parameter_type(xml_string, expectation):
                                            encoding=xtcedef.IntegerDataEncoding(size_in_bits=32, encoding="unsigned"),
                                            epoch="TAI", offset_from="MilliSeconds"),
          {},
-         '0b0011010000110010010100110000000001001011000000000100100100000000',
+         # Exactly 64 bits so neatly goes into a bytes object without padding
+         xtcedef.PacketData(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big')),
          875713280, 875713280),
         (xtcedef.AbsoluteTimeParameterType(
              name='TEST_PARAM_Type', unit='s',
@@ -1825,7 +1924,8 @@ def test_absolute_time_parameter_type(xml_string, expectation):
                      ])),
              epoch="2009-10-10T12:00:00-05:00", offset_from="MilliSeconds"),
          {},
-         '0b0011010000110010010100110000000001001011000000000100100100000000',
+         # Exactly 64 bits so neatly goes into a bytes object without padding
+         xtcedef.PacketData(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big')),
          875713280, 875.7132799999999),
         (xtcedef.AbsoluteTimeParameterType(
              name='TEST_PARAM_Type', unit='s',
@@ -1837,12 +1937,14 @@ def test_absolute_time_parameter_type(xml_string, expectation):
                          xtcedef.PolynomialCoefficient(1, 1)
                      ]))),
          {},
-         '0b01000000010010010000111111011011001001011000000000100100100000000',
+         # 65 bits, so we need a 9th byte with 7 bits of padding to hold it,
+         # which means we need to be starting at pos=7
+         xtcedef.PacketData(0b01000000010010010000111111011011001001011000000000100100100000000.to_bytes(length=9, byteorder='big'), pos=7),
          3.1415927, 151.02559269999998),
     ]
 )
 def test_absolute_time_parameter_parsing(parameter_type, parsed_data, packet_data, expected_raw, expected_derived):
-    raw, derived = parameter_type.parse_value(bitstring.ConstBitStream(packet_data), parsed_data)
+    raw, derived = parameter_type.parse_value(packet_data, parsed_data)
     assert round(raw, 5) == round(expected_raw, 5)
     # NOTE: derived values are rounded for comparison due to imprecise storage of floats
     assert round(derived, 5) == round(expected_derived, 5)

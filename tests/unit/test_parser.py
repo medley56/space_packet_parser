@@ -1,6 +1,5 @@
 """Tests for space_packet_parser.parser"""
 # Installed
-import bitstring
 import pytest
 # Local
 from space_packet_parser import parser
