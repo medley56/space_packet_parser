@@ -6,13 +6,11 @@ import inspect
 import logging
 from pathlib import Path
 import struct
-from typing import Tuple
+from typing import Tuple, Union, Optional, Any, List
 import warnings
 from xml.etree import ElementTree
 
 logger = logging.getLogger(__name__)
-
-# TODO: Improve exceptions for specific failure modes
 
 
 # Exceptions
@@ -79,9 +77,9 @@ class MatchCriteria(AttrComparable, metaclass=ABCMeta):
         "==": "__eq__", "eq": "__eq__",  # equal to
         "!=": "__ne__", "neq": "__ne__",  # not equal to
         "&lt;": "__lt__", "lt": "__lt__", "<": "__lt__",  # less than
-        "&gt;": "__gt__", "gt": "__gt__",  ">": "__gt__",  # greater than
+        "&gt;": "__gt__", "gt": "__gt__", ">": "__gt__",  # greater than
         "&lt;=": "__le__", "leq": "__le__", "<=": "__le__",  # less than or equal to
-        "&gt;=": "__ge__", "geq": "__ge__",  ">=": "__ge__",  # greater than or equal to
+        "&gt;=": "__ge__", "geq": "__ge__", ">=": "__ge__",  # greater than or equal to
     }
 
     @classmethod
@@ -101,7 +99,7 @@ class MatchCriteria(AttrComparable, metaclass=ABCMeta):
         """
         raise NotImplementedError()
 
-    def evaluate(self, parsed_data: dict, current_parsed_value: int or float = None) -> bool:
+    def evaluate(self, parsed_data: dict, current_parsed_value: Optional[Union[int, float]] = None) -> bool:
         """Evaluate match criteria down to a boolean.
 
         Parameters
@@ -188,7 +186,7 @@ class Comparison(MatchCriteria):
 
         return cls(value, parameter_name, operator=operator, use_calibrated_value=use_calibrated_value)
 
-    def evaluate(self, parsed_data: dict, current_parsed_value: int or float = None) -> bool:
+    def evaluate(self, parsed_data: dict, current_parsed_value: Optional[Union[int, float]] = None) -> bool:
         """Evaluate comparison down to a boolean. If the parameter to compare is not present in the parsed_data dict,
         we assume that we are comparing against the current raw value in current_parsed_value.
 
@@ -196,7 +194,7 @@ class Comparison(MatchCriteria):
         ----------
         parsed_data : dict
             Dictionary of parsed parameter data so far. Used to evaluate truthyness of the match criteria.
-        current_parsed_value : int or float
+        current_parsed_value : Union[int, float]
             Optional. Uncalibrated value that is currently a candidate for calibration and so has not yet been added
             to the parsed_data dict. Used to resolve calibrator conditions that reference their own
             raw value as a comparate.
@@ -247,7 +245,7 @@ class Condition(MatchCriteria):
     but it's functionally close enough that we inherit the class here.
     """
 
-    def __init__(self, left_param: str, operator: str, right_param: str = None, right_value=None,
+    def __init__(self, left_param: str, operator: str, right_param: Optional[str] = None, right_value: Optional[Any] = None,
                  left_use_calibrated_value: bool = True, right_use_calibrated_value: bool = True):
         """Constructor
 
@@ -257,9 +255,9 @@ class Condition(MatchCriteria):
             Parameter name on the LH side of the comparison
         operator : str
             Member of MatchCriteria._valid_operators.
-        right_param : str
+        right_param : Optional[str]
             Parameter name on the RH side of the comparison.
-        right_value: any, Optional
+        right_value: Optional[Any]
             Used in case of comparison with a fixed xtce:Value on the RH side.
         left_use_calibrated_value : bool, Optional
             Default is True. If False, comparison is made against the uncalibrated value.
@@ -342,16 +340,16 @@ class Condition(MatchCriteria):
                        left_use_calibrated_value=left_use_calibrated_value,
                        right_use_calibrated_value=right_use_calibrated_value)
         raise ValueError(f'Failed to parse a Condition element {element}. '
-                             'See 3.4.3.4.2 of XTCE Green Book CCSDS 660.1-G-2')
+                         'See 3.4.3.4.2 of XTCE Green Book CCSDS 660.1-G-2')
 
-    def evaluate(self, parsed_data: dict, current_parsed_value: int or float = None) -> bool:
+    def evaluate(self, parsed_data: dict, current_parsed_value: Optional[Union[int, float]] = None) -> bool:
         """Evaluate match criteria down to a boolean.
 
         Parameters
         ----------
         parsed_data : dict
             Dictionary of parsed parameter data so far. Used to evaluate truthyness of the match criteria.
-        current_parsed_value : int or float, Optional
+        current_parsed_value : Optional[Union[int, float]]
             Current value being parsed. NOTE: This is currently ignored. See the TODO item below.
 
         Returns
@@ -359,6 +357,7 @@ class Condition(MatchCriteria):
         : bool
             Truthyness of this match criteria based on parsed_data values.
         """
+
         def _get_parsed_value(parameter_name: str, use_calibrated: bool):
             """Retrieves the previously parsed value from the passed in parsed_data"""
             try:
@@ -370,6 +369,7 @@ class Condition(MatchCriteria):
                                       "the evaluate method. If you intended a comparison against the raw value of the "
                                       "parameter currently being parsed, unfortunately that is not currently supported."
                                       ) from e
+
         # TODO: Consider allowing one of the parameters to be the parameter currently being evaluated.
         #    This isn't explicitly provided for in the XTCE spec but it seems reasonable to be able to
         #    perform conditionals against the current raw value of a parameter, e.g. while determining if it
@@ -400,7 +400,7 @@ Ored = namedtuple('Ored', ['conditions', 'ands'])
 class BooleanExpression(MatchCriteria):
     """<xtce:BooleanExpression>"""
 
-    def __init__(self, expression: Condition or Anded or Ored):
+    def __init__(self, expression: Union[Condition, Anded, Ored]):
         self.expression = expression
 
     @classmethod
@@ -418,6 +418,7 @@ class BooleanExpression(MatchCriteria):
         -------
         : cls
         """
+
         def _parse_anded(anded_el: ElementTree.Element):
             """Create an Anded object from an xtce:ANDedConditions element
 
@@ -461,14 +462,14 @@ class BooleanExpression(MatchCriteria):
             return cls(expression=_parse_ored(element.find('xtce:ORedConditions', ns)))
         raise ValueError(f"Failed to parse {element}")
 
-    def evaluate(self, parsed_data: dict, current_parsed_value: int or float = None) -> bool:
+    def evaluate(self, parsed_data: dict, current_parsed_value: Optional[Union[int, float]] = None) -> bool:
         """Evaluate the criteria in the BooleanExpression down to a single boolean.
 
         Parameters
         ----------
         parsed_data : dict
             Dictionary of parsed parameter data so far. Used to evaluate truthyness of the match criteria.
-        current_parsed_value : int or float, Optional
+        current_parsed_value : Optional[Union[int, float]]
             Current value being parsed.
 
         Returns
@@ -508,14 +509,14 @@ class BooleanExpression(MatchCriteria):
 class DiscreteLookup(AttrComparable):
     """<xtce:DiscreteLookup>"""
 
-    def __init__(self, match_criteria: list, lookup_value: int or float):
+    def __init__(self, match_criteria: list, lookup_value: Union[int, float]):
         """Constructor
 
         Parameters
         ----------
         match_criteria : list
             List of criteria to determine if the lookup value should be returned during evaluation.
-        lookup_value : int or float
+        lookup_value : Union[int, float]
             Value to return from the lookup if the criteria evaluate true
         """
         self.match_criteria = match_criteria
@@ -548,14 +549,14 @@ class DiscreteLookup(AttrComparable):
 
         return cls(match_criteria, lookup_value)
 
-    def evaluate(self, parsed_data: dict, current_parsed_value: int or float = None):
+    def evaluate(self, parsed_data: dict, current_parsed_value: Optional[Union[int, float]] = None):
         """Evaluate the lookup to determine if it is valid.
 
         Parameters
         ----------
         parsed_data : dict
             Data parsed so far (for referencing during criteria evaluation).
-        current_parsed_value: int or float, Optional
+        current_parsed_value: Optional[Union[int, float]]
             If referenced parameter in criterion isn't in parsed_data dict, we assume we are comparing against this
             currently parsed value.
 
@@ -591,12 +592,17 @@ class Calibrator(AttrComparable, metaclass=ABCMeta):
         """
         return NotImplemented
 
-    def calibrate(self, uncalibrated_value: int):
-        """Takes an integer-encoded value and returns a calibrated version.
+    def calibrate(self, uncalibrated_value: Union[int, float]):
+        """Takes an integer-encoded or float-encoded value and returns a calibrated version.
+
+        Parameters
+        ----------
+        uncalibrated_value : Union[int, float]
+            The uncalibrated, raw encoded value
 
         Returns
         -------
-        : int or float
+        : Union[int, float]
             Calibrated value
         """
         raise NotImplementedError
@@ -829,7 +835,7 @@ class ContextCalibrator(AttrComparable):
 
         Parameters
         ----------
-        match_criteria : MatchCriteria or list
+        match_criteria : Union[MatchCriteria, list]
             Object representing the logical operations to be performed to determine whether to use this
             default_calibrator. This can be a Comparison, a ComparsonList (a list of Comparison objects),
             a BooleanExpression (not supported), or a CustomAlgorithm (not supported)
@@ -899,17 +905,17 @@ class ContextCalibrator(AttrComparable):
 
         return cls(match_criteria=match_criteria, calibrator=calibrator)
 
-    def calibrate(self, parsed_value):
-        """Wrapper method for the internal Calibrator.calibrate
+    def calibrate(self, parsed_value: Union[int, float]):
+        """Wrapper method for the internal `Calibrator.calibrate`
 
         Parameters
         ----------
-        parsed_value : int or float
+        parsed_value : Union[int, float]
             Uncalibrated value.
 
         Returns
         -------
-        : int or float
+        : Union[int, float]
             Calibrated value
         """
         return self.calibrator.calibrate(parsed_value)
@@ -917,6 +923,7 @@ class ContextCalibrator(AttrComparable):
 
 class PacketData:
     """Raw packet data stored as bytes"""
+
     def __init__(self, data: bytes):
         """The raw packet data stored as bytes
 
@@ -975,6 +982,7 @@ class PacketData:
 # DataEncoding definitions
 class DataEncoding(AttrComparable, metaclass=ABCMeta):
     """Abstract base class for XTCE data encodings"""
+
     @classmethod
     def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict):
         """Abstract classmethod to create a data encoding object from an XML element.
@@ -1015,7 +1023,7 @@ class DataEncoding(AttrComparable, metaclass=ABCMeta):
         return None
 
     @staticmethod
-    def get_context_calibrators(data_encoding_element: ElementTree.Element, ns: dict) -> list or None:
+    def get_context_calibrators(data_encoding_element: ElementTree.Element, ns: dict) -> Union[list, None]:
         """Get the context default_calibrator(s) for the data encoding element
 
         Parameters
@@ -1027,8 +1035,8 @@ class DataEncoding(AttrComparable, metaclass=ABCMeta):
 
         Returns
         -------
-        : list
-            List of ContextCalibrator objects.
+        : Union[list, None]
+            List of ContextCalibrator objects or None if there are no context calibrators
         """
         if data_encoding_element.find('xtce:ContextCalibratorList', ns):
             context_calibrators_elements = data_encoding_element.findall(
@@ -1038,7 +1046,7 @@ class DataEncoding(AttrComparable, metaclass=ABCMeta):
         return None
 
     @staticmethod
-    def _get_linear_adjuster(parent_element: ElementTree.Element, ns: dict) -> callable or None:
+    def _get_linear_adjuster(parent_element: ElementTree.Element, ns: dict) -> Union[callable, None]:
         """Examine a parent (e.g. a <xtce:DynamicValue>) element and find a LinearAdjustment if present,
         creating and returning a function that evaluates the adjustment.
 
@@ -1051,8 +1059,8 @@ class DataEncoding(AttrComparable, metaclass=ABCMeta):
 
         Returns
         -------
-        adjuster : callable
-            Function object that adjusts a SizeInBits value by a linear function
+        adjuster : Union[callable, None]
+            Function object that adjusts a SizeInBits value by a linear function or None if no adjuster present
         """
         linear_adjustment_element = parent_element.find('xtce:LinearAdjustment', ns)
         if linear_adjustment_element is not None:
@@ -1124,13 +1132,13 @@ class StringDataEncoding(DataEncoding):
     """<xtce:StringDataEncoding>"""
 
     def __init__(self, encoding: str = 'utf-8',
-                 termination_character: str = None,
-                 fixed_length: int = None,
-                 leading_length_size: int = None,
-                 dynamic_length_reference: str = None,
+                 termination_character: Optional[str] = None,
+                 fixed_length: Optional[int] = None,
+                 leading_length_size: Optional[int] = None,
+                 dynamic_length_reference: Optional[str] = None,
                  use_calibrated_value: bool = True,
-                 discrete_lookup_length: list = None,
-                 length_linear_adjuster: callable = None):
+                 discrete_lookup_length: Optional[List[DiscreteLookup]] = None,
+                 length_linear_adjuster: Optional[callable] = None):
         """Constructor
         Only one of termination_character, fixed_length, or leading_length_size should be set. Setting more than one
         is nonsensical.
@@ -1143,23 +1151,23 @@ class StringDataEncoding(DataEncoding):
         ----------
         encoding : str
             One of 'utf-8', 'utf-16-le', or 'utf-16-be'. Describes how to read the characters in the string.
-        termination_character : str
+        termination_character : Optional[str]
             A single hexadecimal character, represented as a string. Must be encoded in the same encoding as the string
             itself. For example, for a utf-8 encoded string, the hex string must be two hex characters (one byte).
             For a utf-16-* encoded string, the hex representation of the termination character must be four characters
             (two bytes).
-        fixed_length : int
+        fixed_length : Optional[int]
             Fixed length of the string, in bits.
-        leading_length_size : int
+        leading_length_size : Optional[int]
             Fixed size in bits of a leading field that contains the length of the subsequent string.
-        dynamic_length_reference : str
+        dynamic_length_reference : Optional[str]
             Name of referenced parameter for dynamic length. May be combined with a linear_adjuster
         use_calibrated_value: bool
             Whether to use the calibrated value on the referenced parameter in dynamic_length_reference.
             Default is True.
-        discrete_lookup_length : DiscreteLookup
-            DiscreteLookup object with which to determine string length from another parameter.
-        length_linear_adjuster : callable
+        discrete_lookup_length : Optional[List[DiscreteLookup]]
+            List of DiscreteLookup objects with which to determine string length from another parameter.
+        length_linear_adjuster : Optional[callable]
             Function that linearly adjusts a size. e.g. if the size reference parameter gives a length in bytes, the
             linear adjuster should multiply by 8 to give the size in bits.
         """
@@ -1194,9 +1202,9 @@ class StringDataEncoding(DataEncoding):
 
         Returns
         -------
-        : str or None
+        : Union[str, None]
             Format string in the bitstring format. e.g. uint:16
-        : int or None
+        : Union[int, None]
             Number of bits to skip after parsing the string
         """
         # pylint: disable=too-many-branches
@@ -1352,7 +1360,8 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
     """Abstract class that is inherited by IntegerDataEncoding and FloatDataEncoding"""
 
     def __init__(self, size_in_bits: int, encoding: str,
-                 default_calibrator: Calibrator = None, context_calibrators: list = None):
+                 default_calibrator: Optional[Calibrator] = None,
+                 context_calibrators: Optional[List[ContextCalibrator]] = None):
         """Constructor
 
         # TODO: Implement ByteOrderList to inform endianness
@@ -1366,10 +1375,10 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
             though 'signed' is not actually a valid specifier according to XTCE. 'twosCompliment' [sic] should be used
             instead, though we support the unofficial 'signed' specifier here.
             For supported specifiers, see XTCE spec 4.3.2.2.5.6.2
-        default_calibrator : Calibrator
+        default_calibrator : Optional[Calibrator]
             Optional Calibrator object, containing information on how to transform the integer-encoded data, e.g. via
             a polynomial conversion or spline interpolation.
-        context_calibrators : list
+        context_calibrators : Optional[List[ContextCalibrator]]
             List of ContextCalibrator objects, containing match criteria and corresponding calibrators to use in
             various scenarios, based on other parameters.
         """
@@ -1465,7 +1474,8 @@ class FloatDataEncoding(NumericDataEncoding):
     _supported_encodings = ['IEEE-754', 'MIL-1750A']
 
     def __init__(self, size_in_bits: int, encoding: str = 'IEEE-754',
-                 default_calibrator: Calibrator = None, context_calibrators: list = None):
+                 default_calibrator: Optional[Calibrator] = None,
+                 context_calibrators: Optional[List[ContextCalibrator]] = None):
         """Constructor
 
         # TODO: Implement MIL-1650A encoding option
@@ -1478,10 +1488,10 @@ class FloatDataEncoding(NumericDataEncoding):
             Size of the encoded value, in bits.
         encoding : str
             Encoding method of the float data. Must be either 'IEEE-754' or 'MIL-1750A'. Defaults to IEEE-754.
-        default_calibrator : Calibrator
+        default_calibrator : Optional[Calibrator]
             Optional Calibrator object, containing information on how to transform the data, e.g. via
             a polynomial conversion or spline interpolation.
-        context_calibrators : list
+        context_calibrators : Optional[List[ContextCalibrator]]
             List of ContextCalibrator objects, containing match criteria and corresponding calibrators to use in
             various scenarios, based on other parameters.
         """
@@ -1535,26 +1545,26 @@ class FloatDataEncoding(NumericDataEncoding):
 class BinaryDataEncoding(DataEncoding):
     """<xtce:BinaryDataEncoding>"""
 
-    def __init__(self, fixed_size_in_bits: int = None,
-                 size_reference_parameter: str = None, use_calibrated_value: bool = True,
-                 size_discrete_lookup_list: list = None,
-                 linear_adjuster: callable = None):
+    def __init__(self, fixed_size_in_bits: Optional[int] = None,
+                 size_reference_parameter: Optional[str] = None, use_calibrated_value: bool = True,
+                 size_discrete_lookup_list: Optional[List[DiscreteLookup]] = None,
+                 linear_adjuster: Optional[callable] = None):
         """Constructor
 
         Parameters
         ----------
-        fixed_size_in_bits : int
+        fixed_size_in_bits : Optional[int]
             Fixed size for the binary field, in bits.
-        size_reference_parameter : str
+        size_reference_parameter : Optional[str]
             Name of a parameter to reference for the binary field length, in bits. Note that space often specifies these
             fields in byte length, not bit length. This should be taken care of by a LinearAdjuster element that simply
             instructs the value to be multiplied by 8 but that hasn't historically been implemented unfortunately.
         use_calibrated_value: bool, Optional
             Default True. If False, the size_reference_parameter is examined for its raw value.
-        size_discrete_lookup_list: list
+        size_discrete_lookup_list: Optional[List[DiscreteLookup]]
             List of DiscreteLookup objects by which to determine the length of the binary data field. This suffers from
             the same bit/byte conversion problem as size_reference_parameter.
-        linear_adjuster : callable
+        linear_adjuster : Optional[callable]
             Function that linearly adjusts a size. e.g. if the size reference parameter gives a length in bytes, the
             linear adjuster should multiply by 8 to give the size in bits.
         """
@@ -1569,7 +1579,7 @@ class BinaryDataEncoding(DataEncoding):
 
         Returns
         -------
-        : str or None
+        : Union[str, None]
             Format string in the bitstring format. e.g. bin:1024
         """
         if self.fixed_size_in_bits is not None:
@@ -1596,16 +1606,16 @@ class BinaryDataEncoding(DataEncoding):
             len_bits = self.linear_adjuster(len_bits)
         return f"bin:{len_bits}"
 
-    def parse_value(self, packet_data: PacketData, parsed_data: dict, word_size: int = None, **kwargs):
+    def parse_value(self, packet_data: PacketData, parsed_data: dict, word_size: Optional[int] = None, **kwargs):
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
         ----------
         packet_data: PacketData
             Binary data coming up next in the packet.
-        parsed_data: dict, Optional
+        parsed_data: dict
             Previously parsed data items from which to infer parsing details (e.g. length of a field).
-        word_size : int, Optional
+        word_size : Optional[int]
             Word size for encoded data. This is used to ensure that the cursor ends up at the end of the last word
             and ready to parse the next data field.
 
@@ -1670,7 +1680,7 @@ class BinaryDataEncoding(DataEncoding):
 class ParameterType(AttrComparable, metaclass=ABCMeta):
     """Abstract base class for XTCE parameter types"""
 
-    def __init__(self, name: str, encoding: DataEncoding, unit: str = None):
+    def __init__(self, name: str, encoding: DataEncoding, unit: Optional[str] = None):
         """Constructor
 
         Parameters
@@ -1679,7 +1689,7 @@ class ParameterType(AttrComparable, metaclass=ABCMeta):
             Parameter type name. Usually something like 'MSN__PARAM_Type'
         encoding : DataEncoding
             How the data is encoded. e.g. IntegerDataEncoding, StringDataEncoding, etc.
-        unit : str
+        unit : Optional[str]
             String describing the unit for the stored value.
         """
         self.name = name
@@ -1712,7 +1722,7 @@ class ParameterType(AttrComparable, metaclass=ABCMeta):
         return cls(name, encoding, unit)
 
     @staticmethod
-    def get_units(parameter_type_element: ElementTree.Element, ns: dict) -> str or None:
+    def get_units(parameter_type_element: ElementTree.Element, ns: dict) -> Union[str, None]:
         """Finds the units associated with a parameter type element and parsed them to return a unit string.
         We assume only one <xtce:Unit> but this could be extended to support multiple units.
         See section 4.3.2.2.4 of CCSDS 660.1-G-1
@@ -1726,7 +1736,8 @@ class ParameterType(AttrComparable, metaclass=ABCMeta):
 
         Returns
         -------
-        : str or None
+        : Union[str, None]
+            Unit string or None if no units are defined
         """
         # Assume we are not parsing a Time Parameter Type, which stores units differently
         units = parameter_type_element.findall('xtce:UnitSet/xtce:Unit', ns)
@@ -1740,7 +1751,7 @@ class ParameterType(AttrComparable, metaclass=ABCMeta):
         return None
 
     @staticmethod
-    def get_data_encoding(parameter_type_element: ElementTree.Element, ns: dict) -> DataEncoding or None:
+    def get_data_encoding(parameter_type_element: ElementTree.Element, ns: dict) -> Union[DataEncoding, None]:
         """Finds the data encoding XML element associated with a parameter type XML element and parses
         it, returning an object representation of the data encoding.
 
@@ -1753,7 +1764,8 @@ class ParameterType(AttrComparable, metaclass=ABCMeta):
 
         Returns
         -------
-        : DataEncoding or None
+        : Union[DataEncoding, None]
+            DataEncoding object or None if no data encoding is defined (which is probably an issue)
         """
         for data_encoding in [StringDataEncoding, IntegerDataEncoding, FloatDataEncoding, BinaryDataEncoding]:
             # Try to find each type of data encoding element. If we find one, we assume it's the only one.
@@ -1784,7 +1796,7 @@ class ParameterType(AttrComparable, metaclass=ABCMeta):
 class StringParameterType(ParameterType):
     """<xtce:StringParameterType>"""
 
-    def __init__(self, name: str, encoding: StringDataEncoding, unit: str = None):
+    def __init__(self, name: str, encoding: StringDataEncoding, unit: Optional[str] = None):
         """Constructor
 
         Parameters
@@ -1793,7 +1805,7 @@ class StringParameterType(ParameterType):
             Parameter type name. Usually something like 'MSN__PARAM_Type'
         encoding : StringDataEncoding
             Must be a StringDataEncoding object since strings can't be encoded other ways.
-        unit : str
+        unit : Optional[str]
             String describing the unit for the stored value.
         """
         if not isinstance(encoding, StringDataEncoding):
@@ -1815,7 +1827,7 @@ class FloatParameterType(ParameterType):
 class EnumeratedParameterType(ParameterType):
     """<xtce:EnumeratedParameterType>"""
 
-    def __init__(self, name: str, encoding: DataEncoding, enumeration: dict, unit: str or None = None):
+    def __init__(self, name: str, encoding: DataEncoding, enumeration: dict, unit: Union[str, None] = None):
         """Constructor
 
         Parameters
@@ -1915,7 +1927,7 @@ class EnumeratedParameterType(ParameterType):
 class BinaryParameterType(ParameterType):
     """<xtce:BinaryParameterType>"""
 
-    def __init__(self, name: str, encoding: BinaryDataEncoding, unit: str = None):
+    def __init__(self, name: str, encoding: BinaryDataEncoding, unit: Optional[str] = None):
         """Constructor
 
         Parameters
@@ -1924,7 +1936,7 @@ class BinaryParameterType(ParameterType):
             Parameter type name. Usually something like 'MSN__PARAM_Type'
         encoding : BinaryDataEncoding
             Must be a BinaryDataEncoding object since binary data can't be encoded other ways.
-        unit : str
+        unit : Optional[str]
             String describing the unit for the stored value.
         """
         if not isinstance(encoding, BinaryDataEncoding):
@@ -1936,7 +1948,7 @@ class BinaryParameterType(ParameterType):
 class BooleanParameterType(ParameterType):
     """<xtce:BooleanParameterType>"""
 
-    def __init__(self, name: str, encoding: DataEncoding, unit: str = None):
+    def __init__(self, name: str, encoding: DataEncoding, unit: Optional[str] = None):
         """Constructor that just issues a warning if the encoding is String or Binary"""
         if isinstance(encoding, (BinaryDataEncoding, StringDataEncoding)):
             warnings.warn(f"You are encoding a BooleanParameterType with a {type(encoding)} encoding."
@@ -1971,8 +1983,8 @@ class BooleanParameterType(ParameterType):
 class TimeParameterType(ParameterType, metaclass=ABCMeta):
     """Abstract class for time parameter types"""
 
-    def __init__(self, name: str, encoding: DataEncoding, unit: str = None,
-                 epoch: str = None, offset_from: str = None):
+    def __init__(self, name: str, encoding: DataEncoding, unit: Optional[str] = None,
+                 epoch: Optional[str] = None, offset_from: Optional[str] = None):
         """Constructor
 
         Parameters
@@ -1981,13 +1993,13 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
             Parameter type name. Usually something like 'MSN__PARAM_Type'.
         encoding : DataEncoding
             How the data is encoded. e.g. IntegerDataEncoding, StringDataEncoding, etc.
-        unit : str, Optional
+        unit : Optional[str]
             String describing the unit for the stored value. Note that if a scale and offset are provided on
             the Encoding element, the unit applies to the scaled value, not the raw value.
-        epoch : str, Optional
+        epoch : Optional[str]
             String describing the starting epoch for the date or datetime encoded in the parameter.
             Must be xs:date, xs:dateTime, or one of the following: "TAI", "J2000", "UNIX", "POSIX", "GPS".
-        offset_from : str, Optional
+        offset_from : Optional[str]
             Used to reference another time parameter by name. It allows
             for the stringing together of several dissimilar but related time parameters.
 
@@ -2026,7 +2038,7 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
         return cls(name, encoding, unit, epoch, offset_from)
 
     @staticmethod
-    def get_units(parameter_type_element: ElementTree.Element, ns: dict) -> str or None:
+    def get_units(parameter_type_element: ElementTree.Element, ns: dict) -> Union[str, None]:
         """Finds the units associated with a parameter type element and parsed them to return a unit string.
         We assume only one <xtce:Unit> but this could be extended to support multiple units.
         See section 4.3.2.2.4 of CCSDS 660.1-G-1
@@ -2040,7 +2052,8 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
 
         Returns
         -------
-        : str or None
+        : Union[str, None]
+            Unit string or None if no units are defined
         """
         encoding_element = parameter_type_element.find('xtce:Encoding', ns)
         if encoding_element and "units" in encoding_element.attrib:
@@ -2051,7 +2064,7 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
 
     @staticmethod
     def get_time_unit_linear_scaler(
-            parameter_type_element: ElementTree.Element, ns: dict) -> PolynomialCalibrator or None:
+            parameter_type_element: ElementTree.Element, ns: dict) -> Union[PolynomialCalibrator, None]:
         """Finds the linear calibrator associated with the Encoding element for the parameter type element.
         See section 4.3.2.4.8.3 of CCSDS 660.1-G-2
 
@@ -2064,7 +2077,8 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
 
         Returns
         -------
-        : PolynomialCalibrator or None
+        : Union[PolynomialCalibrator, None]
+            The PolynomialCalibrator, or None if we couldn't create a valid calibrator from the XML element
         """
         encoding_element = parameter_type_element.find('xtce:Encoding', ns)
         coefficients = []
@@ -2089,7 +2103,7 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
         return None
 
     @staticmethod
-    def get_epoch(parameter_type_element: ElementTree.Element, ns: dict) -> str or None:
+    def get_epoch(parameter_type_element: ElementTree.Element, ns: dict) -> Union[str, None]:
         """Finds the epoch associated with a parameter type element and parses them to return an epoch string.
         See section 4.3.2.4.9 of CCSDS 660.1-G-2
 
@@ -2102,8 +2116,9 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
 
         Returns
         -------
-        : str or None
-            The epoch string, which may be a datetime string or a named epoch such as TAI.
+        : Union[str, None]
+            The epoch string, which may be a datetime string or a named epoch such as TAI. None if the element was
+            not found.
         """
         epoch_element = parameter_type_element.find('xtce:ReferenceTime/xtce:Epoch', ns)
         if epoch_element is not None:
@@ -2111,7 +2126,7 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
         return None
 
     @staticmethod
-    def get_offset_from(parameter_type_element: ElementTree.Element, ns: dict) -> str or None:
+    def get_offset_from(parameter_type_element: ElementTree.Element, ns: dict) -> Union[str, None]:
         """Finds the parameter referenced in OffsetFrom in a parameter type element and returns the name of the
         referenced parameter (which must be of type TimeParameterType).
         See section 4.3.2.4.9 of CCSDS 660.1-G-1
@@ -2125,8 +2140,8 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
 
         Returns
         -------
-        : str or None
-            The named of the referenced parameter.
+        : Union[str, None]
+            The named of the referenced parameter. None if no OffsetFrom element was found.
         """
         offset_from_element = parameter_type_element.find('xtce:ReferenceTime/xtce:OffsetFrom', ns)
         if offset_from_element is not None:
@@ -2148,7 +2163,7 @@ class Parameter(AttrComparable):
     """<xtce:Parameter>"""
 
     def __init__(self, name: str, parameter_type: ParameterType,
-                 short_description: str = None, long_description: str = None):
+                 short_description: Optional[str] = None, long_description: Optional[str] = None):
         """Constructor
 
         Parameters
@@ -2157,9 +2172,9 @@ class Parameter(AttrComparable):
             Parameter name. Typically something like MSN__PARAMNAME
         parameter_type : ParameterType
             Parameter type object that describes how the parameter is stored.
-        short_description : str
+        short_description : Optional[str]
             Short description of parameter as parsed from XTCE
-        long_description : str
+        long_description : Optional[str]
             Long description of parameter as parsed from XTCE
         """
         self.name = name
@@ -2179,12 +2194,12 @@ class SequenceContainer(AttrComparable):
     def __init__(self,
                  name: str,
                  entry_list: list,
-                 short_description: str = None,
-                 long_description: str = None,
-                 base_container_name: str = None,
-                 restriction_criteria: list = None,
+                 short_description: Optional[str] = None,
+                 long_description: Optional[str] = None,
+                 base_container_name: Optional[str] = None,
+                 restriction_criteria: Optional[list] = None,
                  abstract: bool = False,
-                 inheritors: list = None):
+                 inheritors: Optional[List['SequenceContainer']] = None):
         """Object representation of <xtce:SequenceContainer>
 
         Parameters
@@ -2193,16 +2208,18 @@ class SequenceContainer(AttrComparable):
             Container name
         entry_list : list
             List of Parameter objects
-        long_description : str
+        short_description : Optional[str]
+        long_description : Optional[str]
             Long description of the container
-        base_container_name : str
+        base_container_name : Optional[str]
             Name of the base container from which this may inherit if restriction criteria are met.
-        restriction_criteria : list
+        restriction_criteria : Optional[list]
             A list of MatchCriteria elements that evaluate to determine whether the SequenceContainer should
             be included.
         abstract : bool
             True if container has abstract=true attribute. False otherwise.
-        inheritors : list, Optional
+            Default False.
+        inheritors : Optional[List[SequenceContainer]]
             List of SequenceContainer objects that may inherit this one's entry list if their restriction criteria
             are met. Any SequenceContainers with this container as base_container_name should be listed here.
         """
@@ -2239,7 +2256,7 @@ class XtcePacketDefinition:
         '{{{xtce}}}RelativeTimeParameterType': RelativeTimeParameterType,
     }
 
-    def __init__(self, xtce_document: str or Path, ns: dict = None):
+    def __init__(self, xtce_document: Union[str, Path], ns: Optional[dict] = None):
         """Instantiate an object representation of a CCSDS packet definition, according to a format specified in an XTCE
         XML document. The parser iteratively builds sequences of parameters according to the
         SequenceContainers specified in the XML document's ContainerSet element. The notions of container inheritance
@@ -2249,9 +2266,9 @@ class XtcePacketDefinition:
 
         Parameters
         ----------
-        xtce_document : str or Path
+        xtce_document : Union[str, Path]
             Path to XTCE XML document containing packet definition.
-        ns : dict
+        ns : Optional[dict]
             Optional different namespace than the default xtce namespace.
         """
         self._sequence_container_cache = {}  # Lookup for parsed sequence container objects
@@ -2355,7 +2372,8 @@ class XtcePacketDefinition:
                     )
                     entry_list.append(parameter_object)
                     self._parameter_cache[parameter_name] = parameter_object  # Add to cache
-            elif entry.tag == '{{{xtce}}}ContainerRefEntry'.format(**self.ns):  # pylint: disable=consider-using-f-string
+            elif entry.tag == '{{{xtce}}}ContainerRefEntry'.format(
+                    **self.ns):  # pylint: disable=consider-using-f-string
                 nested_container = self._find_container(name=entry.attrib['containerRef'])
                 entry_list.append(self.parse_sequence_container_contents(nested_container))
 

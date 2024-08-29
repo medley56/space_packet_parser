@@ -6,7 +6,7 @@ import io
 import logging
 import socket
 import time
-from typing import BinaryIO, Optional, Tuple
+from typing import BinaryIO, Optional, Tuple, Union
 import warnings
 # Installed
 import bitstring
@@ -35,7 +35,7 @@ Packet = namedtuple('Packet', ['header', 'data'])
 class ParsedDataItem(xtcedef.AttrComparable):
     """Representation of a parsed parameter"""
 
-    def __init__(self, name: str, raw_value: any, unit: str = None, derived_value: float or str = None,
+    def __init__(self, name: str, raw_value: any, unit: str = None, derived_value: Optional[Union[float, str]] = None,
                  short_description: str = None, long_description: str = None):
         """Constructor
 
@@ -47,7 +47,7 @@ class ParsedDataItem(xtcedef.AttrComparable):
             Parameter units
         raw_value : any
             Raw representation of the parsed value. May be lots of different types but most often an integer
-        derived_value : float or str
+        derived_value : Union[float, str]
             May be a calibrated value or an enum lookup
         short_description : str
             Parameter short description
@@ -303,7 +303,7 @@ class PacketParser:
         return Packet(header=header, data=user_data)
 
     @staticmethod
-    def print_progress(current_bytes: int, total_bytes: int or None,
+    def print_progress(current_bytes: int, total_bytes: Optional[int],
                        start_time_ns: int, current_packets: int,
                        end: str = '\r', log: bool = False):
         """Prints a progress bar, including statistics on parsing rate.
@@ -312,8 +312,8 @@ class PacketParser:
         ----------
         current_bytes : int
             Number of bytes parsed so far.
-        total_bytes : int
-            Number of total bytes to parse (if known)
+        total_bytes : Optional[int]
+            Number of total bytes to parse, if known. None otherwise.
         current_packets : int
             Number of packets parsed so far.
         start_time_ns : int
@@ -400,7 +400,7 @@ class PacketParser:
         """
 
         def read_bytes_from_source(source: bitstring.ConstBitStream or BinaryIO or socket.socket,
-                                   read_size_bytes: int) -> int:
+                                   read_size_bytes: int) -> bytes:
             """Read data from a source and return the bytes read.
 
             Parameters
@@ -415,7 +415,7 @@ class PacketParser:
 
             Returns
             -------
-            bytes
+            : bytes
                 The bytes that were read from the source.
             """
             if isinstance(source, io.BufferedIOBase):
