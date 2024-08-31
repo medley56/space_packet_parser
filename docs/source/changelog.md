@@ -6,7 +6,9 @@ list and release milestones.
 Release notes for the `space_packet_parser` library
 
 ### v5.0.0 (unreleased)
-- Replace bitstring objects with native Python bytes objects (except for in CSV-based parsing code)
+- Replace bitstring objects with native Python bytes objects
+  - Remove dependency on the bitstring library
+  - Much faster parsing speed
 - Fix EnumeratedParameterType to handle duplicate labels
 - Add error reporting for unsupported and invalid parameter types
 
