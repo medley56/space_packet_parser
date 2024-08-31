@@ -5,7 +5,6 @@ import random
 import socket
 import time
 # Installed
-import bitstring
 import pytest
 
 # Local
@@ -25,19 +24,20 @@ def send_data(sender: socket.socket, file: str):
     """
     # Read binary file
     with open(file, 'rb') as fh:
-        stream = bitstring.ConstBitStream(fh)
-        while stream.pos < len(stream):
+        stream = fh.read()
+        pos = 0
+        while pos < len(stream):
             time.sleep(random.random() * .1)  # Random sleep up to 1s
             # Send binary data to socket in random chunk sizes
             min_n_bytes = 4096
             max_n_bytes = 4096*2
             random_n_bytes = int(random.random()) * (max_n_bytes - min_n_bytes)
-            n_bits_to_send = 8 * (min_n_bytes + random_n_bytes)
-            if stream.pos + n_bits_to_send > len(stream):
-                n_bits_to_send = len(stream) - stream.pos
-            chunk_to_send = stream[stream.pos:stream.pos + n_bits_to_send]
-            sender.send(chunk_to_send.bytes)
-            stream.pos += n_bits_to_send
+            n_bytes_to_send = 8 * (min_n_bytes + random_n_bytes)
+            if pos + n_bytes_to_send > len(stream):
+                n_bytes_to_send = len(stream) - pos
+            chunk_to_send = stream[pos:pos + n_bytes_to_send]
+            sender.send(chunk_to_send)
+            pos += n_bytes_to_send
         print("\nFinished sending data.")
 
 

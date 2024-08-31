@@ -1,6 +1,4 @@
 """Tests for the CSV based packet definition"""
-# Installed
-import bitstring
 import pytest
 # Local
 from space_packet_parser import csvdef, xtcedef, parser
@@ -56,10 +54,8 @@ def test_csv_packet_definition(ctim_test_data_dir):
     assert isinstance(csv_pkt_def, CsvPacketDefinition)
 
     test_packet_file = ctim_test_data_dir / 'ccsds_2021_155_14_39_51'
-    pkt_binary_data = bitstring.ConstBitStream(filename=test_packet_file)
-
-    parser_inst = parser.PacketParser(csv_pkt_def)
-    pkt_gen = parser_inst.generator(pkt_binary_data)
-
-    packet = next(pkt_gen)
+    with open(test_packet_file, 'rb') as pkt_file:
+        parser_inst = parser.PacketParser(csv_pkt_def)
+        pkt_gen = parser_inst.generator(pkt_file, show_progress=True)
+        packet = next(pkt_gen)
     assert isinstance(packet, parser.Packet)

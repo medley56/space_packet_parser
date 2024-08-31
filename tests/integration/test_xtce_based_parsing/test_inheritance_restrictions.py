@@ -1,6 +1,4 @@
 """Test RestrictionCriteria being used creatively with JPSS data"""
-# Installed
-import bitstring
 # Local
 from space_packet_parser import xtcedef
 from space_packet_parser import parser

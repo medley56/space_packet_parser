@@ -8,8 +8,6 @@ import socket
 import time
 from typing import BinaryIO, Optional, Tuple, Union
 import warnings
-# Installed
-import bitstring
 # Local
 from space_packet_parser import xtcedef, csvdef
 
@@ -258,12 +256,12 @@ class PacketParser:
         return Packet(header, user_data)
 
     @staticmethod
-    def legacy_parse_packet(packet_data: bitstring.ConstBitStream, entry_list: list, **parse_value_kwargs) -> Packet:
+    def legacy_parse_packet(packet_data: xtcedef.PacketData, entry_list: list, **parse_value_kwargs) -> Packet:
         """Parse binary packet data according to the self.flattened_containers property
 
         Parameters
         ----------
-        packet_data : bitstring.BitString
+        packet_data : xtcedef.PacketData
             Binary packet data to parse into Packets
         entry_list : list
             List of Parameter objects
@@ -346,7 +344,7 @@ class PacketParser:
             logger.info(loadbar)
 
     def generator(self,  # pylint: disable=too-many-branches,too-many-statements
-                  binary_data: bitstring.ConstBitStream or BinaryIO or socket.socket,
+                  binary_data: Union[BinaryIO, socket.socket],
                   parse_bad_pkts: bool = True,
                   skip_header_bits: int = 0,
                   root_container_name="CCSDSPacket",
@@ -361,7 +359,7 @@ class PacketParser:
 
         Parameters
         ----------
-        binary_data : bitstring.ConstBitStream or BinaryIO or socket.socket
+        binary_data : BinaryIO or socket.socket
             Binary data source to parse into Packets.
         parse_bad_pkts : bool, Optional
             Default True.
@@ -399,13 +397,13 @@ class PacketParser:
             which can be raised or used for debugging purposes.
         """
 
-        def read_bytes_from_source(source: bitstring.ConstBitStream or BinaryIO or socket.socket,
+        def read_bytes_from_source(source: Union[BinaryIO, socket.socket],
                                    read_size_bytes: int) -> bytes:
             """Read data from a source and return the bytes read.
 
             Parameters
             ----------
-            source : bitstring.ConstBitStream or BinaryIO or socket.socket
+            source : BinaryIO or socket.socket
                 Source of data.
             read_size_bytes : int
                 Max number of bytes to read from the source per read attempt. For sockets, this should be a small
@@ -422,11 +420,6 @@ class PacketParser:
                 return source.read(read_size_bytes)
             if isinstance(source, socket.socket):
                 return source.recv(read_size_bytes)
-            if isinstance(source, bitstring.ConstBitStream):
-                # This either reads read_size_bytes bytes or it just reads to the end of the data
-                new_bits = source[source.pos:source.pos + read_size_bytes * 8]
-                source.pos += len(new_bits)  # Set the source.pos to exactly where we read to
-                return new_bits.tobytes()
             if isinstance(source, io.TextIOWrapper):
                 raise IOError("Packet data file opened in TextIO mode. You must open packet data in binary mode.")
             raise IOError(f"Unrecognized data source: {source}")
@@ -434,14 +427,7 @@ class PacketParser:
         # ========
         # Start of generator
         # ========
-        if isinstance(binary_data, bitstring.ConstBitStream):
-            total_length_bytes = len(binary_data) // 8
-            if buffer_read_size_bytes is None:
-                # Default to a full read of the bitstream
-                buffer_read_size_bytes = total_length_bytes
-            logger.info(
-                f"Creating packet generator from pre-loaded ConstBitStream. Total length is {total_length_bytes} bytes")
-        elif isinstance(binary_data, io.BufferedIOBase):
+        if isinstance(binary_data, io.BufferedIOBase):
             if buffer_read_size_bytes is None:
                 # Default to a full read of the file
                 buffer_read_size_bytes = -1
@@ -516,20 +502,17 @@ class PacketParser:
             # current_pos is still before the header, so we are reading the entire packet here
             packet_bytes = read_buffer[current_pos:current_pos + n_bytes_packet]
             current_pos += n_bytes_packet
-            # Send bitstring data to the parser for now
-            # TODO: Look into parsing the raw bytes directly
-            # bitstring_packet = bitstring.ConstBitStream(packet_bytes)
-            bitstring_packet = xtcedef.PacketData(packet_bytes)
+            # Wrap the bytes in a class that can keep track of position as we read from it
+            packet_data = xtcedef.PacketData(packet_bytes)
             try:
                 if isinstance(self.packet_definition, xtcedef.XtcePacketDefinition):
-                    packet = self.parse_packet(bitstring_packet,
+                    packet = self.parse_packet(packet_data,
                                                self.packet_definition.named_containers,
                                                root_container_name=root_container_name,
                                                word_size=self.word_size)
                 else:
                     _, parameter_list = self._determine_packet_by_restrictions(header)
-                    bitstring_packet = bitstring.ConstBitStream(packet_bytes)
-                    packet = self.legacy_parse_packet(bitstring_packet, parameter_list, word_size=self.word_size)
+                    packet = self.legacy_parse_packet(packet_data, parameter_list, word_size=self.word_size)
             except UnrecognizedPacketTypeError as e:
                 logger.debug(f"Unrecognized error on packet with APID {header['PKT_APID'].raw_value}'")
                 if yield_unrecognized_packet_errors is True:
@@ -544,7 +527,7 @@ class PacketParser:
                                  f"{packet.header['PKT_LEN'].raw_value}. This might be because the CCSDS header is "
                                  f"incorrectly represented in your packet definition document.")
 
-            actual_length_parsed = bitstring_packet.pos // 8
+            actual_length_parsed = packet_data.pos // 8
             if actual_length_parsed != n_bytes_packet:
                 logger.warning(f"Parsed packet length "
                                f"({actual_length_parsed}B) did not match "

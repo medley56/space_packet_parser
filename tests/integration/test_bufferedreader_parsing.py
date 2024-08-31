@@ -1,6 +1,4 @@
 """Integration test for parsing JPSS packets"""
-# Installed
-import bitstring
 # Local
 from space_packet_parser import xtcedef
 from space_packet_parser import parser
