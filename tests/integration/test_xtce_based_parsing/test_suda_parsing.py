@@ -3,8 +3,6 @@
 The packet definition used here is intended for IDEX, which is basically a rebuild of the SUDA instrument.
 The data used here is SUDA data but the fields are parsed using IDEX naming conventions.
 """
-# Installed
-import bitstring
 # Local
 from space_packet_parser import xtcedef
 from space_packet_parser import parser
@@ -12,21 +10,26 @@ from space_packet_parser import parser
 
 def parse_hg_waveform(waveform_raw: str):
     """Parse a binary string representing a high gain waveform"""
-    w = bitstring.ConstBitStream(bin=waveform_raw)
     ints = []
-    while w.pos < len(w):
-        w.read('bits:2')  # skip 2. We use bits instead of pad for bitstring 3.0.0 compatibility
-        ints += w.readlist(['uint:10']*3)
+    for i in range(0, len(waveform_raw), 32):
+        # 32 bit chunks, divided up into 2, 10, 10, 10
+        # skip first two bits
+        ints += [
+            int(waveform_raw[i + 2 : i + 12], 2),
+            int(waveform_raw[i + 12 : i + 22], 2),
+            int(waveform_raw[i + 22 : i + 32], 2),
+        ]
     return ints
 
 
 def parse_lg_waveform(waveform_raw: str):
     """Parse a binary string representing a low gain waveform"""
-    w = bitstring.ConstBitStream(bin=waveform_raw)
     ints = []
-    while w.pos < len(w):
-        w.read('bits:8')  # skip 2
-        ints += w.readlist(['uint:12']*2)
+    for i in range(0, len(waveform_raw), 32):
+        ints += [
+            int(waveform_raw[i + 8 : i + 20], 2),
+            int(waveform_raw[i + 20 : i + 32], 2),
+        ]
     return ints
 
 

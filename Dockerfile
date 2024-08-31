@@ -3,9 +3,6 @@ ARG BASE_IMAGE_PYTHON_VERSION
 
 FROM python:${BASE_IMAGE_PYTHON_VERSION:-3.11}-slim AS test
 
-# Optional bitstring version
-ARG BITSTRING_VERSION
-
 USER root
 
 ENV INSTALL_LOCATION=/opt/space_packet_parser
@@ -43,8 +40,6 @@ RUN pip install --upgrade pip
 
 # Install all dependencies (including dev deps) specified in pyproject.toml
 RUN poetry install
-
-RUN if [ -n "${BITSTRING_VERSION}" ]; then pip install bitstring==$BITSTRING_VERSION; fi
 
 ENTRYPOINT pytest --cov-report=xml:coverage.xml \
     --cov-report=term \

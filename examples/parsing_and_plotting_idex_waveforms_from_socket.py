@@ -17,7 +17,6 @@ import random
 import socket
 import time
 # Installed
-import bitstring
 import matplotlib.pyplot as plt
 # Local
 from space_packet_parser import xtcedef
@@ -36,38 +35,44 @@ def send_data(sender: socket.socket, file: Path):
     """
     # Read binary file
     with file.open('rb') as fh:
-        stream = bitstring.ConstBitStream(fh)
-        while stream.pos < len(stream):
+        stream = fh.read()
+        pos = 0
+        while pos < len(stream):
             time.sleep(random.random() * .1)  # Random sleep up to 1s
             # Send binary data to socket in random chunk sizes
             random_n_bytes = random.randint(1024, 2048)
-            n_bits_to_send = 8 * random_n_bytes
-            if stream.pos + n_bits_to_send > len(stream):
-                n_bits_to_send = len(stream) - stream.pos
-            chunk_to_send = stream[stream.pos:stream.pos + n_bits_to_send]
+            n_bytes_to_send = 8 * random_n_bytes
+            if pos + n_bytes_to_send > len(stream):
+                n_bytes_to_send = len(stream) - pos
+            chunk_to_send = stream[pos:pos + n_bytes_to_send]
             print(f"Sending {len(chunk_to_send)} bytes")
-            sender.send(chunk_to_send.bytes)
-            stream.pos += n_bits_to_send
+            sender.send(chunk_to_send)
+            pos += n_bytes_to_send
         print("\nFinished sending data.")
 
 
 def parse_hg_waveform(waveform_raw: str):
     """Parse a binary string representing a high gain waveform"""
-    w = bitstring.ConstBitStream(bin=waveform_raw)
     ints = []
-    while w.pos < len(w):
-        w.read('pad:2')  # skip 2. Note: for old versions of bitstring, use bits:2, not pad:2.
-        ints += w.readlist(['uint:10']*3)
+    for i in range(0, len(waveform_raw), 32):
+        # 32 bit chunks, divided up into 2, 10, 10, 10
+        # skip first two bits
+        ints += [
+            int(waveform_raw[i + 2 : i + 12], 2),
+            int(waveform_raw[i + 12 : i + 22], 2),
+            int(waveform_raw[i + 22 : i + 32], 2),
+        ]
     return ints
 
 
 def parse_lg_waveform(waveform_raw: str):
     """Parse a binary string representing a low gain waveform"""
-    w = bitstring.ConstBitStream(bin=waveform_raw)
     ints = []
-    while w.pos < len(w):
-        w.read('pad:8')  # skip 8
-        ints += w.readlist(['uint:12']*2)
+    for i in range(0, len(waveform_raw), 32):
+        ints += [
+            int(waveform_raw[i + 8 : i + 20], 2),
+            int(waveform_raw[i + 20 : i + 32], 2),
+        ]
     return ints
 
 
