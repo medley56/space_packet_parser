@@ -5,8 +5,16 @@ import re
 from collections import namedtuple
 from pathlib import Path
 # Local
-from space_packet_parser.xtcedef import Comparison, Parameter, IntegerDataEncoding, FloatDataEncoding, StringDataEncoding, \
-    IntegerParameterType, FloatParameterType, StringParameterType
+from space_packet_parser.xtcedef import (
+    Comparison,
+    Parameter,
+    IntegerDataEncoding,
+    FloatDataEncoding,
+    StringDataEncoding,
+    IntegerParameterType,
+    FloatParameterType,
+    StringParameterType
+)
 
 FlattenedContainer = namedtuple('FlattenedContainer', ['entry_list', 'restrictions'])
 
