@@ -1,8 +1,8 @@
 """Tests for space_packet_parser.xtcedef"""
 # Standard
-from io import StringIO
-import pytest
+import io
 # Installed
+import pytest
 import lxml.etree as ElementTree
 # Local
 from space_packet_parser import xtcedef, parser
@@ -39,9 +39,9 @@ def test_invalid_parameter_type_error(test_data_dir):
     </xtce:TelemetryMetaData>
 </xtce:SpaceSystem>
 """
-    x = StringIO(test_xtce_document)
+    x = io.TextIOWrapper(io.BytesIO(test_xtce_document.encode("utf-8")))
     with pytest.raises(xtcedef.InvalidParameterTypeError):
-        xtcedef.XtcePacketDefinition(x, ns=TEST_NAMESPACE)
+        xtcedef.XtcePacketDefinition(x)
 
 
 def test_unsupported_parameter_type_error(test_data_dir):
@@ -80,9 +80,9 @@ def test_unsupported_parameter_type_error(test_data_dir):
     </xtce:TelemetryMetaData>
 </xtce:SpaceSystem>
 """
-    x = StringIO(test_xtce_document)
+    x = io.TextIOWrapper(io.BytesIO(test_xtce_document.encode("utf-8")))
     with pytest.raises(NotImplementedError):
-        xtcedef.XtcePacketDefinition(x, ns=TEST_NAMESPACE)
+        xtcedef.XtcePacketDefinition(x)
 
 
 def test_attr_comparable():
