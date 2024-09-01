@@ -1180,30 +1180,33 @@ class DataEncoding(AttrComparable, metaclass=ABCMeta):
 class StringDataEncoding(DataEncoding):
     """<xtce:StringDataEncoding>"""
 
-    def __init__(self, encoding: str = 'utf-8',
-                 termination_character: Optional[str] = None,
-                 fixed_length: Optional[int] = None,
-                 leading_length_size: Optional[int] = None,
-                 dynamic_length_reference: Optional[str] = None,
+    _supported_encodings = ('US-ASCII', 'ISO-8859-1', 'Windows-1252', 'UTF-8', 'UTF-16',
+                            'UTF-16LE', 'UTF-16BE', 'UTF-32', 'UTF-32LE', 'UTF-32BE')
+
+    def __init__(self, encoding: str = 'UTF-8',
+                 byte_order: str = None,
+                 termination_character: str = None,
+                 fixed_length: int = None,
+                 leading_length_size: int = None,
+                 dynamic_length_reference: str = None,
                  use_calibrated_value: bool = True,
-                 discrete_lookup_length: Optional[List[DiscreteLookup]] = None,
-                 length_linear_adjuster: Optional[callable] = None):
-        """Constructor
+                 discrete_lookup_length: list = None,
+                 length_linear_adjuster: callable = None):
+        f"""Constructor
         Only one of termination_character, fixed_length, or leading_length_size should be set. Setting more than one
         is nonsensical.
-
-        TODO: implement ByteOrderList to inform endianness.
-         This can also relax the requirements on the encoding spec since utf-16-le is redundant if endianness
-         comes from the ByteOrderList
 
         Parameters
         ----------
         encoding : str
-            One of 'utf-8', 'utf-16-le', or 'utf-16-be'. Describes how to read the characters in the string.
-        termination_character : Optional[str]
+            One of {self._supported_encodings}. Describes how to read the characters in the string.
+        byte_order : str
+            Description of the byte order, used for multi-byte character encodings where the endianness cannot be
+            determined from the encoding specifier. Can be None if encoding is single-byte or UTF-*BE/UTF-*LE.
+        termination_character : str
             A single hexadecimal character, represented as a string. Must be encoded in the same encoding as the string
             itself. For example, for a utf-8 encoded string, the hex string must be two hex characters (one byte).
-            For a utf-16-* encoded string, the hex representation of the termination character must be four characters
+            For a UTF-16* encoded string, the hex representation of the termination character must be four characters
             (two bytes).
         fixed_length : Optional[int]
             Fixed length of the string, in bits.
@@ -1220,10 +1223,8 @@ class StringDataEncoding(DataEncoding):
             Function that linearly adjusts a size. e.g. if the size reference parameter gives a length in bytes, the
             linear adjuster should multiply by 8 to give the size in bits.
         """
-        if encoding not in ['utf-8', 'utf-16-le', 'utf-16-be']:
-            raise ValueError(
-                f"Got encoding={encoding}. Encoding must be one of utf-8, utf-16-le, or utf-16-be (note that"
-                f"endianness must be specified for utf-16 encoding.")
+        if encoding not in self._supported_encodings:
+            raise ValueError(f"Got encoding={encoding}. Encoding must be one of {self._supported_encodings}.")
         self.encoding = encoding
         # Check that the termination character is a single character in the specified encoding
         # e.g. b'\x58' in utf-8 is "X"
@@ -1231,9 +1232,18 @@ class StringDataEncoding(DataEncoding):
         # b'\x00\x21' in utf-16-be is "!"
         if termination_character and len(bytes.fromhex(termination_character).decode(encoding)) != 1:
             raise ValueError(f"Termination character {termination_character} appears to be malformed. Expected a "
-                             f"hex string representation of a single character, e.g. '58' for character 'X' in utf-8 "
-                             f"or '5800' for character 'X' in utf-16-le. Note that variable-width encoding is not "
+                             f"hex string representation of a single character, e.g. '58' for character 'X' in UTF-8 "
+                             f"or '5800' for character 'X' in UTF-16LE. Note that variable-width encoding is not "
                              f"yet supported in any encoding.")
+        if encoding not in ['US-ASCII', 'ISO-8859-1', 'Windows-1252', 'UTF-8']: # for these, byte order doesn't matter
+            if byte_order is None:
+                if encoding[-2:] in ("LE", "BE"):
+                    self.byte_order = {"LE": "leastSignificantByteFirst",
+                                       "BE": "mostSignificantByteFirst"}[encoding[-2:]]
+                else:
+                    raise ValueError(f"Byte order must be specified for multi-byte character encodings.")
+            else:
+                self.byte_order = byte_order
         self.termination_character = termination_character  # Always in hex, per 4.3.2.2.5.5.4 of XTCE spec
         self.fixed_length = fixed_length
         self.leading_length_size = leading_length_size
@@ -1289,14 +1299,14 @@ class StringDataEncoding(DataEncoding):
             # Literal bytes object (no encoding assumed yet)
             termination_char_bytes = bytes.fromhex(self.termination_character)
 
-            if self.encoding in ['utf-16-le', 'utf-16-be']:
+            if self.encoding.startswith("UTF-32"):
+                bytes_per_char = 4
+            elif self.encoding.startswith("UTF-16"):
                 bytes_per_char = 2
-            elif self.encoding == 'utf-8':
+            elif self.encoding in ("UTF-8", "US-ASCII", "ISO-8859-1", "Windows-1252"):
                 bytes_per_char = 1
             else:
-                raise ValueError(
-                    f"Got encoding={self.encoding}. Encoding must be one of utf-8, utf-16-le, or utf-16-be (note that"
-                    f"endianness must be specified for utf-16 encoding.")
+                raise ValueError(f"Got encoding={self.encoding}. Encoding must be one of {self._supported_encodings}")
 
             bits_per_byte = 8
 
@@ -1360,7 +1370,7 @@ class StringDataEncoding(DataEncoding):
         bitstring_format, skip_bits_after = self._get_format_string(packet_data, parsed_data)
         parsed_value = packet_data.read(bitstring_format)
         packet_data.pos += skip_bits_after  # Allows skip over termination character
-        return parsed_value.decode(self.encoding), None
+        return parsed_value.decode(self.encoding.lower()), None
 
     @classmethod
     def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'StringDataEncoding':
@@ -1383,21 +1393,26 @@ class StringDataEncoding(DataEncoding):
         -------
         cls
         """
-        try:
-            encoding = element.attrib['encoding']
-        except KeyError:
-            encoding = 'utf-8'
+        encoding: str = element.get("encoding", "UTF-8")
+
+        byte_order = None # fallthrough value
+        if encoding not in ('US-ASCII', 'ISO-8859-1', 'Windows-1252', 'UTF-8'): # single-byte chars
+            if not (encoding.endswith("BE") or encoding.endswith("LE")):
+                byte_order = element.get("byteOrder")
+                if byte_order is None:
+                    raise ValueError("For multi-byte character encodings, byte order must be specified "
+                                     "either using the byteOrder attribute or via the encoding itself.")
 
         try:
             termination_character = element.find('xtce:SizeInBits/xtce:TerminationChar', ns).text
-            return cls(termination_character=termination_character, encoding=encoding)
+            return cls(termination_character=termination_character, encoding=encoding, byte_order=byte_order)
         except AttributeError:
             pass
 
         try:
             leading_length_size = int(
                 element.find('xtce:SizeInBits/xtce:LeadingSize', ns).attrib['sizeInBitsOfSizeTag'])
-            return cls(leading_length_size=leading_length_size, encoding=encoding)
+            return cls(leading_length_size=leading_length_size, encoding=encoding, byte_order=byte_order)
         except AttributeError:
             pass
 
@@ -1407,7 +1422,7 @@ class StringDataEncoding(DataEncoding):
         if discrete_lookup_list_element is not None:
             discrete_lookup_list = [DiscreteLookup.from_discrete_lookup_xml_element(el, ns)
                                     for el in discrete_lookup_list_element.findall('xtce:DiscreteLookup', ns)]
-            return cls(encoding=encoding,
+            return cls(encoding=encoding, byte_order=byte_order,
                        discrete_lookup_length=discrete_lookup_list)
 
         try:
@@ -1418,7 +1433,7 @@ class StringDataEncoding(DataEncoding):
                 use_calibrated_value = dynamic_value_element.find(
                     'xtce:ParameterInstanceRef', ns).attrib['useCalibratedValue'].lower() == "true"
             linear_adjuster = cls._get_linear_adjuster(dynamic_value_element, ns)
-            return cls(encoding=encoding,
+            return cls(encoding=encoding, byte_order=byte_order,
                        dynamic_length_reference=referenced_parameter, use_calibrated_value=use_calibrated_value,
                        length_linear_adjuster=linear_adjuster)
         except AttributeError:
@@ -1426,7 +1441,7 @@ class StringDataEncoding(DataEncoding):
 
         try:
             fixed_length = int(fixed_element.find('xtce:FixedValue', ns).text)
-            return cls(fixed_length=fixed_length, encoding=encoding)
+            return cls(fixed_length=fixed_length, encoding=encoding, byte_order=byte_order)
         except AttributeError:
             pass
 
@@ -1437,11 +1452,10 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
     """Abstract class that is inherited by IntegerDataEncoding and FloatDataEncoding"""
 
     def __init__(self, size_in_bits: int, encoding: str,
+                 byte_order: str = "mostSignficantByteFirst",
                  default_calibrator: Optional[Calibrator] = None,
                  context_calibrators: Optional[List[ContextCalibrator]] = None):
         """Constructor
-
-        # TODO: Implement ByteOrderList to inform endianness
 
         Parameters
         ----------
@@ -1461,6 +1475,7 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
         """
         self.size_in_bits = size_in_bits
         self.encoding = encoding
+        self.byte_order = byte_order
         self.default_calibrator = default_calibrator
         self.context_calibrators = context_calibrators
 
@@ -1520,7 +1535,14 @@ class IntegerDataEncoding(NumericDataEncoding):
         else:
             raise NotImplementedError(f"Unrecognized encoding {self.encoding}. "
                                       f"Only signed and unsigned have been implemented.")
-        return f"{base}:{self.size_in_bits}"
+        if self.size_in_bits % 8: # if not a whole-byte value, disregard byte order
+            endianness = ""
+        else:
+            endianness = {"leastSignificantByteFirst": "le",
+                          "mostSignificantByteFirst": "be"}.get(self.byte_order)
+            if endianness is None:
+                raise NotImplementedError(f"Unrecognized byte order {self.byte_order}.")
+        return f"{base}{endianness}:{self.size_in_bits}"
 
     @classmethod
     def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'IntegerDataEncoding':
@@ -1538,13 +1560,11 @@ class IntegerDataEncoding(NumericDataEncoding):
         : cls
         """
         size_in_bits = int(element.attrib['sizeInBits'])
-        if 'encoding' in element.attrib:
-            encoding = element.attrib['encoding']
-        else:
-            encoding = "unsigned"
+        encoding = element.attrib['encoding']
+        byte_order = element.get("byteOrder", "mostSignificantByteFirst")
         calibrator = cls.get_default_calibrator(element, ns)
         context_calibrators = cls.get_context_calibrators(element, ns)
-        return cls(size_in_bits=size_in_bits, encoding=encoding,
+        return cls(size_in_bits=size_in_bits, encoding=encoding, byte_order=byte_order,
                    default_calibrator=calibrator, context_calibrators=context_calibrators)
 
 
@@ -1558,8 +1578,6 @@ class FloatDataEncoding(NumericDataEncoding):
         """Constructor
 
         # TODO: Implement MIL-1650A encoding option
-
-        # TODO: support ByteOrderList to inform endianness. Currently we assume big-endian always.
 
         Parameters
         ----------
@@ -1593,7 +1611,14 @@ class FloatDataEncoding(NumericDataEncoding):
         str
             Format string in the bitstring format. e.g. uint:16
         """
-        return f"floatbe:{self.size_in_bits}"
+        if self.size_in_bits % 8: # disregard byte order for sub-byte fields
+            endianness = ""
+        else:
+            endianness = {"leastSignificantByteFirst": "le",
+                          "mostSignificantByteFirst": "be"}.get(self.byte_order)
+            if endianness is None:
+                raise NotImplementedError(f"Unrecognized byte order {self.byte_order}.")
+        return f"float{endianness}:{self.size_in_bits}"
 
     @classmethod
     def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'FloatDataEncoding':
@@ -1611,13 +1636,11 @@ class FloatDataEncoding(NumericDataEncoding):
         : cls
         """
         size_in_bits = int(element.attrib['sizeInBits'])
-        if 'encoding' in element.attrib:
-            encoding = element.attrib['encoding']
-        else:
-            encoding = 'IEEE-754'
+        encoding = element.get("encoding", "IEEE-754")
+        byte_order = element.get("byteOrder", "mostSignificantByteFirst")
         default_calibrator = cls.get_default_calibrator(element, ns)
         context_calibrators = cls.get_context_calibrators(element, ns)
-        return cls(size_in_bits=size_in_bits, encoding=encoding,
+        return cls(size_in_bits=size_in_bits, encoding=encoding, byte_order=byte_order,
                    default_calibrator=default_calibrator, context_calibrators=context_calibrators)
 
 
