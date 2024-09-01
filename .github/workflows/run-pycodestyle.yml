@@ -1,0 +1,12 @@
+name: Run PyCodeStyle
+on: pull_request
+jobs:
+  pylint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build . --file Dockerfile --target style --tag space-packet-parser-style:latest
+      - name: Run PyCodeStyle in Docker
+        run: docker run -i space-packet-parser-style:latest

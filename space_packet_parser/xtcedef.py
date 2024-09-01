@@ -2421,8 +2421,10 @@ class XtcePacketDefinition:
                         try:
                             parameter_type_class = self.type_tag_to_object[parameter_type_element.tag]
                         except KeyError as e:
-                            if ("ArrayParameterType" in parameter_type_element.tag or
-                                    "AggregateParameterType" in parameter_type_element.tag):
+                            if (
+                                    "ArrayParameterType" in parameter_type_element.tag or
+                                    "AggregateParameterType" in parameter_type_element.tag
+                            ):
                                 raise NotImplementedError(f"Unsupported parameter type {parameter_type_element.tag}. "
                                                           "Supporting this parameter type is in the roadmap but has "
                                                           "not yet been implemented.") from e
@@ -2436,10 +2438,10 @@ class XtcePacketDefinition:
                         self._parameter_type_cache[parameter_type_name] = parameter_type_object  # Add to cache
 
                     parameter_short_description = parameter_element.attrib['shortDescription'] if (
-                            'shortDescription' in parameter_element.attrib
+                        'shortDescription' in parameter_element.attrib
                     ) else None
                     parameter_long_description = parameter_element.find('xtce:LongDescription', self.ns).text if (
-                            parameter_element.find('xtce:LongDescription', self.ns) is not None
+                        parameter_element.find('xtce:LongDescription', self.ns) is not None
                     ) else None
 
                     parameter_object = Parameter(
@@ -2456,10 +2458,10 @@ class XtcePacketDefinition:
                 entry_list.append(self.parse_sequence_container_contents(nested_container))
 
         short_description = sequence_container.attrib['shortDescription'] if (
-                'shortDescription' in sequence_container.attrib
+            'shortDescription' in sequence_container.attrib
         ) else None
         long_description = sequence_container.find('xtce:LongDescription', self.ns).text if (
-                sequence_container.find('xtce:LongDescription', self.ns) is not None
+            sequence_container.find('xtce:LongDescription', self.ns) is not None
         ) else None
 
         return SequenceContainer(name=sequence_container.attrib['name'],
@@ -2686,7 +2688,7 @@ class XtcePacketDefinition:
 
 def _extract_bits(data: bytes, start_bit: int, nbits: int):
     """Extract nbits from the data starting from the least significant end.
-    
+
     If data = 00110101 11001010, start_bit = 2, nbits = 9, then the bits extracted are "110101110".
     Those bits are turned into a Python integer and returned.
 
@@ -2698,7 +2700,7 @@ def _extract_bits(data: bytes, start_bit: int, nbits: int):
         Starting bit location within the data
     nbits : int
         Number of bits to extract
-    
+
     Returns
     -------
     int

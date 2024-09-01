@@ -38,6 +38,7 @@ keywords = [
 python = ">=3.8"
 
 [tool.poetry.group.dev.dependencies]
+pycodestyle = "*"
 pylint = "*"
 pytest = "*"
 pytest-randomly = "*"

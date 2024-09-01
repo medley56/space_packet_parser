@@ -1,7 +1,7 @@
 # Python version with which to test (must be supported and available on dockerhub)
 ARG BASE_IMAGE_PYTHON_VERSION
 
-FROM python:${BASE_IMAGE_PYTHON_VERSION:-3.11}-slim AS test
+FROM python:${BASE_IMAGE_PYTHON_VERSION:-3.12}-slim AS test
 
 USER root
 
@@ -26,7 +26,6 @@ ENV PATH="$PATH:/root/.local/bin"
 
 COPY space_packet_parser $INSTALL_LOCATION/space_packet_parser
 COPY tests $INSTALL_LOCATION/tests
-COPY pylintrc $INSTALL_LOCATION
 COPY pyproject.toml $INSTALL_LOCATION
 # LICENSE.txt is referenced by pyproject.toml
 COPY LICENSE.txt $INSTALL_LOCATION
@@ -50,4 +49,12 @@ ENTRYPOINT pytest --cov-report=xml:coverage.xml \
 
 FROM test AS lint
 
+COPY pylintrc $INSTALL_LOCATION
+
 ENTRYPOINT pylint space_packet_parser
+
+FROM test AS style
+
+COPY pycodestyle.ini $INSTALL_LOCATION
+
+ENTRYPOINT pycodestyle --config=pycodestyle.ini space_packet_parser

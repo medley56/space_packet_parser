@@ -58,6 +58,7 @@ Thumbs.db
 #######################
 .idea
 .project
+.run
 
 # Virtual environment #
 #######################
