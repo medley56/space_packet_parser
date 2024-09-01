@@ -83,10 +83,11 @@ class PacketParser:
         header = {}
         current_bit = 0
         for item in CCSDS_HEADER_DEFINITION:
-            header[item.name] = xtcedef.ParsedDataItem(name=item.name,
-                                               unit=None,
-                                               # pylint: disable=protected-access
-                                               raw_value=xtcedef._extract_bits(packet_data, current_bit, item.nbits))
+            header[item.name] = xtcedef.ParsedDataItem(
+                name=item.name,
+                unit=None,
+                # pylint: disable=protected-access
+                raw_value=xtcedef._extract_bits(packet_data, current_bit, item.nbits))
             current_bit += item.nbits
         return header
 

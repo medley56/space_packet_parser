@@ -16,8 +16,10 @@ from space_packet_parser import parser
 )
 def test_parsed_data_item(name, raw_value, unit, derived_value, short_description, long_description, valid):
     """Test ParsedDataItem"""
-    if valid:
-        pdi = parser.ParsedDataItem(name, raw_value, unit, derived_value, short_description, long_description)
-    else:
-        with pytest.raises(ValueError):
-            pdi = parser.ParsedDataItem(name, raw_value, unit, derived_value, short_description, long_description)
+    pdi = parser.ParsedDataItem(name, raw_value, unit, derived_value, short_description, long_description)
+    assert pdi.name == name
+    assert pdi.raw_value == raw_value
+    assert pdi.unit == unit
+    assert pdi.derived_value == derived_value
+    assert pdi.short_description == short_description
+    assert pdi.long_description == long_description

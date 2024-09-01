@@ -83,15 +83,12 @@ class ParsedDataItem:
         Parameter long description
     """
     name: str
-    raw_value: Any
+    raw_value: Union[bytes, float, int, str]
     unit: Optional[str] = None
     derived_value: Optional[Union[float, str]] = None
     short_description: Optional[str] = None
     long_description: Optional[str] = None
 
-    def __post_init__(self):
-        if self.name is None or self.raw_value is None:
-            raise ValueError("ParsedDataItem must have a name and a raw value.")
 
 # Matching logical objects
 class MatchCriteria(AttrComparable, metaclass=ABCMeta):
@@ -2379,10 +2376,9 @@ class Parameter(Parseable):
     short_description: Optional[str] = None
     long_description: Optional[str] = None
 
-
     def parse(self, packet_data: PacketData, parsed_items: dict, **parse_value_kwargs) -> dict:
         """Parse this parameter from the packet data.
-        
+
         Create a ``ParsedDataItem`` and add it to the parsed_items dictionary.
         """
         parsed_value, derived_value = self.parameter_type.parse_value(
@@ -2427,24 +2423,24 @@ class SequenceContainer(Parseable):
     short_description: Optional[str] = None
     long_description: Optional[str] = None
     base_container_name: Optional[str] = None
-    restriction_criteria: Optional[list] = field(default_factory=lambda : [])
+    restriction_criteria: Optional[list] = field(default_factory=lambda: [])
     abstract: bool = False
-    inheritors: Optional[List['SequenceContainer']] = field(default_factory=lambda : [])
+    inheritors: Optional[List['SequenceContainer']] = field(default_factory=lambda: [])
 
     def __post_init__(self):
         # Handle the explicit None passing for default values
         self.restriction_criteria = self.restriction_criteria or []
         self.inheritors = self.inheritors or []
 
-
     def parse(self, packet_data: PacketData, parsed_items: dict, **parse_value_kwargs) -> dict:
         """Parse the entry list of parameters/containers in the order they are expected in the packet.
-        
+
         This could be recursive if the entry list contains SequenceContainers.
         """
         for entry in self.entry_list:
             parsed_items = entry.parse(packet_data=packet_data, parsed_items=parsed_items, **parse_value_kwargs)
         return parsed_items
+
 
 FlattenedContainer = namedtuple('FlattenedContainer', ['entry_list', 'restrictions'])
 
