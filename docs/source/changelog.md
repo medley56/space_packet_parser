@@ -11,6 +11,9 @@ Release notes for the `space_packet_parser` library
   - Much faster parsing speed
   - Users that are passing `bitstring.ConstBitStream` objects to `generator` will need to pass a 
     binary filelike object instead
+- BREAKING: The return type of BinaryDataEncoding is now the raw bytes.
+  To get the previous behavior you can convert the data to an integer and then format it as a binary string.
+  ``f"{int.from_bytes(data, byteorder="big"):0{len(data)*8}b}"``
 - Fix EnumeratedParameterType to handle duplicate labels
 - Add error reporting for unsupported and invalid parameter types
 

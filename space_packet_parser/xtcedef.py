@@ -1795,7 +1795,7 @@ class BinaryDataEncoding(DataEncoding):
 
         if self.linear_adjuster is not None:
             len_bits = self.linear_adjuster(len_bits)
-        return f"bin:{len_bits}"
+        return f"bytes:{len_bits//8}"
 
     def parse_value(self, packet_data: PacketData, parsed_data: dict, word_size: Optional[int] = None, **kwargs):
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.

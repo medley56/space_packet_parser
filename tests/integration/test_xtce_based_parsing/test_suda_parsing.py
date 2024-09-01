@@ -111,7 +111,9 @@ def test_suda_xtce_packet_parsing(suda_test_data_dir):
 
     # Parse the waveforms according to the scitype present (HG/LG channels encode waveform data differently)
     for scitype, waveform in data.items():
-        data[scitype] = parse_waveform_data(waveform, scitype)
+        # Convert the binary data to an integer so we can then convert it to a binary string
+        int_val = int.from_bytes(waveform, byteorder="big")
+        data[scitype] = parse_waveform_data(f"{int_val:0{len(waveform)*8}b}", scitype)
         print(f"{len(data[scitype])} points")
         mean = sum(data[scitype]) / len(data[scitype])
         print(f"mean value = {mean}")
