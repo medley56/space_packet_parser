@@ -1704,7 +1704,7 @@ def test_binary_parameter_type(xml_string: str, expectation):
             xtcedef.BinaryDataEncoding(fixed_size_in_bits=16)),
          {},
          xtcedef.PacketData(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big')),
-         '0011010000110010'),
+         b"42"),
         # discrete lookup list size
         (xtcedef.BinaryParameterType(
             'TEST_BIN',
@@ -1716,7 +1716,7 @@ def test_binary_parameter_type(xml_string: str, expectation):
             ], linear_adjuster=lambda x: 8*x)),
          {'P1': parser.ParsedDataItem('P1', 1, None, 7.4)},
          xtcedef.PacketData(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big')),
-         '0011010000110010'),
+         b"42"),
         # dynamic size reference to other parameter
         (xtcedef.BinaryParameterType(
             'TEST_BIN',
@@ -1724,7 +1724,7 @@ def test_binary_parameter_type(xml_string: str, expectation):
                                        use_calibrated_value=False, linear_adjuster=lambda x: 8*x)),
          {'BIN_LEN': parser.ParsedDataItem('BIN_LEN', 2, None)},
          xtcedef.PacketData(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big')),
-         '0011010000110010'),
+         b"42"),
     ]
 )
 def test_binary_parameter_parsing(parameter_type, parsed_data, packet_data, expected):
@@ -1796,7 +1796,7 @@ def test_boolean_parameter_type(xml_string, expectation):
             xtcedef.BinaryDataEncoding(fixed_size_in_bits=1)),
          {},
          xtcedef.PacketData(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=64, byteorder='big')),
-         '0', True),
+         b'', False),
         (xtcedef.BooleanParameterType(
             'TEST_BOOL',
             xtcedef.StringDataEncoding(encoding="UTF-8", termination_character='00')),
