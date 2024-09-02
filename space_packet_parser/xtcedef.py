@@ -1308,15 +1308,6 @@ class StringDataEncoding(DataEncoding):
             raise ValueError(f"Got encoding={encoding} (uppercased). "
                              f"Encoding must be one of {self._supported_encodings}.")
         self.encoding = encoding
-        # Check that the termination character is a single character in the specified encoding
-        # e.g. b'\x58' in utf-8 is "X"
-        # b'\x21\00' in utf-16-le is "!"
-        # b'\x00\x21' in utf-16-be is "!"
-        if termination_character and len(bytes.fromhex(termination_character).decode(encoding)) != 1:
-            raise ValueError(f"Termination character {termination_character} appears to be malformed. Expected a "
-                             f"hex string representation of a single character, e.g. '58' for character 'X' in UTF-8 "
-                             f"or '5800' for character 'X' in UTF-16LE. Note that variable-width encoding is not "
-                             f"yet supported in any encoding.")
         if encoding not in ['US-ASCII', 'ISO-8859-1', 'Windows-1252', 'UTF-8']:  # for these, byte order doesn't matter
             if byte_order is None:
                 if "LE" in encoding:
@@ -1327,7 +1318,19 @@ class StringDataEncoding(DataEncoding):
                     raise ValueError("Byte order must be specified for multi-byte character encodings.")
             else:
                 self.byte_order = byte_order
-        self.termination_character = termination_character  # Always in hex, per 4.3.2.2.5.5.4 of XTCE spec
+        self.termination_character = termination_character
+        if termination_character:
+            # Always in hex, per 4.3.2.2.5.5.4 of XTCE spec
+            self.termination_character = bytes.fromhex(termination_character)
+            # Check that the termination character is a single character in the specified encoding
+            # e.g. b'\x58' in utf-8 is "X"
+            # b'\x21\00' in utf-16-le is "!"
+            # b'\x00\x21' in utf-16-be is "!"
+            if len(self.termination_character.decode(encoding)) != 1:
+                raise ValueError(f"Termination character {termination_character} appears to be malformed. "
+                                 f"Expected a hex string representation of a single character, e.g. '58' for "
+                                 f"character 'X' in utf-8 or '5800' for character 'X' in utf-16-le. Note that "
+                                 f"variable-width encoding is not yet supported in any encoding.")
         self.fixed_length = fixed_length
         self.leading_length_size = leading_length_size
         self.dynamic_length_reference = dynamic_length_reference
@@ -1349,12 +1352,9 @@ class StringDataEncoding(DataEncoding):
         Returns
         -------
         : str
-            Format string in the bitstring format. e.g. `uint:16`
-        : int
-            Number of bits to skip after parsing the string
+            Format string in the bitstring format. e.g. `bytes:16`
         """
         # pylint: disable=too-many-branches
-        skip_bits_after = 0  # Gets modified if we have a termination character
         if self.fixed_length:
             strlen_bits = self.fixed_length
         elif self.leading_length_size is not None:  # strlen_bits is determined from a preceding integer
@@ -1379,50 +1379,15 @@ class StringDataEncoding(DataEncoding):
                 strlen_bits = parsed_data[self.dynamic_length_reference].raw_value
             strlen_bits = int(strlen_bits)
         elif self.termination_character is not None:
-            # Literal bytes object (no encoding assumed yet)
-            termination_char_bytes = bytes.fromhex(self.termination_character)
-
-            if self.encoding.startswith("UTF-32"):
-                bytes_per_char = 4
-            elif self.encoding.startswith("UTF-16"):
-                bytes_per_char = 2
-            elif self.encoding in ("UTF-8", "US-ASCII", "ISO-8859-1", "Windows-1252"):
-                bytes_per_char = 1
-            else:
-                raise ValueError(f"Got encoding={self.encoding}. Encoding must be one of {self._supported_encodings}")
-
-            bits_per_byte = 8
-
-            # If we are starting mid-byte, there may not be an integer number of bytes between the string and the
-            # end of the packet
-            n_full_bytes_left_in_packet = (len(packet_data) - packet_data.pos) // bits_per_byte
-
-            # Start by looking ahead at most 16 chars.
-            look_ahead_n_chars = min(16, n_full_bytes_left_in_packet // bytes_per_char)
-
-            # Peek at 64 characters at a time. 64, 128, 192, ...
-            # Remember in utf-16-be/le, each character will be 2 bytes
-            look_ahead_n_bytes = bytes_per_char * look_ahead_n_chars
-
-            while look_ahead_n_bytes <= n_full_bytes_left_in_packet:
-                # Outputs byte string (encoding is irrelevant, they are just bytes)
-                look_ahead = packet_data.peek(f'bytes:{look_ahead_n_bytes}')
-                # Check if the termination character byte string is in the look ahead bytes we peeked at
-                if termination_char_bytes in look_ahead:
-                    # Implicit assumption of one termination character in specified encoding
-                    tclen_bits = bytes_per_char * bits_per_byte
-                    # Split the look ahead bytes string at the termination character and get its length (in bits)
-                    strlen_bits = len(look_ahead.split(termination_char_bytes)[0]) * bits_per_byte
-                    # Tell the parser to skip the termination character
-                    skip_bits_after = tclen_bits
-                    break
-                # Increment look ahead length by one char (1 or 2 bytes, based on encoding)
-                look_ahead_n_bytes += bytes_per_char * look_ahead_n_chars
-                # Ensure we never go over the total length of the packet, in bits
-                look_ahead_n_bytes = min(look_ahead_n_bytes, n_full_bytes_left_in_packet)
-            else:
-                raise ValueError(f"Reached end of binary string without finding "
-                                 f"termination character {self.termination_character}.")
+            # Look through the rest of the packet data to find the termination character
+            nbits_left = len(packet_data) - packet_data.pos
+            string_buffer = packet_data.peek(f"bytes:{nbits_left//8}")
+            try:
+                strlen_bits = string_buffer.index(self.termination_character) * 8
+            except ValueError as exc:
+                # Termination character not found in the string buffer
+                raise ValueError(f"Reached the end of the packet data without finding the "
+                                 f"termination character {self.termination_character}") from exc
         else:
             raise ValueError("Unable to parse StringParameterType. "
                              "Didn't contain any way to constrain the length of the string.")
@@ -1430,7 +1395,7 @@ class StringDataEncoding(DataEncoding):
             # Only adjust if we are not doing this by termination character. Adjusting a length that is objectively
             # determined via termination character is nonsensical.
             strlen_bits = self.length_linear_adjuster(strlen_bits)
-        return f"bytes:{strlen_bits // 8}", skip_bits_after
+        return f"bytes:{strlen_bits // 8}"
         # pylint: enable=too-many-branches
 
     def parse_value(self, packet_data: PacketData, parsed_data: dict, **kwargs) -> Tuple[str, None]:
@@ -1450,9 +1415,12 @@ class StringDataEncoding(DataEncoding):
         : None
             Calibrated value
         """
-        bitstring_format, skip_bits_after = self._get_format_string(packet_data, parsed_data)
+        bitstring_format = self._get_format_string(packet_data, parsed_data)
         parsed_value = packet_data.read(bitstring_format)
-        packet_data.pos += skip_bits_after  # Allows skip over termination character
+        if self.termination_character is not None:
+            # We need to skip over the termination character if there was one
+            packet_data.pos += len(self.termination_character) * 8
+
         return parsed_value.decode(self.encoding), None
 
     @classmethod
