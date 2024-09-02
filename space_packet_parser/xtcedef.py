@@ -969,7 +969,27 @@ class PacketData:
         : Union[int, float, str, bytes]
             Value read from the packet data according to the format specifier.
         """
-        # pylint: disable=too-many-branches
+        # pylint: disable=too-many-branches, too-many-return-statements
+
+        def _twos_complement(val: int, bit_width: int):
+            """Compute the twos complement of an integer, assuming big endian
+
+            Parameters
+            ----------
+            val : int
+                Raw integer value (representation of bits), assuming MSB first.
+            bit_width : int
+                Number of bits
+
+            Returns
+            -------
+            : int
+                Twos complement of `val`
+            """
+            if (val & (1 << (bit_width - 1))) != 0:  # if sign bit is set e.g., 8bit: 128-255
+                return val - (1 << bit_width)  # compute negative value
+            return val  # return positive value as is
+
         name, n_things = format_string.split(":")
         if name == "bytes":
             nbits = int(n_things) * 8
@@ -984,13 +1004,33 @@ class PacketData:
         if update_position:
             self.pos += nbits
 
-        if name == "uint":
+        # TODO: This logic is messy. When we tackle getting away from the bitstring format strings,
+        #  refactor this to be more concise
+        if name in ("uint", "uintbe"):
             return bytes_as_int
-        if name == "int":
+        if name == "uintle":
+            # Convert little-endian (LSB first) int to bigendian. Just reverses the order of the bytes.
+            return int.from_bytes(
+                bytes_as_int.to_bytes(
+                    length=(nbits // 8) + 1 if nbits % 8 else (nbits // 8),
+                    byteorder="little"
+                ),
+                byteorder="big"
+            )
+        if name in ("int", "intbe"):
             # Compute two's complement for signed integer of any size (nbits)
-            if (bytes_as_int & (1 << (nbits - 1))) != 0:  # if sign bit is set e.g., 8bit: 128-255
-                return bytes_as_int - (1 << nbits)  # compute negative value
-            return bytes_as_int  # return positive value as is
+            return _twos_complement(bytes_as_int, nbits)
+        if name == "intle":
+            # Convert little-endian (LSB first) int to bigendian. Just reverses the order of the bytes.
+            bigendian_val = int.from_bytes(
+                bytes_as_int.to_bytes(
+                    length=(nbits // 8) + 1 if nbits % 8 else (nbits // 8),
+                    byteorder="little"
+                ),
+                byteorder="big"
+            )
+            # Calculate twos complement
+            return _twos_complement(bigendian_val, nbits)
         if name == "floatbe":
             if nbits == 16:
                 name = "!e"
@@ -999,8 +1039,18 @@ class PacketData:
             elif nbits == 64:
                 name = "!d"
             else:
-                raise ValueError(f"Unsupported float size {nbits}, only 32 and 64 are supported")
+                raise ValueError(f"Unsupported float size {nbits}, only 16, 32 and 64 are supported")
             return struct.unpack(name, int.to_bytes(bytes_as_int, nbits // 8, byteorder="big"))[0]
+        if name == "floatle":
+            if nbits == 16:
+                name = "e"
+            elif nbits == 32:
+                name = "f"
+            elif nbits == 64:
+                name = "d"
+            else:
+                raise ValueError(f"Unsupported float size {nbits}, only 16, 32 and 64 are supported")
+            return struct.unpack(name, int.to_bytes(bytes_as_int, nbits // 8, byteorder="little"))[0]
         if name == "bin":
             # Binary string
             return f"{bytes_as_int:0{nbits}b}"
@@ -1184,14 +1234,15 @@ class StringDataEncoding(DataEncoding):
                             'UTF-16LE', 'UTF-16BE', 'UTF-32', 'UTF-32LE', 'UTF-32BE')
 
     def __init__(self, encoding: str = 'UTF-8',
-                 byte_order: str = None,
-                 termination_character: str = None,
-                 fixed_length: int = None,
-                 leading_length_size: int = None,
-                 dynamic_length_reference: str = None,
-                 use_calibrated_value: bool = True,
-                 discrete_lookup_length: list = None,
-                 length_linear_adjuster: callable = None):
+                 byte_order: Optional[str] = None,
+                 termination_character: Optional[str] = None,
+                 fixed_length: Optional[int] = None,
+                 leading_length_size: Optional[int] = None,
+                 dynamic_length_reference: Optional[str] = None,
+                 use_calibrated_value: Optional[bool] = True,
+                 discrete_lookup_length: Optional[List[DiscreteLookup]] = None,
+                 length_linear_adjuster: Optional[callable] = None):
+        # pylint: disable=pointless-statement
         f"""Constructor
         Only one of termination_character, fixed_length, or leading_length_size should be set. Setting more than one
         is nonsensical.
@@ -1199,11 +1250,13 @@ class StringDataEncoding(DataEncoding):
         Parameters
         ----------
         encoding : str
-            One of {self._supported_encodings}. Describes how to read the characters in the string.
-        byte_order : str
+            One of the XTCE-supported encodings: {self._supported_encodings}
+            Describes how to read the characters in the string.
+            Default is UTF-8.
+        byte_order : Optional[str]
             Description of the byte order, used for multi-byte character encodings where the endianness cannot be
             determined from the encoding specifier. Can be None if encoding is single-byte or UTF-*BE/UTF-*LE.
-        termination_character : str
+        termination_character : Optional[str]
             A single hexadecimal character, represented as a string. Must be encoded in the same encoding as the string
             itself. For example, for a utf-8 encoded string, the hex string must be two hex characters (one byte).
             For a UTF-16* encoded string, the hex representation of the termination character must be four characters
@@ -1214,7 +1267,7 @@ class StringDataEncoding(DataEncoding):
             Fixed size in bits of a leading field that contains the length of the subsequent string.
         dynamic_length_reference : Optional[str]
             Name of referenced parameter for dynamic length, in bits. May be combined with a linear_adjuster
-        use_calibrated_value: bool
+        use_calibrated_value: Optional[bool]
             Whether to use the calibrated value on the referenced parameter in dynamic_length_reference.
             Default is True.
         discrete_lookup_length : Optional[List[DiscreteLookup]]
@@ -1224,7 +1277,8 @@ class StringDataEncoding(DataEncoding):
             linear adjuster should multiply by 8 to give the size in bits.
         """
         if encoding not in self._supported_encodings:
-            raise ValueError(f"Got encoding={encoding}. Encoding must be one of {self._supported_encodings}.")
+            raise ValueError(f"Got encoding={encoding} (uppercased). "
+                             f"Encoding must be one of {self._supported_encodings}.")
         self.encoding = encoding
         # Check that the termination character is a single character in the specified encoding
         # e.g. b'\x58' in utf-8 is "X"
@@ -1235,13 +1289,14 @@ class StringDataEncoding(DataEncoding):
                              f"hex string representation of a single character, e.g. '58' for character 'X' in UTF-8 "
                              f"or '5800' for character 'X' in UTF-16LE. Note that variable-width encoding is not "
                              f"yet supported in any encoding.")
-        if encoding not in ['US-ASCII', 'ISO-8859-1', 'Windows-1252', 'UTF-8']: # for these, byte order doesn't matter
+        if encoding not in ['US-ASCII', 'ISO-8859-1', 'Windows-1252', 'UTF-8']:  # for these, byte order doesn't matter
             if byte_order is None:
-                if encoding[-2:] in ("LE", "BE"):
-                    self.byte_order = {"LE": "leastSignificantByteFirst",
-                                       "BE": "mostSignificantByteFirst"}[encoding[-2:]]
+                if "LE" in encoding:
+                    self.byte_order = "leastSignificantByteFirst"
+                elif "BE" in encoding:
+                    self.byte_order = "mostSignificantByteFirst"
                 else:
-                    raise ValueError(f"Byte order must be specified for multi-byte character encodings.")
+                    raise ValueError("Byte order must be specified for multi-byte character encodings.")
             else:
                 self.byte_order = byte_order
         self.termination_character = termination_character  # Always in hex, per 4.3.2.2.5.5.4 of XTCE spec
@@ -1370,7 +1425,7 @@ class StringDataEncoding(DataEncoding):
         bitstring_format, skip_bits_after = self._get_format_string(packet_data, parsed_data)
         parsed_value = packet_data.read(bitstring_format)
         packet_data.pos += skip_bits_after  # Allows skip over termination character
-        return parsed_value.decode(self.encoding.lower()), None
+        return parsed_value.decode(self.encoding), None
 
     @classmethod
     def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'StringDataEncoding':
@@ -1395,8 +1450,8 @@ class StringDataEncoding(DataEncoding):
         """
         encoding: str = element.get("encoding", "UTF-8")
 
-        byte_order = None # fallthrough value
-        if encoding not in ('US-ASCII', 'ISO-8859-1', 'Windows-1252', 'UTF-8'): # single-byte chars
+        byte_order = None  # fallthrough value
+        if encoding not in ('US-ASCII', 'ISO-8859-1', 'Windows-1252', 'UTF-8'):  # single-byte chars
             if not (encoding.endswith("BE") or encoding.endswith("LE")):
                 byte_order = element.get("byteOrder")
                 if byte_order is None:
@@ -1451,8 +1506,9 @@ class StringDataEncoding(DataEncoding):
 class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
     """Abstract class that is inherited by IntegerDataEncoding and FloatDataEncoding"""
 
-    def __init__(self, size_in_bits: int, encoding: str,
-                 byte_order: str = "mostSignficantByteFirst",
+    def __init__(self, size_in_bits: int,
+                 encoding: str,
+                 byte_order: str = "mostSignificantByteFirst",
                  default_calibrator: Optional[Calibrator] = None,
                  context_calibrators: Optional[List[ContextCalibrator]] = None):
         """Constructor
@@ -1466,6 +1522,8 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
             though 'signed' is not actually a valid specifier according to XTCE. 'twosCompliment' [sic] should be used
             instead, though we support the unofficial 'signed' specifier here.
             For supported specifiers, see XTCE spec 4.3.2.2.5.6.2
+        byte_order : str
+            Description of the byte order. Default is 'mostSignficantByteFirst' (big-endian).
         default_calibrator : Optional[Calibrator]
             Optional Calibrator object, containing information on how to transform the integer-encoded data, e.g. via
             a polynomial conversion or spline interpolation.
@@ -1535,13 +1593,13 @@ class IntegerDataEncoding(NumericDataEncoding):
         else:
             raise NotImplementedError(f"Unrecognized encoding {self.encoding}. "
                                       f"Only signed and unsigned have been implemented.")
-        if self.size_in_bits % 8: # if not a whole-byte value, disregard byte order
-            endianness = ""
+
+        if self.byte_order == 'mostSignificantByteFirst':
+            endianness = "be"
+        elif self.byte_order == "leastSignificantByteFirst":
+            endianness = "le"
         else:
-            endianness = {"leastSignificantByteFirst": "le",
-                          "mostSignificantByteFirst": "be"}.get(self.byte_order)
-            if endianness is None:
-                raise NotImplementedError(f"Unrecognized byte order {self.byte_order}.")
+            raise NotImplementedError(f"Unrecognized byte order {self.byte_order}.")
         return f"{base}{endianness}:{self.size_in_bits}"
 
     @classmethod
@@ -1560,7 +1618,7 @@ class IntegerDataEncoding(NumericDataEncoding):
         : cls
         """
         size_in_bits = int(element.attrib['sizeInBits'])
-        encoding = element.attrib['encoding']
+        encoding = element.attrib['encoding'] if 'encoding' in element.attrib else "unsigned"
         byte_order = element.get("byteOrder", "mostSignificantByteFirst")
         calibrator = cls.get_default_calibrator(element, ns)
         context_calibrators = cls.get_context_calibrators(element, ns)
@@ -1573,6 +1631,7 @@ class FloatDataEncoding(NumericDataEncoding):
     _supported_encodings = ['IEEE-754', 'MIL-1750A']
 
     def __init__(self, size_in_bits: int, encoding: str = 'IEEE-754',
+                 byte_order: str = 'mostSignificantByteFirst',
                  default_calibrator: Optional[Calibrator] = None,
                  context_calibrators: Optional[List[ContextCalibrator]] = None):
         """Constructor
@@ -1585,6 +1644,8 @@ class FloatDataEncoding(NumericDataEncoding):
             Size of the encoded value, in bits.
         encoding : str
             Encoding method of the float data. Must be either 'IEEE-754' or 'MIL-1750A'. Defaults to IEEE-754.
+        byte_order : str
+            Description of the byte order. Default is 'mostSignificantByteFirst' (big endian).
         default_calibrator : Optional[Calibrator]
             Optional Calibrator object, containing information on how to transform the data, e.g. via
             a polynomial conversion or spline interpolation.
@@ -1611,7 +1672,7 @@ class FloatDataEncoding(NumericDataEncoding):
         str
             Format string in the bitstring format. e.g. uint:16
         """
-        if self.size_in_bits % 8: # disregard byte order for sub-byte fields
+        if self.size_in_bits % 8:  # disregard byte order for sub-byte fields
             endianness = ""
         else:
             endianness = {"leastSignificantByteFirst": "le",

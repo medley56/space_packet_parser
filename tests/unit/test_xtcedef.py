@@ -39,7 +39,7 @@ def test_invalid_parameter_type_error(test_data_dir):
     </xtce:TelemetryMetaData>
 </xtce:SpaceSystem>
 """
-    x = io.TextIOWrapper(io.BytesIO(test_xtce_document.encode("utf-8")))
+    x = io.TextIOWrapper(io.BytesIO(test_xtce_document.encode("UTF-8")))
     with pytest.raises(xtcedef.InvalidParameterTypeError):
         xtcedef.XtcePacketDefinition(x)
 
@@ -80,7 +80,7 @@ def test_unsupported_parameter_type_error(test_data_dir):
     </xtce:TelemetryMetaData>
 </xtce:SpaceSystem>
 """
-    x = io.TextIOWrapper(io.BytesIO(test_xtce_document.encode("utf-8")))
+    x = io.TextIOWrapper(io.BytesIO(test_xtce_document.encode("UTF-8")))
     with pytest.raises(NotImplementedError):
         xtcedef.XtcePacketDefinition(x)
 
@@ -747,13 +747,13 @@ def test_polynomial_calibrator_calibrate(xq, expectation):
     ('xml_string', 'expectation'),
     [
         ("""
-<xtce:StringDataEncoding encoding="utf-16-be" xmlns:xtce="http://www.omg.org/space/xtce">
+<xtce:StringDataEncoding encoding="UTF-16BE" xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:SizeInBits>
         <xtce:TerminationChar>0058</xtce:TerminationChar>
     </xtce:SizeInBits>
 </xtce:StringDataEncoding>
 """,
-         xtcedef.StringDataEncoding(termination_character='0058', encoding='utf-16-be')),
+         xtcedef.StringDataEncoding(termination_character='0058', encoding='UTF-16BE')),
         ("""
 <xtce:StringDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:SizeInBits>
@@ -1165,7 +1165,7 @@ def test_string_parameter_type(xml_string: str, expectation):
         # Termination character tests
         (xtcedef.StringParameterType(
             'TEST_STRING',
-            xtcedef.StringDataEncoding(encoding='utf-8',
+            xtcedef.StringDataEncoding(encoding='UTF-8',
                                        termination_character='58')),
          {},  # Don't need parsed_data for termination character
          # 123X456 + extra characters, termination character is X
@@ -1173,7 +1173,7 @@ def test_string_parameter_type(xml_string: str, expectation):
          '123'),
         (xtcedef.StringParameterType(
             'TEST_STRING',
-            xtcedef.StringDataEncoding(encoding='utf-8',
+            xtcedef.StringDataEncoding(encoding='UTF-8',
                                        termination_character='58')),
          {},  # Don't need parsed_data for termination character
          # 56bits + 123X456 + extra characters, termination character is X
@@ -1181,7 +1181,7 @@ def test_string_parameter_type(xml_string: str, expectation):
          '123'),
         (xtcedef.StringParameterType(
             'TEST_STRING',
-            xtcedef.StringDataEncoding(encoding='utf-8',
+            xtcedef.StringDataEncoding(encoding='UTF-8',
                                        termination_character='58')),
          {},  # Don't need parsed_data for termination character
          # 53bits + 123X456 + extra characters, termination character is X
@@ -1190,32 +1190,32 @@ def test_string_parameter_type(xml_string: str, expectation):
          '123'),
         (xtcedef.StringParameterType(
             "TEST_STRING",
-            xtcedef.StringDataEncoding(encoding="utf-8",
+            xtcedef.StringDataEncoding(encoding="UTF-8",
                                        termination_character='00')),
          {},
-         xtcedef.PacketData("false_is_truthy".encode("utf-8") + b'\x00ABCD'),
+         xtcedef.PacketData("false_is_truthy".encode("UTF-8") + b'\x00ABCD'),
          'false_is_truthy'),
         (xtcedef.StringParameterType(
             "TEST_STRING",
-            xtcedef.StringDataEncoding(encoding="utf-16-be",
+            xtcedef.StringDataEncoding(encoding="UTF-16BE",
                                        termination_character='0021')),
          {},
-         xtcedef.PacketData("false_is_truthy".encode("utf-16-be") + b'\x00\x21ignoreme'),
+         xtcedef.PacketData("false_is_truthy".encode("UTF-16BE") + b'\x00\x21ignoreme'),
          'false_is_truthy'),
         (xtcedef.StringParameterType(
             'TEST_STRING',
-            xtcedef.StringDataEncoding(encoding='utf-16-le',
+            xtcedef.StringDataEncoding(encoding='UTF-16LE',
                                        termination_character='5800')),
          {},  # Don't need parsed_data for termination character
          # 123X456, termination character is X
-         xtcedef.PacketData('123X456'.encode('utf-16-le')),
+         xtcedef.PacketData('123X456'.encode('UTF-16LE')),
          '123'),
         (xtcedef.StringParameterType(
             'TEST_STRING',
-            xtcedef.StringDataEncoding(encoding='utf-16-be',
+            xtcedef.StringDataEncoding(encoding='UTF-16BE',
                                        termination_character='0058')),
          {},  # Don't need parsed_data for termination character
-         xtcedef.PacketData('123X456'.encode('utf-16-be')),
+         xtcedef.PacketData('123X456'.encode('UTF-16BE')),
          '123'),
         # Leading length test
         (xtcedef.StringParameterType(
@@ -1321,10 +1321,24 @@ def test_integer_parameter_type(xml_string: str, expectation):
          {},
          xtcedef.PacketData(0b1000000000000000.to_bytes(length=2, byteorder='big')),
          32768),
+        # 16-bit unsigned little endian at byte boundary
+        (xtcedef.IntegerParameterType(
+            'TEST_INT',
+            xtcedef.IntegerDataEncoding(16, 'unsigned', byte_order="leastSignificantByteFirst")),
+         {},
+         xtcedef.PacketData(0b1000000000000000.to_bytes(length=2, byteorder='big')),
+         128),
         # 16-bit signed starting at byte boundary
         (xtcedef.IntegerParameterType('TEST_INT', xtcedef.IntegerDataEncoding(16, 'signed')),
          {},
          xtcedef.PacketData(0b1111111111010110.to_bytes(length=2, byteorder='big')),
+         -42),
+        # 16-bit signed little endian starting at byte boundary
+        (xtcedef.IntegerParameterType(
+            'TEST_INT',
+            xtcedef.IntegerDataEncoding(16, 'signed', byte_order="leastSignificantByteFirst")),
+         {},
+         xtcedef.PacketData(0b1101011011111111.to_bytes(length=2, byteorder='big')),
          -42),
         # 16-bit signed integer starting at a byte boundary,
         # calibrated by a polynomial y = (x*2 + 5); x = -42; y = -84 + 5 = -79
@@ -1378,6 +1392,16 @@ def test_integer_parameter_type(xml_string: str, expectation):
          #  11111110 00000000 00111111 10101010
          #        |---int:12---|
          xtcedef.PacketData(0b11111110000000000011111110101010.to_bytes(length=4, byteorder='big'), pos=6),
+         -2048),
+        # 12-bit signed little endian integer starting on bit 6 of the first byte
+        (xtcedef.IntegerParameterType(
+            'TEST_INT',
+            xtcedef.IntegerDataEncoding(12, 'signed', byte_order='leastSignificantByteFirst')),
+         {},
+         # 12-bit signed little endian integer starting on bit 4 of the first byte. The LSB of the integer comes first
+         #  11111100 00000010 00111111 10101010
+         #        |---int:12---|
+         xtcedef.PacketData(0b11111100000000100011111110101010.to_bytes(length=4, byteorder='big'), pos=6),
          -2048),
         (xtcedef.IntegerParameterType('TEST_INT', xtcedef.IntegerDataEncoding(3, 'twosComplement')),
          {},
@@ -1489,14 +1513,24 @@ def test_float_parameter_type(xml_string: str, expectation):
 @pytest.mark.parametrize(
     ('parameter_type', 'parsed_data', 'packet_data', 'expected'),
     [
+        # Test big endion 32-bit IEEE float
         (xtcedef.FloatParameterType('TEST_FLOAT', xtcedef.FloatDataEncoding(32)),
          {},
          xtcedef.PacketData(0b01000000010010010000111111010000.to_bytes(length=4, byteorder='big')),
          3.14159),
+        # Test little endian 32-bit IEEE float
+        (xtcedef.FloatParameterType(
+            'TEST_FLOAT',
+            xtcedef.FloatDataEncoding(32, byte_order='leastSignificantByteFirst')),
+         {},
+         xtcedef.PacketData(0b01000000010010010000111111010000.to_bytes(length=4, byteorder='big')),
+         3.14159),
+        # Test big endian 64-bit float
         (xtcedef.FloatParameterType('TEST_FLOAT', xtcedef.FloatDataEncoding(64)),
          {},
          xtcedef.PacketData(b'\x3F\xF9\xE3\x77\x9B\x97\xF4\xA8'),  # 64-bit IEEE 754 value of Phi
          1.61803),
+        # Test float parameter type encoded as big endian 16-bit integer with contextual polynomial calibrator
         (xtcedef.FloatParameterType(
             'TEST_FLOAT',
             xtcedef.IntegerDataEncoding(
@@ -1731,7 +1765,7 @@ def test_binary_parameter_parsing(parameter_type, parsed_data, packet_data, expe
     <xtce:UnitSet>
         <xtce:Unit>smoot</xtce:Unit>
     </xtce:UnitSet>
-    <xtce:StringDataEncoding encoding="utf-8">
+    <xtce:StringDataEncoding encoding="UTF-8">
         <xtce:SizeInBits>
             <xtce:TerminationChar>00</xtce:TerminationChar>
         </xtce:SizeInBits>
@@ -1765,7 +1799,7 @@ def test_boolean_parameter_type(xml_string, expectation):
          '0', True),
         (xtcedef.BooleanParameterType(
             'TEST_BOOL',
-            xtcedef.StringDataEncoding(encoding="utf-8", termination_character='00')),
+            xtcedef.StringDataEncoding(encoding="UTF-8", termination_character='00')),
          {},
          xtcedef.PacketData(0b011001100110000101101100011100110110010101011111011010010111001101011111011101000111001001110101011101000110100001111001000000000010101101010111.to_bytes(length=18, byteorder='big')),
          'false_is_truthy', True),
