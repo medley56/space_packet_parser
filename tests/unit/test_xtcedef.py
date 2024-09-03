@@ -1523,7 +1523,7 @@ def test_float_parameter_type(xml_string: str, expectation):
             'TEST_FLOAT',
             xtcedef.FloatDataEncoding(32, byte_order='leastSignificantByteFirst')),
          {},
-         xtcedef.PacketData(0b01000000010010010000111111010000.to_bytes(length=4, byteorder='big')),
+         xtcedef.PacketData(0b01000000010010010000111111010000.to_bytes(length=4, byteorder='little')),
          3.14159),
         # Test big endian 64-bit float
         (xtcedef.FloatParameterType('TEST_FLOAT', xtcedef.FloatDataEncoding(64)),
@@ -1704,7 +1704,7 @@ def test_binary_parameter_type(xml_string: str, expectation):
             xtcedef.BinaryDataEncoding(fixed_size_in_bits=16)),
          {},
          xtcedef.PacketData(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big')),
-         b"42"),
+         b'42'),
         # discrete lookup list size
         (xtcedef.BinaryParameterType(
             'TEST_BIN',
@@ -1716,7 +1716,7 @@ def test_binary_parameter_type(xml_string: str, expectation):
             ], linear_adjuster=lambda x: 8*x)),
          {'P1': parser.ParsedDataItem('P1', 1, None, 7.4)},
          xtcedef.PacketData(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big')),
-         b"42"),
+         b'42'),
         # dynamic size reference to other parameter
         (xtcedef.BinaryParameterType(
             'TEST_BIN',
@@ -1724,7 +1724,7 @@ def test_binary_parameter_type(xml_string: str, expectation):
                                        use_calibrated_value=False, linear_adjuster=lambda x: 8*x)),
          {'BIN_LEN': parser.ParsedDataItem('BIN_LEN', 2, None)},
          xtcedef.PacketData(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big')),
-         b"42"),
+         b'42'),
     ]
 )
 def test_binary_parameter_parsing(parameter_type, parsed_data, packet_data, expected):
@@ -1796,7 +1796,7 @@ def test_boolean_parameter_type(xml_string, expectation):
             xtcedef.BinaryDataEncoding(fixed_size_in_bits=1)),
          {},
          xtcedef.PacketData(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=64, byteorder='big')),
-         b'', False),
+         b'\x00', True),
         (xtcedef.BooleanParameterType(
             'TEST_BOOL',
             xtcedef.StringDataEncoding(encoding="UTF-8", termination_character='00')),

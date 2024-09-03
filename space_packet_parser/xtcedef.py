@@ -980,129 +980,47 @@ class PacketData:
         """The length of the full packet data object, in bits"""
         return self._nbits
 
-    def read(self, format_string: str, update_position: bool = True) -> Union[int, float, str, bytes]:
-        """Read bits from the packet data according to the format specifier.
-
-        Starts reading at the current cursor position `pos` where pos is in bits.
+    def read_as_bytes(self, nbits: int) -> bytes:
+        """Read a number of bits from the packet data as bytes.
 
         Parameters
         ----------
-        format_string : str
-            A  bitstring-style format string, e.g. `uint:14`
-        update_position : bool
-            Whether to update the cursor position in the packet. Default True.
+        nbits : int
+            Number of bits to read
 
         Returns
         -------
-        : Union[int, float, str, bytes]
-            Value read from the packet data according to the format specifier.
+        : bytes
+            Raw bytes from the packet data
         """
-        # pylint: disable=too-many-branches, too-many-return-statements
-
-        def _twos_complement(val: int, bit_width: int):
-            """Compute the twos complement of an integer, assuming big endian
-
-            Parameters
-            ----------
-            val : int
-                Raw integer value (representation of bits), assuming MSB first.
-            bit_width : int
-                Number of bits
-
-            Returns
-            -------
-            : int
-                Twos complement of `val`
-            """
-            if (val & (1 << (bit_width - 1))) != 0:  # if sign bit is set e.g., 8bit: 128-255
-                return val - (1 << bit_width)  # compute negative value
-            return val  # return positive value as is
-
-        name, n_things = format_string.split(":")
-        if name == "bytes":
-            nbits = int(n_things) * 8
-        else:
-            nbits = int(n_things)
-
         if self.pos + nbits > self._nbits:
             raise ValueError("End of packet reached")
-
-        # Get the bytes we're interested in as an integer
-        bytes_as_int = _extract_bits(self.data, self.pos, nbits)
-        if update_position:
+        if self.pos % 8 == 0 and nbits % 8 == 0:
+            # If the read is byte-aligned, we can just return the bytes directly
+            data = self.data[self.pos//8:self.pos//8 + nbits // 8]
             self.pos += nbits
+            return data
+        # We are non-byte aligned, so we need to extract the bits and convert to bytes
+        bytes_as_int = _extract_bits(self.data, self.pos, nbits)
+        self.pos += nbits
+        return int.to_bytes(bytes_as_int, (nbits + 7) // 8, "big")
 
-        # TODO: This logic is messy. When we tackle getting away from the bitstring format strings,
-        #  refactor this to be more concise
-        if name in ("uint", "uintbe"):
-            return bytes_as_int
-        if name == "uintle":
-            # Convert little-endian (LSB first) int to bigendian. Just reverses the order of the bytes.
-            return int.from_bytes(
-                bytes_as_int.to_bytes(
-                    length=(nbits // 8) + 1 if nbits % 8 else (nbits // 8),
-                    byteorder="little"
-                ),
-                byteorder="big"
-            )
-        if name in ("int", "intbe"):
-            # Compute two's complement for signed integer of any size (nbits)
-            return _twos_complement(bytes_as_int, nbits)
-        if name == "intle":
-            # Convert little-endian (LSB first) int to bigendian. Just reverses the order of the bytes.
-            bigendian_val = int.from_bytes(
-                bytes_as_int.to_bytes(
-                    length=(nbits // 8) + 1 if nbits % 8 else (nbits // 8),
-                    byteorder="little"
-                ),
-                byteorder="big"
-            )
-            # Calculate twos complement
-            return _twos_complement(bigendian_val, nbits)
-        if name == "floatbe":
-            if nbits == 16:
-                name = "!e"
-            elif nbits == 32:
-                name = "!f"
-            elif nbits == 64:
-                name = "!d"
-            else:
-                raise ValueError(f"Unsupported float size {nbits}, only 16, 32 and 64 are supported")
-            return struct.unpack(name, int.to_bytes(bytes_as_int, nbits // 8, byteorder="big"))[0]
-        if name == "floatle":
-            if nbits == 16:
-                name = "e"
-            elif nbits == 32:
-                name = "f"
-            elif nbits == 64:
-                name = "d"
-            else:
-                raise ValueError(f"Unsupported float size {nbits}, only 16, 32 and 64 are supported")
-            return struct.unpack(name, int.to_bytes(bytes_as_int, nbits // 8, byteorder="little"))[0]
-        if name == "bin":
-            # Binary string
-            return f"{bytes_as_int:0{nbits}b}"
-        if name == "bytes":
-            # Binary data directly returned
-            return int.to_bytes(bytes_as_int, nbits // 8, "big")
-        raise ValueError(f"Unsupported format type {name}")
-
-    def peek(self, format_string: str):
-        """Peek from the packet data according to the format specifier.
-
-        Does not update the current cursor position in the data.
+    def read_as_int(self, nbits: int) -> int:
+        """Read a number of bits from the packet data as an integer.
 
         Parameters
         ----------
-        format_string : str
-            Bitstring-style format string, e.g. `uint:14`
+        nbits : int
+            Number of bits to read
 
         Returns
         -------
-        : Union[int, float, str, bytes]
-            Read value from the packet data according to the format specifier.
+        : int
+            Integer representation of the bits read from the packet
         """
-        return self.read(format_string, update_position=False)
+        int_data = _extract_bits(self.data, self.pos, nbits)
+        self.pos += nbits
+        return int_data
 
 
 # DataEncoding definitions
@@ -1219,19 +1137,20 @@ class DataEncoding(AttrComparable, metaclass=ABCMeta):
             return adjuster
         return None
 
-    def _get_format_string(self, packet_data: PacketData, parsed_data: dict) -> str:
-        """Infer a bitstring format string, possibly using previously parsed data. This is called by parse_value only
-        so it's private.
+    def _calculate_size(self, packet_data: PacketData, parsed_data: dict) -> int:
+        """Calculate the size of the data item in bits.
 
         Parameters
         ----------
+        packet_data: PacketData
+            Binary data coming up next in the packet.
         parsed_data: dict
-            Dictionary of previously parsed data items for use in determining the format string if necessary.
+            Dictionary of previously parsed data items for use in determining the size if necessary.
 
         Returns
         -------
-        : str
-            Format string in the bitstring format. e.g. uint:16
+        : int
+            Size of the data item in bits.
         """
         raise NotImplementedError()
 
@@ -1338,8 +1257,8 @@ class StringDataEncoding(DataEncoding):
         self.discrete_lookup_length = discrete_lookup_length
         self.length_linear_adjuster = length_linear_adjuster
 
-    def _get_format_string(self, packet_data: PacketData, parsed_data: dict) -> Tuple[str, int]:
-        """Infer a bitstring format string
+    def _calculate_size(self, packet_data: PacketData, parsed_data: dict) -> int:
+        """Calculate the length of the string data item in bits.
 
         Parameters
         ----------
@@ -1351,15 +1270,14 @@ class StringDataEncoding(DataEncoding):
 
         Returns
         -------
-        : str
-            Format string in the bitstring format. e.g. `bytes:16`
+        : int
+            Number of bits in the string data item
         """
         # pylint: disable=too-many-branches
         if self.fixed_length:
             strlen_bits = self.fixed_length
         elif self.leading_length_size is not None:  # strlen_bits is determined from a preceding integer
-            leading_strlen_bitstring_format = f"uint:{self.leading_length_size}"
-            strlen_bits = packet_data.read(leading_strlen_bitstring_format)
+            strlen_bits = packet_data.read_as_int(self.leading_length_size)
             if strlen_bits % 8 != 0:
                 warnings.warn(f"String length (in bits) is {strlen_bits}, which is not a multiple of 8. "
                               f"This likely means something is wrong since strings are expected to be integer numbers "
@@ -1381,7 +1299,10 @@ class StringDataEncoding(DataEncoding):
         elif self.termination_character is not None:
             # Look through the rest of the packet data to find the termination character
             nbits_left = len(packet_data) - packet_data.pos
-            string_buffer = packet_data.peek(f"bytes:{nbits_left//8}")
+            orig_pos = packet_data.pos
+            string_buffer = packet_data.read_as_bytes(nbits_left - nbits_left % 8)
+            # Reset the original position because we only wanted to look ahead
+            packet_data.pos = orig_pos
             try:
                 strlen_bits = string_buffer.index(self.termination_character) * 8
             except ValueError as exc:
@@ -1395,7 +1316,7 @@ class StringDataEncoding(DataEncoding):
             # Only adjust if we are not doing this by termination character. Adjusting a length that is objectively
             # determined via termination character is nonsensical.
             strlen_bits = self.length_linear_adjuster(strlen_bits)
-        return f"bytes:{strlen_bits // 8}"
+        return strlen_bits
         # pylint: enable=too-many-branches
 
     def parse_value(self, packet_data: PacketData, parsed_data: dict, **kwargs) -> Tuple[str, None]:
@@ -1415,12 +1336,11 @@ class StringDataEncoding(DataEncoding):
         : None
             Calibrated value
         """
-        bitstring_format = self._get_format_string(packet_data, parsed_data)
-        parsed_value = packet_data.read(bitstring_format)
+        nbits = self._calculate_size(packet_data, parsed_data)
+        parsed_value = packet_data.read_as_bytes(nbits)
         if self.termination_character is not None:
             # We need to skip over the termination character if there was one
             packet_data.pos += len(self.termination_character) * 8
-
         return parsed_value.decode(self.encoding), None
 
     @classmethod
@@ -1533,6 +1453,24 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
         self.default_calibrator = default_calibrator
         self.context_calibrators = context_calibrators
 
+    def _calculate_size(self, packet_data: PacketData, parsed_data: Dict) -> int:
+        return self.size_in_bits
+
+    def _get_raw_value(self, packet_data: PacketData) -> Union[int, float]:
+        """Read the raw value from the packet data
+
+        Parameters
+        ----------
+        packet_data : PacketData
+            Packet data object
+
+        Returns
+        -------
+        : int
+            Raw value
+        """
+        raise NotImplementedError()
+
     def parse_value(self,
                     packet_data: PacketData,
                     parsed_data: dict, **kwargs) -> Tuple[Union[int, float], Union[int, float]]:
@@ -1552,8 +1490,7 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
         : any
             Calibrated value
         """
-        bitstring_format = self._get_format_string(packet_data, parsed_data)
-        parsed_value = packet_data.read(bitstring_format)
+        parsed_value = self._get_raw_value(packet_data)
         # Attempt to calibrate
         calibrated_value = parsed_value  # Provides a fall through in case we have no calibrators
         if self.context_calibrators:
@@ -1572,31 +1509,24 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
 class IntegerDataEncoding(NumericDataEncoding):
     """<xtce:IntegerDataEncoding>"""
 
-    def _get_format_string(self, packet_data: PacketData, parsed_data: dict) -> str:
-        """Infer a bitstring format string
-
-        Returns
-        -------
-        str
-            Format string in the bitstring format. e.g. uint:16
-        """
+    def _get_raw_value(self, packet_data: PacketData) -> int:
+        # Extract the bits from the data in big-endian order from the packet
+        val = packet_data.read_as_int(self.size_in_bits)
+        if self.byte_order == 'leastSignificantByteFirst':
+            # Convert little-endian (LSB first) int to bigendian. Just reverses the order of the bytes.
+            val = int.from_bytes(
+                val.to_bytes(
+                    length=(self.size_in_bits + 7) // 8,
+                    byteorder="little"
+                ),
+                byteorder="big"
+            )
         if self.encoding == 'unsigned':
-            base = 'uint'
-        elif self.encoding == 'signed':
-            base = 'int'
-        elif self.encoding in ('twosCompliment', 'twosComplement'):  # [sic]
-            base = 'int'
-        else:
-            raise NotImplementedError(f"Unrecognized encoding {self.encoding}. "
-                                      f"Only signed and unsigned have been implemented.")
-
-        if self.byte_order == 'mostSignificantByteFirst':
-            endianness = "be"
-        elif self.byte_order == "leastSignificantByteFirst":
-            endianness = "le"
-        else:
-            raise NotImplementedError(f"Unrecognized byte order {self.byte_order}.")
-        return f"{base}{endianness}:{self.size_in_bits}"
+            return val
+        # It is a signed integer and we need to take into account the first bit
+        if (val & (1 << (self.size_in_bits - 1))) != 0:  # if sign bit is set e.g., 8bit: 128-255
+            return val - (1 << self.size_in_bits)  # compute negative value
+        return val  # return positive value as is
 
     @classmethod
     def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'IntegerDataEncoding':
@@ -1657,25 +1587,28 @@ class FloatDataEncoding(NumericDataEncoding):
         if encoding == 'IEEE-754' and size_in_bits not in (16, 32, 64):
             raise ValueError(f"Invalid size_in_bits value for IEEE-754 FloatDataEncoding, {size_in_bits}. "
                              "Must be 16, 32, or 64.")
-        super().__init__(size_in_bits, encoding=encoding,
+        super().__init__(size_in_bits, encoding=encoding, byte_order=byte_order,
                          default_calibrator=default_calibrator, context_calibrators=context_calibrators)
 
-    def _get_format_string(self, packet_data: PacketData, parsed_data: dict) -> str:
-        """Infer a bitstring format string
-
-        Returns
-        -------
-        str
-            Format string in the bitstring format. e.g. uint:16
-        """
-        if self.size_in_bits % 8:  # disregard byte order for sub-byte fields
-            endianness = ""
+        if self.byte_order == "leastSignificantByteFirst":
+            self._struct_format = "<"
         else:
-            endianness = {"leastSignificantByteFirst": "le",
-                          "mostSignificantByteFirst": "be"}.get(self.byte_order)
-            if endianness is None:
-                raise NotImplementedError(f"Unrecognized byte order {self.byte_order}.")
-        return f"float{endianness}:{self.size_in_bits}"
+            # Big-endian is the default
+            self._struct_format = ">"
+
+        if self.size_in_bits == 16:
+            self._struct_format += "e"
+        elif self.size_in_bits == 32:
+            self._struct_format += "f"
+        elif self.size_in_bits == 64:
+            self._struct_format += "d"
+
+    def _get_raw_value(self, packet_data):
+        """Read the data in as bytes and return a float representation."""
+        data = packet_data.read_as_bytes(self.size_in_bits)
+        # The packet data we got back is always extracted in big-endian order
+        # but the struct format code contains the endianness of the float data
+        return struct.unpack(self._struct_format, data)[0]
 
     @classmethod
     def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'FloatDataEncoding':
@@ -1733,8 +1666,8 @@ class BinaryDataEncoding(DataEncoding):
         self.size_discrete_lookup_list = size_discrete_lookup_list
         self.linear_adjuster = linear_adjuster
 
-    def _get_format_string(self, packet_data: PacketData, parsed_data: dict) -> str:
-        """Infer a bitstring format string
+    def _calculate_size(self, packet_data: PacketData, parsed_data: dict) -> int:
+        """Determine the number of bits in the binary field.
 
         Returns
         -------
@@ -1763,7 +1696,7 @@ class BinaryDataEncoding(DataEncoding):
 
         if self.linear_adjuster is not None:
             len_bits = self.linear_adjuster(len_bits)
-        return f"bytes:{len_bits//8}"
+        return len_bits
 
     def parse_value(self, packet_data: PacketData, parsed_data: dict, word_size: Optional[int] = None, **kwargs):
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
@@ -1785,8 +1718,8 @@ class BinaryDataEncoding(DataEncoding):
         : any
             Calibrated value
         """
-        bitstring_format = self._get_format_string(packet_data, parsed_data)
-        parsed_value = packet_data.read(bitstring_format)
+        nbits = self._calculate_size(packet_data, parsed_data)
+        parsed_value = packet_data.read_as_bytes(nbits)
         if word_size:
             cursor_position_in_word = packet_data.pos % word_size
             if cursor_position_in_word != 0:
