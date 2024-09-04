@@ -16,6 +16,7 @@ Release notes for the `space_packet_parser` library
   ``f"{int.from_bytes(data, byteorder='big'):0{len(data)*8}b}"``
 - Fix EnumeratedParameterType to handle duplicate labels
 - Add error reporting for unsupported and invalid parameter types
+- Add support for MIL-1750A floats (32-bit only)
 
 ### v4.2.0 (released)
 - Parse short and long descriptions of parameters
