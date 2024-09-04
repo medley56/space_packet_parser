@@ -76,13 +76,14 @@ def parse_lg_waveform(waveform_raw: str):
     return ints
 
 
-def parse_waveform_data(waveform: str, scitype: int):
+def parse_waveform_data(waveform: bytes, scitype: int):
     """Parse the binary string that represents a waveform"""
     print(f'Parsing waveform for scitype={scitype}')
+    waveform_str = f"{int.from_bytes(waveform, byteorder='big'):0{len(waveform)*8}b}"
     if scitype in (2, 4, 8):
-        return parse_hg_waveform(waveform)
+        return parse_hg_waveform(waveform_str)
     else:
-        return parse_lg_waveform(waveform)
+        return parse_lg_waveform(waveform_str)
 
 
 def plot_full_event(data: dict):
