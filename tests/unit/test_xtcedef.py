@@ -1506,7 +1506,7 @@ def test_float_parameter_type(xml_string: str, expectation):
         # Test big endian 64-bit float
         (xtcedef.FloatParameterType('TEST_FLOAT', xtcedef.FloatDataEncoding(64)),
          xtcedef.Packet(b'\x3F\xF9\xE3\x77\x9B\x97\xF4\xA8'),  # 64-bit IEEE 754 value of Phi
-         1.61803),
+         1.6180339),
         # Test float parameter type encoded as big endian 16-bit integer with contextual polynomial calibrator
         (xtcedef.FloatParameterType(
             'TEST_FLOAT',
@@ -1523,16 +1523,79 @@ def test_float_parameter_type(xml_string: str, expectation):
          xtcedef.Packet(0b1111111111010110.to_bytes(length=2, byteorder='big'),
                             parsed_data={'PKT_APID': parser.ParsedDataItem('PKT_APID', 1101)}),
          -82.600000),
+        # Test MIL 1750A encoded floats.
+        # Test values taken from: https://www.xgc-tek.com/manuals/mil-std-1750a/c191.html#AEN324
+        (xtcedef.FloatParameterType(
+            'MIL_1750A_FLOAT',
+            xtcedef.FloatDataEncoding(32, encoding="MIL-1750A")),
+         xtcedef.Packet(b'\x7f\xff\xff\x7f'),
+         0.9999998 * (2 ** 127)),
+        (xtcedef.FloatParameterType(
+            'MIL_1750A_FLOAT',
+            xtcedef.FloatDataEncoding(32, encoding="MIL-1750A")),
+         xtcedef.Packet(b'\x40\x00\x00\x7f'),
+         0.5 * (2 ** 127)),
+        (xtcedef.FloatParameterType(
+            'MIL_1750A_FLOAT',
+            xtcedef.FloatDataEncoding(32, encoding="MIL-1750A")),
+         xtcedef.Packet(b'\x50\x00\x00\x04'),
+         0.625 * (2 ** 4)),
+        (xtcedef.FloatParameterType(
+            'MIL_1750A_FLOAT',
+            xtcedef.FloatDataEncoding(32, encoding="MIL-1750A")),
+         xtcedef.Packet(b'\x40\x00\x00\x01'),
+         0.5 * (2 ** 1)),
+        (xtcedef.FloatParameterType(
+            'MIL_1750A_FLOAT',
+            xtcedef.FloatDataEncoding(32, encoding="MIL-1750A")),
+         xtcedef.Packet(b'\x40\x00\x00\x00'),
+         0.5 * (2 ** 0)),
+        (xtcedef.FloatParameterType(
+            'MIL_1750A_FLOAT',
+            xtcedef.FloatDataEncoding(32, encoding="MIL-1750A")),
+         xtcedef.Packet(b'\x40\x00\x00\xff'),
+         0.5 * (2 ** -1)),
+        (xtcedef.FloatParameterType(
+            'MIL_1750A_FLOAT',
+            xtcedef.FloatDataEncoding(32, encoding="MIL-1750A")),
+         xtcedef.Packet(b'\x40\x00\x00\x80'),
+         0.5 * (2 ** -128)),
+        (xtcedef.FloatParameterType(
+            'MIL_1750A_FLOAT',
+            xtcedef.FloatDataEncoding(32, encoding="MIL-1750A")),
+         xtcedef.Packet(b'\x00\x00\x00\x00'),
+         0.0 * (2 ** 0)),
+        (xtcedef.FloatParameterType(
+            'MIL_1750A_FLOAT',
+            xtcedef.FloatDataEncoding(32, encoding="MIL-1750A")),
+         xtcedef.Packet(b'\x80\x00\x00\x00'),
+         -1.0 * (2 ** 0)),
+        (xtcedef.FloatParameterType(
+            'MIL_1750A_FLOAT',
+            xtcedef.FloatDataEncoding(32, encoding="MIL-1750A")),
+         xtcedef.Packet(b'\xBF\xFF\xFF\x80'),
+         -0.5000001 * (2 ** -128)),
+        (xtcedef.FloatParameterType(
+            'MIL_1750A_FLOAT',
+            xtcedef.FloatDataEncoding(32, encoding="MIL-1750A")),
+         xtcedef.Packet(b'\x9F\xFF\xFF\x04'),
+         -0.7500001 * (2 ** 4)),
+        # Little endian version of previous test
+        (xtcedef.FloatParameterType(
+            'MIL_1750A_FLOAT',
+            xtcedef.FloatDataEncoding(32, encoding="MIL-1750A", byte_order="leastSignificantByteFirst")),
+         xtcedef.Packet(b'\x04\xFF\xFF\x9F'),
+         -0.7500001 * (2 ** 4)),
     ]
 )
 def test_float_parameter_parsing(parameter_type, packet, expected):
     """Test parsing float parameters"""
     raw, derived = parameter_type.parse_value(packet)
+    # NOTE: These results are compared with a relative tolerance due to the imprecise storage of floats
     if derived:
-        # NOTE: These results are rounded due to the imprecise storage of floats
-        assert round(derived, 5) == expected
+        assert derived == pytest.approx(expected, rel=1E-7)
     else:
-        assert round(raw, 5) == expected
+        assert raw == pytest.approx(expected, rel=1E-7)
 
 
 @pytest.mark.parametrize(
@@ -1588,7 +1651,6 @@ def test_enumerated_parameter_parsing(parameter_type, packet, expected):
     """"Test parsing enumerated parameters"""
     raw, derived = parameter_type.parse_value(packet)
     if derived:
-        # NOTE: These results are rounded due to the imprecise storage of floats
         assert derived == expected
     else:
         assert raw == expected
@@ -1945,9 +2007,9 @@ def test_absolute_time_parameter_type(xml_string, expectation):
 )
 def test_absolute_time_parameter_parsing(parameter_type, packet, expected_raw, expected_derived):
     raw, derived = parameter_type.parse_value(packet)
-    assert round(raw, 5) == round(expected_raw, 5)
+    assert raw == pytest.approx(expected_raw, rel=1E-6)
     # NOTE: derived values are rounded for comparison due to imprecise storage of floats
-    assert round(derived, 5) == round(expected_derived, 5)
+    assert derived == pytest.approx(expected_derived, rel=1E-6)
 
 
 # ---------------

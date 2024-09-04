@@ -1,6 +1,6 @@
 """Module for parsing XTCE xml files to specify packet format"""
 # Standard
-from abc import ABCMeta
+from abc import ABCMeta, abstractmethod
 from collections import namedtuple
 from dataclasses import dataclass, field
 import inspect
@@ -111,6 +111,7 @@ class MatchCriteria(AttrComparable, metaclass=ABCMeta):
     }
 
     @classmethod
+    @abstractmethod
     def from_match_criteria_xml_element(cls, element: ElementTree.Element, ns: dict):
         """Abstract classmethod to create a match criteria object from an XML element.
 
@@ -127,6 +128,7 @@ class MatchCriteria(AttrComparable, metaclass=ABCMeta):
         """
         raise NotImplementedError()
 
+    @abstractmethod
     def evaluate(self, parsed_data: dict, current_parsed_value: Optional[Union[int, float]] = None) -> bool:
         """Evaluate match criteria down to a boolean.
 
@@ -609,6 +611,7 @@ class Calibrator(AttrComparable, metaclass=ABCMeta):
     """Abstract base class for XTCE calibrators"""
 
     @classmethod
+    @abstractmethod
     def from_calibrator_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'Calibrator':
         """Abstract classmethod to create a default_calibrator object from an XML element.
 
@@ -625,6 +628,7 @@ class Calibrator(AttrComparable, metaclass=ABCMeta):
         """
         return NotImplemented
 
+    @abstractmethod
     def calibrate(self, uncalibrated_value: Union[int, float]) -> Union[int, float]:
         """Takes an integer-encoded or float-encoded value and returns a calibrated version.
 
@@ -1035,6 +1039,7 @@ class DataEncoding(AttrComparable, metaclass=ABCMeta):
     """Abstract base class for XTCE data encodings"""
 
     @classmethod
+    @abstractmethod
     def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'DataEncoding':
         """Abstract classmethod to create a data encoding object from an XML element.
 
@@ -1456,6 +1461,7 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
     def _calculate_size(self, packet: Packet) -> int:
         return self.size_in_bits
 
+    @abstractmethod
     def _get_raw_value(self, packet: Packet) -> Union[int, float]:
         """Read the raw value from the packet data
 
@@ -1471,6 +1477,16 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
             Raw value
         """
         raise NotImplementedError()
+
+    @staticmethod
+    def _twos_complement(val: int, bit_width: int) -> int:
+        """Take the twos complement of val
+
+        Used when parsing ints and some floats
+        """
+        if (val & (1 << (bit_width - 1))) != 0:  # if sign bit is set e.g., 8bit: 128-255
+            return val - (1 << bit_width)  # compute negative value
+        return val
 
     def parse_value(self,
                     packet: Packet,
@@ -1522,10 +1538,8 @@ class IntegerDataEncoding(NumericDataEncoding):
             )
         if self.encoding == 'unsigned':
             return val
-        # It is a signed integer and we need to take into account the first bit
-        if (val & (1 << (self.size_in_bits - 1))) != 0:  # if sign bit is set e.g., 8bit: 128-255
-            return val - (1 << self.size_in_bits)  # compute negative value
-        return val  # return positive value as is
+        # It is a signed integer, and we need to take into account the first bit
+        return self._twos_complement(val, self.size_in_bits)
 
     @classmethod
     def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'IntegerDataEncoding':
@@ -1561,8 +1575,6 @@ class FloatDataEncoding(NumericDataEncoding):
                  context_calibrators: Optional[List[ContextCalibrator]] = None):
         """Constructor
 
-        # TODO: Implement MIL-1650A encoding option
-
         Parameters
         ----------
         size_in_bits : int
@@ -1581,33 +1593,72 @@ class FloatDataEncoding(NumericDataEncoding):
         if encoding not in self._supported_encodings:
             raise ValueError(f"Invalid encoding type {encoding} for float data. "
                              f"Must be one of {self._supported_encodings}.")
-        if encoding == 'MIL-1750A':
-            raise NotImplementedError("MIL-1750A encoded floats are not supported by this library yet.")
+        if encoding == 'MIL-1750A' and size_in_bits != 32:
+            raise ValueError("MIL-1750A encoded floats must be 32 bits, per the MIL-1750A spec. See "
+                             "https://www.xgc-tek.com/manuals/mil-std-1750a/c191.html#AEN324")
         if encoding == 'IEEE-754' and size_in_bits not in (16, 32, 64):
             raise ValueError(f"Invalid size_in_bits value for IEEE-754 FloatDataEncoding, {size_in_bits}. "
                              "Must be 16, 32, or 64.")
         super().__init__(size_in_bits, encoding=encoding, byte_order=byte_order,
                          default_calibrator=default_calibrator, context_calibrators=context_calibrators)
 
-        if self.byte_order == "leastSignificantByteFirst":
-            self._struct_format = "<"
-        else:
-            # Big-endian is the default
-            self._struct_format = ">"
+        if self.encoding == "MIL-1750A":
+            def _mil_parse_func(mil_bytes: bytes):
+                """Parsing function for MIL-1750A floats"""
+                # MIL 1750A floats are always 32 bit
+                # See: https://www.xgc-tek.com/manuals/mil-std-1750a/c191.html#AEN324
+                #
+                #  MSB                                         LSB MSB          LSB
+                # ------------------------------------------------------------------
+                # | S|                   Mantissa                 |    Exponent    |
+                # ------------------------------------------------------------------
+                #   0  1                                        23 24            31
+                if self.byte_order == "mostSignificantByteFirst":
+                    bytes_as_int = int.from_bytes(mil_bytes, byteorder='big')
+                else:
+                    bytes_as_int = int.from_bytes(mil_bytes, byteorder='little')
+                exponent = bytes_as_int & 0xFF  # last 8 bits
+                mantissa = (bytes_as_int >> 8) & 0xFFFFFF  # bits 0 through 23 (24 bits)
+                # We include the sign bit with the mantissa because we can just take the twos complement
+                # of it directly and use it in the final calculation for the value
 
-        if self.size_in_bits == 16:
-            self._struct_format += "e"
-        elif self.size_in_bits == 32:
-            self._struct_format += "f"
-        elif self.size_in_bits == 64:
-            self._struct_format += "d"
+                # Both mantissa and exponent are stored as twos complement with no bias
+                exponent = self._twos_complement(exponent, 8)
+                mantissa = self._twos_complement(mantissa, 24)
+
+                # Calculate float value using native Python floats, which are more precise
+                return mantissa * (2.0 ** (exponent - (24 - 1)))
+
+            # Set up the parsing function just once, so we can use it repeatedly with _get_raw_value
+            self.parse_func = _mil_parse_func
+        else:
+            if self.byte_order == "leastSignificantByteFirst":
+                self._struct_format = "<"
+            else:
+                # Big-endian is the default
+                self._struct_format = ">"
+
+            if self.size_in_bits == 16:
+                self._struct_format += "e"
+            elif self.size_in_bits == 32:
+                self._struct_format += "f"
+            elif self.size_in_bits == 64:
+                self._struct_format += "d"
+
+            def ieee_parse_func(data: bytes):
+                """Parsing function for IEEE floats"""
+                # The packet data we got back is always extracted in big-endian order
+                # but the struct format code contains the endianness of the float data
+                return struct.unpack(self._struct_format, data)[0]
+
+            # Set up the parsing function just once, so we can use it repeatedly with _get_raw_value
+            self.parse_func: callable = ieee_parse_func
 
     def _get_raw_value(self, packet):
         """Read the data in as bytes and return a float representation."""
         data = packet.read_as_bytes(self.size_in_bits)
-        # The packet data we got back is always extracted in big-endian order
-        # but the struct format code contains the endianness of the float data
-        return struct.unpack(self._struct_format, data)[0]
+        # The parsing function is fully set during initialization to save time during parsing
+        return self.parse_func(data)
 
     @classmethod
     def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'FloatDataEncoding':

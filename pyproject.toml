@@ -35,7 +35,7 @@ keywords = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.8"
+python = ">=3.9"
 lxml = ">=4.8.0"
 
 [tool.poetry.group.dev.dependencies]
@@ -50,6 +50,7 @@ myst-parser = "*"
 sphinx-autoapi = "*"
 sphinx-rtd-theme = "*"
 coverage = "*"
+numpy = "*"
 
 [tool.poetry.group.examples]
 optional = true

@@ -9,13 +9,6 @@ services:
     build:
       target: style
 
-  3.8-tests:
-    image: space-packets-3.8-test:latest
-    build:
-      target: test
-      args:
-        - BASE_IMAGE_PYTHON_VERSION=3.8
-
   3.9-tests:
     image: space-packets-3.9-test:latest
     build:
