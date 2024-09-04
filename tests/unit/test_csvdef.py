@@ -58,4 +58,4 @@ def test_csv_packet_definition(ctim_test_data_dir):
         parser_inst = parser.PacketParser(csv_pkt_def)
         pkt_gen = parser_inst.generator(pkt_file, show_progress=True)
         packet = next(pkt_gen)
-    assert isinstance(packet, parser.Packet)
+    assert isinstance(packet, xtcedef.Packet)

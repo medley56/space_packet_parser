@@ -954,31 +954,38 @@ class ContextCalibrator(AttrComparable):
         return self.calibrator.calibrate(parsed_value)
 
 
-class PacketData:
-    """Raw packet data stored as bytes"""
+@dataclass
+class Packet:
+    """CCSDS Packet
 
-    def __init__(self, data: bytes, pos: int = 0):
-        """The raw packet data stored as bytes
+    Can be parsed to populate data items. This ``Packet`` class keeps track
+    of the current parsing position for know where to read from next when
+    parsing data items.
 
-        Intended to be used to ``read`` and ``peek`` at data within the packet.
-        Iterating through and keeping track of the current position read from.
-        Similar to the bitstring module's objects, but with less capability
-        and thus faster for these specific use-cases.
-
-        Parameters
-        ----------
-        data : bytes
-            The binary data for a single packet.
-        pos : int
-            The bit cursor position in the packet. Default 0.
-        """
-        self.data = data
-        self.pos = pos
-        self._nbits = len(data) * 8
+    Parameters
+    ----------
+    data : bytes
+        The binary data for a single packet.
+    pos : int
+        The bit cursor position in the packet. Default 0.
+    """
+    rawdata: bytes
+    pos: Optional[int] = 0
+    parsed_data: Optional[dict] = field(default_factory=lambda: {})
 
     def __len__(self):
-        """The length of the full packet data object, in bits"""
-        return self._nbits
+        """The length of the full packet data object in bits."""
+        return len(self.rawdata) * 8
+
+    @property
+    def header(self):
+        """Parsed header data items."""
+        return dict(list(self.parsed_data.items())[:7])
+
+    @property
+    def data(self):
+        """Parsed user data items."""
+        return dict(list(self.parsed_data.items())[7:])
 
     def read_as_bytes(self, nbits: int) -> bytes:
         """Read a number of bits from the packet data as bytes.
@@ -993,15 +1000,15 @@ class PacketData:
         : bytes
             Raw bytes from the packet data
         """
-        if self.pos + nbits > self._nbits:
+        if self.pos + nbits > len(self):
             raise ValueError("End of packet reached")
         if self.pos % 8 == 0 and nbits % 8 == 0:
             # If the read is byte-aligned, we can just return the bytes directly
-            data = self.data[self.pos//8:self.pos//8 + nbits // 8]
+            data = self.rawdata[self.pos//8:self.pos//8 + nbits // 8]
             self.pos += nbits
             return data
         # We are non-byte aligned, so we need to extract the bits and convert to bytes
-        bytes_as_int = _extract_bits(self.data, self.pos, nbits)
+        bytes_as_int = _extract_bits(self.rawdata, self.pos, nbits)
         self.pos += nbits
         return int.to_bytes(bytes_as_int, (nbits + 7) // 8, "big")
 
@@ -1018,7 +1025,7 @@ class PacketData:
         : int
             Integer representation of the bits read from the packet
         """
-        int_data = _extract_bits(self.data, self.pos, nbits)
+        int_data = _extract_bits(self.rawdata, self.pos, nbits)
         self.pos += nbits
         return int_data
 
@@ -1137,15 +1144,14 @@ class DataEncoding(AttrComparable, metaclass=ABCMeta):
             return adjuster
         return None
 
-    def _calculate_size(self, packet_data: PacketData, parsed_data: dict) -> int:
+    def _calculate_size(self, packet: Packet) -> int:
         """Calculate the size of the data item in bits.
 
         Parameters
         ----------
-        packet_data: PacketData
-            Binary data coming up next in the packet.
-        parsed_data: dict
-            Dictionary of previously parsed data items for use in determining the size if necessary.
+        packet: Packet
+            Binary representation of the packet used to get the coming bits and any
+            previously parsed data items to infer field lengths.
 
         Returns
         -------
@@ -1154,16 +1160,14 @@ class DataEncoding(AttrComparable, metaclass=ABCMeta):
         """
         raise NotImplementedError()
 
-    def parse_value(self, packet_data: PacketData, parsed_data: dict, **kwargs) -> Tuple[Any, Any]:
+    def parse_value(self, packet: Packet, **kwargs) -> Tuple[Any, Any]:
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
         ----------
-        packet_data: PacketData
-            Binary data coming up next in the packet.
-        parsed_data: dict
-            Previously parsed data items from which to infer parsing details (e.g. length of a field).
-
+        packet: Packet
+            Binary representation of the packet used to get the coming bits and any
+            previously parsed data items to infer field lengths.
         Returns
         -------
         : any
@@ -1257,16 +1261,14 @@ class StringDataEncoding(DataEncoding):
         self.discrete_lookup_length = discrete_lookup_length
         self.length_linear_adjuster = length_linear_adjuster
 
-    def _calculate_size(self, packet_data: PacketData, parsed_data: dict) -> int:
+    def _calculate_size(self, packet: Packet) -> int:
         """Calculate the length of the string data item in bits.
 
         Parameters
         ----------
-        parsed_data: dict
-            Dictionary of previously parsed data items for use in determining the format string if necessary.
-        packet_data: PacketData
-            Packet data, which can be used to determine the string length from a leading value
-            or from a termination character.
+        packet: Packet
+            Binary representation of the packet used to get the coming bits and any
+            previously parsed data items to infer field lengths.
 
         Returns
         -------
@@ -1277,32 +1279,32 @@ class StringDataEncoding(DataEncoding):
         if self.fixed_length:
             strlen_bits = self.fixed_length
         elif self.leading_length_size is not None:  # strlen_bits is determined from a preceding integer
-            strlen_bits = packet_data.read_as_int(self.leading_length_size)
+            strlen_bits = packet.read_as_int(self.leading_length_size)
             if strlen_bits % 8 != 0:
                 warnings.warn(f"String length (in bits) is {strlen_bits}, which is not a multiple of 8. "
                               f"This likely means something is wrong since strings are expected to be integer numbers "
                               f"of bytes.")
         elif self.discrete_lookup_length is not None:
             for discrete_lookup in self.discrete_lookup_length:
-                strlen_bits = discrete_lookup.evaluate(parsed_data)
+                strlen_bits = discrete_lookup.evaluate(packet.parsed_data)
                 if strlen_bits is not None:
                     break
             else:
                 raise ValueError('List of discrete lookup values being used for determining length of '
-                                 f'string {self} found no matches based on {parsed_data}.')
+                                 f'string {self} found no matches based on {packet}.')
         elif self.dynamic_length_reference is not None:
             if self.use_calibrated_value is True:
-                strlen_bits = parsed_data[self.dynamic_length_reference].derived_value
+                strlen_bits = packet.parsed_data[self.dynamic_length_reference].derived_value
             else:
-                strlen_bits = parsed_data[self.dynamic_length_reference].raw_value
+                strlen_bits = packet.parsed_data[self.dynamic_length_reference].raw_value
             strlen_bits = int(strlen_bits)
         elif self.termination_character is not None:
             # Look through the rest of the packet data to find the termination character
-            nbits_left = len(packet_data) - packet_data.pos
-            orig_pos = packet_data.pos
-            string_buffer = packet_data.read_as_bytes(nbits_left - nbits_left % 8)
+            nbits_left = len(packet) - packet.pos
+            orig_pos = packet.pos
+            string_buffer = packet.read_as_bytes(nbits_left - nbits_left % 8)
             # Reset the original position because we only wanted to look ahead
-            packet_data.pos = orig_pos
+            packet.pos = orig_pos
             try:
                 strlen_bits = string_buffer.index(self.termination_character) * 8
             except ValueError as exc:
@@ -1319,16 +1321,14 @@ class StringDataEncoding(DataEncoding):
         return strlen_bits
         # pylint: enable=too-many-branches
 
-    def parse_value(self, packet_data: PacketData, parsed_data: dict, **kwargs) -> Tuple[str, None]:
+    def parse_value(self, packet: Packet, **kwargs) -> Tuple[str, None]:
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
         ----------
-        packet_data: PacketData
-            Binary data coming up next in the packet.
-        parsed_data: dict, Optional
-            Previously parsed data items from which to infer parsing details (e.g. length of a field).
-
+        packet: Packet
+            Binary representation of the packet used to get the coming bits and any
+            previously parsed data items to infer field lengths.
         Returns
         -------
         : str
@@ -1336,11 +1336,11 @@ class StringDataEncoding(DataEncoding):
         : None
             Calibrated value
         """
-        nbits = self._calculate_size(packet_data, parsed_data)
-        parsed_value = packet_data.read_as_bytes(nbits)
+        nbits = self._calculate_size(packet)
+        parsed_value = packet.read_as_bytes(nbits)
         if self.termination_character is not None:
             # We need to skip over the termination character if there was one
-            packet_data.pos += len(self.termination_character) * 8
+            packet.pos += len(self.termination_character) * 8
         return parsed_value.decode(self.encoding), None
 
     @classmethod
@@ -1453,16 +1453,17 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
         self.default_calibrator = default_calibrator
         self.context_calibrators = context_calibrators
 
-    def _calculate_size(self, packet_data: PacketData, parsed_data: Dict) -> int:
+    def _calculate_size(self, packet: Packet) -> int:
         return self.size_in_bits
 
-    def _get_raw_value(self, packet_data: PacketData) -> Union[int, float]:
+    def _get_raw_value(self, packet: Packet) -> Union[int, float]:
         """Read the raw value from the packet data
 
         Parameters
         ----------
-        packet_data : PacketData
-            Packet data object
+        packet: Packet
+            Binary representation of the packet used to get the coming bits and any
+            previously parsed data items to infer field lengths.
 
         Returns
         -------
@@ -1472,17 +1473,15 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
         raise NotImplementedError()
 
     def parse_value(self,
-                    packet_data: PacketData,
-                    parsed_data: dict, **kwargs) -> Tuple[Union[int, float], Union[int, float]]:
+                    packet: Packet,
+                    **kwargs) -> Tuple[Union[int, float], Union[int, float]]:
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
         ----------
-        packet_data: PacketData
-            Binary data coming up next in the packet.
-        parsed_data: dict, Optional
-            Previously parsed data items from which to infer parsing details (e.g. length of a field).
-
+        packet: Packet
+            Binary representation of the packet used to get the coming bits and any
+            previously parsed data items to infer field lengths.
         Returns
         -------
         : any
@@ -1490,13 +1489,13 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
         : any
             Calibrated value
         """
-        parsed_value = self._get_raw_value(packet_data)
+        parsed_value = self._get_raw_value(packet)
         # Attempt to calibrate
         calibrated_value = parsed_value  # Provides a fall through in case we have no calibrators
         if self.context_calibrators:
             for calibrator in self.context_calibrators:
                 match_criteria = calibrator.match_criteria
-                if all(criterion.evaluate(parsed_data, parsed_value) for criterion in match_criteria):
+                if all(criterion.evaluate(packet.parsed_data, parsed_value) for criterion in match_criteria):
                     # If the parsed data so far satisfy all the match criteria
                     calibrated_value = calibrator.calibrate(parsed_value)
                     return parsed_value, calibrated_value
@@ -1509,9 +1508,9 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
 class IntegerDataEncoding(NumericDataEncoding):
     """<xtce:IntegerDataEncoding>"""
 
-    def _get_raw_value(self, packet_data: PacketData) -> int:
+    def _get_raw_value(self, packet: Packet) -> int:
         # Extract the bits from the data in big-endian order from the packet
-        val = packet_data.read_as_int(self.size_in_bits)
+        val = packet.read_as_int(self.size_in_bits)
         if self.byte_order == 'leastSignificantByteFirst':
             # Convert little-endian (LSB first) int to bigendian. Just reverses the order of the bytes.
             val = int.from_bytes(
@@ -1603,9 +1602,9 @@ class FloatDataEncoding(NumericDataEncoding):
         elif self.size_in_bits == 64:
             self._struct_format += "d"
 
-    def _get_raw_value(self, packet_data):
+    def _get_raw_value(self, packet):
         """Read the data in as bytes and return a float representation."""
-        data = packet_data.read_as_bytes(self.size_in_bits)
+        data = packet.read_as_bytes(self.size_in_bits)
         # The packet data we got back is always extracted in big-endian order
         # but the struct format code contains the endianness of the float data
         return struct.unpack(self._struct_format, data)[0]
@@ -1666,7 +1665,7 @@ class BinaryDataEncoding(DataEncoding):
         self.size_discrete_lookup_list = size_discrete_lookup_list
         self.linear_adjuster = linear_adjuster
 
-    def _calculate_size(self, packet_data: PacketData, parsed_data: dict) -> int:
+    def _calculate_size(self, packet: Packet) -> int:
         """Determine the number of bits in the binary field.
 
         Returns
@@ -1679,17 +1678,17 @@ class BinaryDataEncoding(DataEncoding):
         elif self.size_reference_parameter is not None:
             field_length_reference = self.size_reference_parameter
             if self.use_calibrated_value:
-                len_bits = parsed_data[field_length_reference].derived_value
+                len_bits = packet.parsed_data[field_length_reference].derived_value
             else:
-                len_bits = parsed_data[field_length_reference].raw_value
+                len_bits = packet.parsed_data[field_length_reference].raw_value
         elif self.size_discrete_lookup_list is not None:
             for discrete_lookup in self.size_discrete_lookup_list:
-                len_bits = discrete_lookup.evaluate(parsed_data)
+                len_bits = discrete_lookup.evaluate(packet.parsed_data)
                 if len_bits is not None:
                     break
             else:
                 raise ValueError('List of discrete lookup values being used for determining length of '
-                                 f'string {self} found no matches based on {parsed_data}.')
+                                 f'string {self} found no matches based on {packet.parsed_data}.')
         else:
             raise ValueError("Unable to parse BinaryDataEncoding. "
                              "No fixed size, dynamic size, or dynamic lookup size were provided.")
@@ -1698,15 +1697,14 @@ class BinaryDataEncoding(DataEncoding):
             len_bits = self.linear_adjuster(len_bits)
         return len_bits
 
-    def parse_value(self, packet_data: PacketData, parsed_data: dict, word_size: Optional[int] = None, **kwargs):
+    def parse_value(self, packet: Packet, word_size: Optional[int] = None, **kwargs):
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
         ----------
-        packet_data: PacketData
-            Binary data coming up next in the packet.
-        parsed_data: dict
-            Previously parsed data items from which to infer parsing details (e.g. length of a field).
+        packet: Packet
+            Binary representation of the packet used to get the coming bits and any
+            previously parsed data items to infer field lengths.
         word_size : Optional[int]
             Word size for encoded data. This is used to ensure that the cursor ends up at the end of the last word
             and ready to parse the next data field.
@@ -1718,13 +1716,13 @@ class BinaryDataEncoding(DataEncoding):
         : any
             Calibrated value
         """
-        nbits = self._calculate_size(packet_data, parsed_data)
-        parsed_value = packet_data.read_as_bytes(nbits)
+        nbits = self._calculate_size(packet)
+        parsed_value = packet.read_as_bytes(nbits)
         if word_size:
-            cursor_position_in_word = packet_data.pos % word_size
+            cursor_position_in_word = packet.pos % word_size
             if cursor_position_in_word != 0:
                 logger.debug(f"Adjusting cursor position to the end of a {word_size} bit word.")
-                packet_data.pos += word_size - cursor_position_in_word
+                packet.pos += word_size - cursor_position_in_word
         return parsed_value, None
 
     @classmethod
@@ -1866,23 +1864,22 @@ class ParameterType(AttrComparable, metaclass=ABCMeta):
                 return data_encoding.from_data_encoding_xml_element(element, ns)
         return None
 
-    def parse_value(self, packet_data: PacketData, parsed_data: dict, **kwargs):
+    def parse_value(self, packet: Packet, **kwargs):
         """Using the parameter type definition and associated data encoding, parse a value from a bit stream starting
         at the current cursor position.
 
         Parameters
         ----------
-        packet_data : PacketData
-            Binary packet data with cursor at the beginning of this parameter's data field.
-        parsed_data: dict
-            Previously parsed data to inform parsing.
+        packet: Packet
+            Binary representation of the packet used to get the coming bits and any
+            previously parsed data items to infer field lengths.
 
         Returns
         -------
         parsed_value : any
             Resulting parsed data value.
         """
-        return self.encoding.parse_value(packet_data, parsed_data, **kwargs)
+        return self.encoding.parse_value(packet, **kwargs)
 
 
 class StringParameterType(ParameterType):
@@ -1988,16 +1985,15 @@ class EnumeratedParameterType(ParameterType):
             for el in enumeration_list.iterfind('xtce:Enumeration', ns)
         }
 
-    def parse_value(self, packet_data: PacketData, parsed_data: dict, **kwargs):
+    def parse_value(self, packet: Packet, **kwargs):
         """Using the parameter type definition and associated data encoding, parse a value from a bit stream starting
         at the current cursor position.
 
         Parameters
         ----------
-        packet_data : PacketData
-            Binary packet data with cursor at the beginning of this parameter's data field.
-        parsed_data : dict
-            Previously parsed data
+        packet: Packet
+            Binary representation of the packet used to get the coming bits and any
+            previously parsed data items to infer field lengths.
 
         Returns
         -------
@@ -2006,7 +2002,7 @@ class EnumeratedParameterType(ParameterType):
         derived_value : str
             Resulting enum label associated with the (usually integer-)encoded data value.
         """
-        raw, _ = super().parse_value(packet_data, parsed_data, **kwargs)
+        raw, _ = super().parse_value(packet, **kwargs)
         # Note: The enum lookup only operates on raw values. This is specified in 4.3.2.4.3.6 of the XTCE spec "
         # CCSDS 660.1-G-2
         try:
@@ -2048,16 +2044,16 @@ class BooleanParameterType(ParameterType):
                           f"encoded booleans is not specified in XTCE. e.g. is the string \"0\" truthy?")
         super().__init__(name, encoding, unit)
 
-    def parse_value(self, packet_data: PacketData, parsed_data: dict, **kwargs):
+    def parse_value(self, packet: Packet, **kwargs):
         """Using the parameter type definition and associated data encoding, parse a value from a bit stream starting
         at the current cursor position.
 
         Parameters
         ----------
-        packet_data : PacketData
-            Binary packet data with cursor at the beginning of this parameter's data field.
-        parsed_data : dict
-            Previously parsed data
+        packet: Packet
+            Binary representation of the packet used to get the coming bits and any
+            previously parsed data items to infer field lengths.
+
 
         Returns
         -------
@@ -2066,7 +2062,7 @@ class BooleanParameterType(ParameterType):
         derived_value : str
             Resulting boolean representation of the encoded raw value
         """
-        raw, _ = super().parse_value(packet_data, parsed_data, **kwargs)
+        raw, _ = super().parse_value(packet, **kwargs)
         # Note: This behaves very strangely for String and Binary data encodings.
         # Don't use those for Boolean parameters. The behavior isn't specified well in XTCE.
         return raw, bool(raw)
@@ -2253,7 +2249,7 @@ class RelativeTimeParameterType(TimeParameterType):
 
 class Parseable(Protocol):
     """Defines an object that can be parsed from packet data."""
-    def parse(self, packet_data: PacketData, parsed_items: dict, **parse_value_kwargs) -> dict:
+    def parse(self, packet, **parse_value_kwargs) -> dict:
         """Parse this entry from the packet data and add the necessary items to the parsed_items dictionary."""
 
 
@@ -2277,15 +2273,15 @@ class Parameter(Parseable):
     short_description: Optional[str] = None
     long_description: Optional[str] = None
 
-    def parse(self, packet_data: PacketData, parsed_items: dict, **parse_value_kwargs) -> dict:
+    def parse(self, packet: Packet, **parse_value_kwargs) -> dict:
         """Parse this parameter from the packet data.
 
         Create a ``ParsedDataItem`` and add it to the parsed_items dictionary.
         """
         parsed_value, derived_value = self.parameter_type.parse_value(
-            packet_data, parsed_data=parsed_items, **parse_value_kwargs)
+            packet, **parse_value_kwargs)
 
-        parsed_items[self.name] = ParsedDataItem(
+        packet.parsed_data[self.name] = ParsedDataItem(
             name=self.name,
             unit=self.parameter_type.unit,
             raw_value=parsed_value,
@@ -2293,7 +2289,7 @@ class Parameter(Parseable):
             short_description=self.short_description,
             long_description=self.long_description
         )
-        return parsed_items
+        return packet.parsed_data
 
 
 @dataclass
@@ -2333,14 +2329,14 @@ class SequenceContainer(Parseable):
         self.restriction_criteria = self.restriction_criteria or []
         self.inheritors = self.inheritors or []
 
-    def parse(self, packet_data: PacketData, parsed_items: dict, **parse_value_kwargs) -> dict:
+    def parse(self, packet: Packet, **parse_value_kwargs) -> dict:
         """Parse the entry list of parameters/containers in the order they are expected in the packet.
 
         This could be recursive if the entry list contains SequenceContainers.
         """
         for entry in self.entry_list:
-            parsed_items = entry.parse(packet_data=packet_data, parsed_items=parsed_items, **parse_value_kwargs)
-        return parsed_items
+            packet.parsed_data = entry.parse(packet=packet, **parse_value_kwargs)
+        return packet.parsed_data
 
 
 FlattenedContainer = namedtuple('FlattenedContainer', ['entry_list', 'restrictions'])
