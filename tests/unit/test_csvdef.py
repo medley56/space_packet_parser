@@ -1,39 +1,39 @@
 """Tests for the CSV based packet definition"""
 import pytest
 # Local
-from space_packet_parser import csvdef, xtcedef, parser
+from space_packet_parser import csvdef, packets, parameters, encodings, parser
 from space_packet_parser.csvdef import CsvPacketDefinition
 
 
 @pytest.mark.parametrize(
     ('dtype_str', 'name', 'expectation'),
     [
-        ('U11', 'test_uint', xtcedef.IntegerParameterType(name='test_uint',
-                                                          encoding=xtcedef.IntegerDataEncoding(11, 'unsigned'),
+        ('U11', 'test_uint', parameters.IntegerParameterType(name='test_uint',
+                                                          encoding=encodings.IntegerDataEncoding(11, 'unsigned'),
                                                           unit='foo')),
-        ('U5', 'test_uint', xtcedef.IntegerParameterType(name='test_uint',
-                                                         encoding=xtcedef.IntegerDataEncoding(5, 'unsigned'),
+        ('U5', 'test_uint', parameters.IntegerParameterType(name='test_uint',
+                                                         encoding=encodings.IntegerDataEncoding(5, 'unsigned'),
                                                          unit='foo')),
-        ('UINT11', 'test_uint', xtcedef.IntegerParameterType(name='test_uint',
-                                                             encoding=xtcedef.IntegerDataEncoding(11, 'unsigned'),
+        ('UINT11', 'test_uint', parameters.IntegerParameterType(name='test_uint',
+                                                             encoding=encodings.IntegerDataEncoding(11, 'unsigned'),
                                                              unit='foo')),
-        ('D3', 'test_discrete', xtcedef.IntegerParameterType(name='test_discrete',
-                                                             encoding=xtcedef.IntegerDataEncoding(3, 'unsigned'),
+        ('D3', 'test_discrete', parameters.IntegerParameterType(name='test_discrete',
+                                                             encoding=encodings.IntegerDataEncoding(3, 'unsigned'),
                                                              unit='foo')),
-        ('INT16', 'test_uint', xtcedef.IntegerParameterType(name='test_uint',
-                                                            encoding=xtcedef.IntegerDataEncoding(16, 'signed'),
+        ('INT16', 'test_uint', parameters.IntegerParameterType(name='test_uint',
+                                                            encoding=encodings.IntegerDataEncoding(16, 'signed'),
                                                             unit='foo')),
-        ('I16', 'test_uint', xtcedef.IntegerParameterType(name='test_uint',
-                                                          encoding=xtcedef.IntegerDataEncoding(16, 'signed'),
+        ('I16', 'test_uint', parameters.IntegerParameterType(name='test_uint',
+                                                          encoding=encodings.IntegerDataEncoding(16, 'signed'),
                                                           unit='foo')),
-        ('F16', 'test_flt', xtcedef.FloatParameterType(name='test_flt',
-                                                       encoding=xtcedef.FloatDataEncoding(16),
+        ('F16', 'test_flt', parameters.FloatParameterType(name='test_flt',
+                                                       encoding=encodings.FloatDataEncoding(16),
                                                        unit='foo')),
-        ('Float16', 'test_flt', xtcedef.FloatParameterType(name='test_flt',
-                                                           encoding=xtcedef.FloatDataEncoding(16),
+        ('Float16', 'test_flt', parameters.FloatParameterType(name='test_flt',
+                                                           encoding=encodings.FloatDataEncoding(16),
                                                            unit='foo')),
-        ('C12', 'test_str', xtcedef.StringParameterType(name='test_str',
-                                                        encoding=xtcedef.StringDataEncoding(fixed_length=12),
+        ('C12', 'test_str', parameters.StringParameterType(name='test_str',
+                                                        encoding=encodings.StringDataEncoding(fixed_length=12),
                                                         unit='foo'))
     ]
 )
@@ -58,4 +58,4 @@ def test_csv_packet_definition(ctim_test_data_dir):
         parser_inst = parser.PacketParser(csv_pkt_def)
         pkt_gen = parser_inst.generator(pkt_file, show_progress=True)
         packet = next(pkt_gen)
-    assert isinstance(packet, xtcedef.Packet)
+    assert isinstance(packet, packets.Packet)

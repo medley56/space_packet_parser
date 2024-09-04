@@ -5,16 +5,7 @@ import re
 from collections import namedtuple
 from pathlib import Path
 # Local
-from space_packet_parser.xtcedef import (
-    Comparison,
-    Parameter,
-    IntegerDataEncoding,
-    FloatDataEncoding,
-    StringDataEncoding,
-    IntegerParameterType,
-    FloatParameterType,
-    StringParameterType
-)
+from space_packet_parser import encodings, matches, parameters
 
 FlattenedContainer = namedtuple('FlattenedContainer', ['entry_list', 'restrictions'])
 
@@ -38,7 +29,7 @@ class CsvPacketDefinition:
         # TODO: Add configurable checksum length or just have the check_sum_param passed in directly?
         if add_checksum:
             check_sum_type = self.get_param_type_from_str('U16', 'CHECKSUM_Type')
-            self.check_sum_param = Parameter('CHECKSUM', check_sum_type)
+            self.check_sum_param = parameters.Parameter('CHECKSUM', check_sum_type)
         else:
             self.check_sum_param = None
 
@@ -177,7 +168,9 @@ class CsvPacketDefinition:
             last_apid = next_apid
 
         restrictions = [
-            Comparison(required_value=last_apid, referenced_parameter=pkt_apid_header_name, use_calibrated_value=False)
+            matches.Comparison(required_value=last_apid,
+                               referenced_parameter=pkt_apid_header_name,
+                               use_calibrated_value=False)
         ]
 
         return restrictions
@@ -202,7 +195,7 @@ class CsvPacketDefinition:
         for row in container:
             param_type_name = row.ItemName + '_Type'
             param_type = self.get_param_type_from_str(row.DataType, param_type_name)
-            param = Parameter(row.ItemName, param_type)
+            param = parameters.Parameter(row.ItemName, param_type)
             pkt_entry_list.append(param)
 
         if self.check_sum_param is not None:
@@ -243,20 +236,23 @@ class CsvPacketDefinition:
         dtype_str = dtype[:split_i]
 
         if dtype_str[0] == 'U':
-            encoding = IntegerDataEncoding(dtype_size, 'unsigned')
-            paramType = IntegerParameterType(name=param_type_name, encoding=encoding, unit=unit)
+            encoding = encodings.IntegerDataEncoding(dtype_size, 'unsigned')
+            paramType = parameters.IntegerParameterType(name=param_type_name, encoding=encoding, unit=unit)
         elif dtype_str[0] == 'I':
-            encoding = IntegerDataEncoding(dtype_size, 'signed')
-            paramType = IntegerParameterType(name=param_type_name, encoding=encoding, unit=unit)
+            encoding = encodings.IntegerDataEncoding(dtype_size, 'signed')
+            paramType = parameters.IntegerParameterType(name=param_type_name,
+                                                        encoding=encoding,
+                                                        unit=unit)
         elif dtype_str[0] == 'D':
-            encoding = IntegerDataEncoding(dtype_size, 'unsigned')  # TODO: Should this be converted to discrete values?
-            paramType = IntegerParameterType(name=param_type_name, encoding=encoding, unit=unit)
+            # TODO: Should this be converted to discrete values?
+            encoding = encodings.IntegerDataEncoding(dtype_size, 'unsigned')
+            paramType = parameters.IntegerParameterType(name=param_type_name, encoding=encoding, unit=unit)
         elif dtype_str[0] == 'F':
-            encoding = FloatDataEncoding(dtype_size)
-            paramType = FloatParameterType(name=param_type_name, encoding=encoding, unit=unit)
+            encoding = encodings.FloatDataEncoding(dtype_size)
+            paramType = parameters.FloatParameterType(name=param_type_name, encoding=encoding, unit=unit)
         elif dtype_str[0] == 'C':
-            encoding = StringDataEncoding(fixed_length=dtype_size)
-            paramType = StringParameterType(name=param_type_name, encoding=encoding, unit=unit)
+            encoding = encodings.StringDataEncoding(fixed_length=dtype_size)
+            paramType = parameters.StringParameterType(name=param_type_name, encoding=encoding, unit=unit)
         else:
             raise NotImplementedError("This dtype not yet supported")
 

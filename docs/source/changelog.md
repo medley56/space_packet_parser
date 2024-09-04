@@ -6,6 +6,8 @@ list and release milestones.
 Release notes for the `space_packet_parser` library
 
 ### v5.0.0 (unreleased)
+- BREAKING: Separated out logical pieces into separate modules rather than everything
+  living within the xtcedef module. This means user imports may be different now.
 - BREAKING: Replace `bitstring` objects with native Python bytes objects
   - Remove dependency on the `bitstring` library
   - Much faster parsing speed

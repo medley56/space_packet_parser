@@ -9,7 +9,7 @@ import time
 from typing import BinaryIO, Optional, Tuple, Union
 import warnings
 # Local
-from space_packet_parser import xtcedef, csvdef
+from space_packet_parser import xtcedef, csvdef, packets
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +28,8 @@ CCSDS_HEADER_DEFINITION = [
 CCSDS_HEADER_LENGTH_BYTES = 6
 
 # Bring this into the namespace for backwards compatibility
-ParsedDataItem = xtcedef.ParsedDataItem
-Packet = xtcedef.Packet
+ParsedDataItem = packets.ParsedDataItem
+Packet = packets.Packet
 
 
 class UnrecognizedPacketTypeError(Exception):
@@ -50,7 +50,7 @@ class PacketParser:
     """Class for parsing CCSDS packets"""
 
     def __init__(self,
-                 packet_definition: xtcedef.XtcePacketDefinition or csvdef.CsvPacketDefinition,
+                 packet_definition: Union[xtcedef.XtcePacketDefinition, csvdef.CsvPacketDefinition],
                  word_size: int = None):
         """Constructor
 
@@ -83,11 +83,11 @@ class PacketParser:
         header = {}
         current_bit = 0
         for item in CCSDS_HEADER_DEFINITION:
-            header[item.name] = xtcedef.ParsedDataItem(
+            header[item.name] = packets.ParsedDataItem(
                 name=item.name,
                 unit=None,
                 # pylint: disable=protected-access
-                raw_value=xtcedef._extract_bits(packet_data, current_bit, item.nbits))
+                raw_value=packets._extract_bits(packet_data, current_bit, item.nbits))
             current_bit += item.nbits
         return header
 
@@ -149,7 +149,7 @@ class PacketParser:
         # pylint: enable=inconsistent-return-statements
 
     @staticmethod
-    def parse_packet(packet: xtcedef.Packet,
+    def parse_packet(packet: packets.Packet,
                      containers: dict,
                      root_container_name: str = "CCSDSPacket",
                      **parse_value_kwargs) -> Packet:
@@ -157,7 +157,7 @@ class PacketParser:
 
         Parameters
         ----------
-        packet: xtcedef.Packet
+        packet: packets.Packet
             Binary representation of the packet used to get the coming bits and any
             previously parsed data items to infer field lengths.
         containers : dict
@@ -170,7 +170,7 @@ class PacketParser:
         Packet
             A Packet object container header and data attributes.
         """
-        current_container: xtcedef.SequenceContainer = containers[root_container_name]
+        current_container: packets.SequenceContainer = containers[root_container_name]
         while True:
             packet.parsed_data = current_container.parse(packet, **parse_value_kwargs)
 
@@ -199,12 +199,12 @@ class PacketParser:
         return packet
 
     @staticmethod
-    def legacy_parse_packet(packet: xtcedef.Packet, entry_list: list, **parse_value_kwargs) -> Packet:
+    def legacy_parse_packet(packet: packets.Packet, entry_list: list, **parse_value_kwargs) -> Packet:
         """Parse binary packet data according to the self.flattened_containers property
 
         Parameters
         ----------
-        packet : xtcedef.Packet
+        packet : packets.Packet
             Binary packet data to parse into Packets
         entry_list : list
             List of Parameter objects
@@ -218,7 +218,7 @@ class PacketParser:
         for parameter in entry_list[0:7]:
             parsed_value, _ = parameter.parameter_type.parse_value(packet)
 
-            packet.parsed_data[parameter.name] = xtcedef.ParsedDataItem(
+            packet.parsed_data[parameter.name] = packets.ParsedDataItem(
                 name=parameter.name,
                 unit=parameter.parameter_type.unit,
                 raw_value=parsed_value
@@ -228,7 +228,7 @@ class PacketParser:
             parsed_value, derived_value = parameter.parameter_type.parse_value(
                 packet, **parse_value_kwargs)
 
-            packet.parsed_data[parameter.name] = xtcedef.ParsedDataItem(
+            packet.parsed_data[parameter.name] = packets.ParsedDataItem(
                 name=parameter.name,
                 unit=parameter.parameter_type.unit,
                 raw_value=parsed_value,
@@ -442,7 +442,7 @@ class PacketParser:
             packet_bytes = read_buffer[current_pos:current_pos + n_bytes_packet]
             current_pos += n_bytes_packet
             # Wrap the bytes in a class that can keep track of position as we read from it
-            packet = xtcedef.Packet(packet_bytes)
+            packet = packets.Packet(packet_bytes)
             try:
                 if isinstance(self.packet_definition, xtcedef.XtcePacketDefinition):
                     packet = self.parse_packet(packet,
