@@ -27,9 +27,9 @@ CCSDS_HEADER_DEFINITION = [
 
 CCSDS_HEADER_LENGTH_BYTES = 6
 
-Packet = namedtuple('Packet', ['header', 'data'])
 # Bring this into the namespace for backwards compatibility
 ParsedDataItem = xtcedef.ParsedDataItem
+Packet = xtcedef.Packet
 
 
 class UnrecognizedPacketTypeError(Exception):
@@ -149,7 +149,7 @@ class PacketParser:
         # pylint: enable=inconsistent-return-statements
 
     @staticmethod
-    def parse_packet(packet_data: xtcedef.PacketData,
+    def parse_packet(packet: xtcedef.Packet,
                      containers: dict,
                      root_container_name: str = "CCSDSPacket",
                      **parse_value_kwargs) -> Packet:
@@ -157,8 +157,9 @@ class PacketParser:
 
         Parameters
         ----------
-        packet_data : xtcedef.PacketData
-            Binary packet data to parse into Packets
+        packet: xtcedef.Packet
+            Binary representation of the packet used to get the coming bits and any
+            previously parsed data items to infer field lengths.
         containers : dict
             Dictionary of named containers, including their inheritance information.
         root_container_name : str, Optional
@@ -169,16 +170,13 @@ class PacketParser:
         Packet
             A Packet object container header and data attributes.
         """
-        parsed_items = {}
         current_container: xtcedef.SequenceContainer = containers[root_container_name]
         while True:
-            parsed_items = current_container.parse(packet_data=packet_data,
-                                                   parsed_items=parsed_items,
-                                                   **parse_value_kwargs)
+            packet.parsed_data = current_container.parse(packet, **parse_value_kwargs)
 
             valid_inheritors = []
             for inheritor_name in current_container.inheritors:
-                if all(rc.evaluate(parsed_items) for rc in containers[inheritor_name].restriction_criteria):
+                if all(rc.evaluate(packet.parsed_data) for rc in containers[inheritor_name].restriction_criteria):
                     valid_inheritors.append(inheritor_name)
 
             if len(valid_inheritors) == 1:
@@ -191,24 +189,22 @@ class PacketParser:
                     raise UnrecognizedPacketTypeError(
                         f"Detected an abstract container with no valid inheritors by restriction criteria. This might "
                         f"mean this packet type is not accounted for in the provided packet definition. "
-                        f"APID={parsed_items['PKT_APID'].raw_value}.",
-                        partial_data=parsed_items)
+                        f"APID={packet.parsed_data['PKT_APID'].raw_value}.",
+                        partial_data=packet.parsed_data)
                 break
 
             raise UnrecognizedPacketTypeError(
                 f"Multiple valid inheritors, {valid_inheritors} are possible for {current_container}.",
-                partial_data=parsed_items)
-        header = dict(list(parsed_items.items())[:7])
-        user_data = dict(list(parsed_items.items())[7:])
-        return Packet(header, user_data)
+                partial_data=packet.parsed_data)
+        return packet
 
     @staticmethod
-    def legacy_parse_packet(packet_data: xtcedef.PacketData, entry_list: list, **parse_value_kwargs) -> Packet:
+    def legacy_parse_packet(packet: xtcedef.Packet, entry_list: list, **parse_value_kwargs) -> Packet:
         """Parse binary packet data according to the self.flattened_containers property
 
         Parameters
         ----------
-        packet_data : xtcedef.PacketData
+        packet : xtcedef.Packet
             Binary packet data to parse into Packets
         entry_list : list
             List of Parameter objects
@@ -219,24 +215,20 @@ class PacketParser:
             A Packet object container header and data attributes.
         """
         warnings.warn("The 'legacy_parse_packet' method is deprecated.", DeprecationWarning)
-        header = {}
         for parameter in entry_list[0:7]:
-            parsed_value, _ = parameter.parameter_type.parse_value(packet_data, header)
+            parsed_value, _ = parameter.parameter_type.parse_value(packet)
 
-            header[parameter.name] = xtcedef.ParsedDataItem(
+            packet.parsed_data[parameter.name] = xtcedef.ParsedDataItem(
                 name=parameter.name,
                 unit=parameter.parameter_type.unit,
                 raw_value=parsed_value
             )
 
-        user_data = {}
         for parameter in entry_list[7:]:
-            combined_parsed_data = {**header}
-            combined_parsed_data.update(user_data)
             parsed_value, derived_value = parameter.parameter_type.parse_value(
-                packet_data, parsed_data=combined_parsed_data, **parse_value_kwargs)
+                packet, **parse_value_kwargs)
 
-            user_data[parameter.name] = xtcedef.ParsedDataItem(
+            packet.parsed_data[parameter.name] = xtcedef.ParsedDataItem(
                 name=parameter.name,
                 unit=parameter.parameter_type.unit,
                 raw_value=parsed_value,
@@ -245,7 +237,7 @@ class PacketParser:
                 long_description=parameter.long_description
             )
 
-        return Packet(header=header, data=user_data)
+        return packet
 
     @staticmethod
     def print_progress(current_bytes: int, total_bytes: Optional[int],
@@ -436,7 +428,7 @@ class PacketParser:
             if ccsds_headers_only is True:
                 # update the current position to the end of the packet data
                 current_pos += n_bytes_packet
-                yield Packet(header=header, data=None)
+                yield Packet(read_buffer[current_pos-n_bytes_packet:current_pos], parsed_data=header)
                 continue
 
             # Based on PKT_LEN fill buffer enough to read a full packet
@@ -450,16 +442,16 @@ class PacketParser:
             packet_bytes = read_buffer[current_pos:current_pos + n_bytes_packet]
             current_pos += n_bytes_packet
             # Wrap the bytes in a class that can keep track of position as we read from it
-            packet_data = xtcedef.PacketData(packet_bytes)
+            packet = xtcedef.Packet(packet_bytes)
             try:
                 if isinstance(self.packet_definition, xtcedef.XtcePacketDefinition):
-                    packet = self.parse_packet(packet_data,
+                    packet = self.parse_packet(packet,
                                                self.packet_definition.named_containers,
                                                root_container_name=root_container_name,
                                                word_size=self.word_size)
                 else:
                     _, parameter_list = self._determine_packet_by_restrictions(header)
-                    packet = self.legacy_parse_packet(packet_data, parameter_list, word_size=self.word_size)
+                    packet = self.legacy_parse_packet(packet, parameter_list, word_size=self.word_size)
             except UnrecognizedPacketTypeError as e:
                 logger.debug(f"Unrecognized error on packet with APID {header['PKT_APID'].raw_value}'")
                 if yield_unrecognized_packet_errors is True:
@@ -474,7 +466,7 @@ class PacketParser:
                                  f"{packet.header['PKT_LEN'].raw_value}. This might be because the CCSDS header is "
                                  f"incorrectly represented in your packet definition document.")
 
-            actual_length_parsed = packet_data.pos // 8
+            actual_length_parsed = packet.pos // 8
             if actual_length_parsed != n_bytes_packet:
                 logger.warning(f"Parsed packet length "
                                f"({actual_length_parsed}B) did not match "
