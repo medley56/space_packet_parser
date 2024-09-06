@@ -8,7 +8,7 @@ import time
 import pytest
 
 # Local
-from space_packet_parser.xtcedef import XtcePacketDefinition
+from space_packet_parser.definitions import XtcePacketDefinition
 from space_packet_parser.parser import PacketParser
 
 

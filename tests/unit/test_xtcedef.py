@@ -5,7 +5,8 @@ import io
 import pytest
 import lxml.etree as ElementTree
 # Local
-from space_packet_parser import xtcedef, parser
+from space_packet_parser.exceptions import CalibrationError, ComparisonError
+from space_packet_parser import calibrators, comparisons, definitions, encodings, parameters, parseables, parser
 
 XTCE_URI = "http://www.omg.org/space/xtce"
 TEST_NAMESPACE = {'xtce': XTCE_URI}
@@ -40,8 +41,8 @@ def test_invalid_parameter_type_error(test_data_dir):
 </xtce:SpaceSystem>
 """
     x = io.TextIOWrapper(io.BytesIO(test_xtce_document.encode("UTF-8")))
-    with pytest.raises(xtcedef.InvalidParameterTypeError):
-        xtcedef.XtcePacketDefinition(x)
+    with pytest.raises(definitions.InvalidParameterTypeError):
+        definitions.XtcePacketDefinition(x)
 
 
 def test_unsupported_parameter_type_error(test_data_dir):
@@ -82,12 +83,12 @@ def test_unsupported_parameter_type_error(test_data_dir):
 """
     x = io.TextIOWrapper(io.BytesIO(test_xtce_document.encode("UTF-8")))
     with pytest.raises(NotImplementedError):
-        xtcedef.XtcePacketDefinition(x)
+        definitions.XtcePacketDefinition(x)
 
 
 def test_attr_comparable():
     """Test abstract class that allows comparisons based on all non-callable attributes"""
-    class TestClass(xtcedef.AttrComparable):
+    class TestClass(comparisons.AttrComparable):
         """Test Class"""
         def __init__(self, public, private, dunder):
             self.public = public
@@ -119,82 +120,82 @@ def test_attr_comparable():
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="==" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 3, None, 678)}, None, True),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 3, None, 678)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="eq" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 3, None, 668)}, None, False),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 3, None, 668)}, None, False),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="!=" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 3, None, 678)}, None, False),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 3, None, 678)}, None, False),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="neq" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 3, None, 658)}, None, True),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 3, None, 658)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="&lt;" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 3, None, 679)}, None, False),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 3, None, 679)}, None, False),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="lt" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 3, None, 670)}, None, True),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 3, None, 670)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="&gt;" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 3, None, 678)}, None, False),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 3, None, 678)}, None, False),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="gt" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 3, None, 679)}, None, True),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 3, None, 679)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="&lt;=" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 3, None, 660)}, None, True),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 3, None, 660)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="leq" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 3, None, 690)}, None, False),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 3, None, 690)}, None, False),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="&gt;=" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 3, None, 660)}, None, False),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 3, None, 660)}, None, False),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="geq" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 3, None, 690)}, None, True),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 3, None, 690)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="==" value="678" parameterRef="MSN__PARAM" useCalibratedValue="false"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 678, None, 690)}, None, True),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 678, None, 690)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="==" value="678" parameterRef="MSN__PARAM" useCalibratedValue="true"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 3, None, 678)}, None, True),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 3, None, 678)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="==" value="foostring" parameterRef="MSN__PARAM" useCalibratedValue="false"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 'foostring', None, 'calibratedfoostring')}, None, True),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 'foostring', None, 'calibratedfoostring')}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="==" value="3.14" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 1, None, 3.14)}, None, True),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 1, None, 3.14)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="==" value="3.0" parameterRef="REFERENCE_TO_OWN_RAW_VAL"/>
@@ -214,7 +215,7 @@ def test_attr_comparable():
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="==" value="3.0" parameterRef="REFERENCE_TO_OWN_RAW_VAL"/>
 """,
-         {}, 3, xtcedef.ComparisonError("Fails to parse a float string 3.0 into an int")),
+         {}, 3, ComparisonError("Fails to parse a float string 3.0 into an int")),
     ]
 )
 def test_comparison(xml_string, test_parsed_data, current_parsed_value, expected_comparison_result):
@@ -222,10 +223,10 @@ def test_comparison(xml_string, test_parsed_data, current_parsed_value, expected
     element = ElementTree.fromstring(xml_string)
     if isinstance(expected_comparison_result, Exception):
         with pytest.raises(type(expected_comparison_result)):
-            comparison = xtcedef.Comparison.from_match_criteria_xml_element(element, TEST_NAMESPACE)
+            comparison = comparisons.Comparison.from_match_criteria_xml_element(element, TEST_NAMESPACE)
             comparison.evaluate(test_parsed_data, current_parsed_value)
     else:
-        comparison = xtcedef.Comparison.from_match_criteria_xml_element(element, TEST_NAMESPACE)
+        comparison = comparisons.Comparison.from_match_criteria_xml_element(element, TEST_NAMESPACE)
         assert comparison.evaluate(test_parsed_data, current_parsed_value) == expected_comparison_result
 
 
@@ -239,8 +240,8 @@ def test_comparison(xml_string, test_parsed_data, current_parsed_value, expected
     <xtce:ParameterInstanceRef parameterRef="P2"/>
 </xtce:Condition>
 """,
-         {'P1': parser.ParsedDataItem('P1', 4, None, 700),
-          'P2': parser.ParsedDataItem('P2', 3, None, 678)}, True),
+         {'P1': parseables.ParsedDataItem('P1', 4, None, 700),
+          'P2': parseables.ParsedDataItem('P2', 3, None, 678)}, True),
         ("""
 <xtce:Condition xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:ParameterInstanceRef parameterRef="P1"/>
@@ -248,7 +249,7 @@ def test_comparison(xml_string, test_parsed_data, current_parsed_value, expected
     <xtce:Value>4</xtce:Value>
 </xtce:Condition>
 """,
-         {'P1': parser.ParsedDataItem('P1', 4, None, 700)}, True),
+         {'P1': parseables.ParsedDataItem('P1', 4, None, 700)}, True),
         ("""
 <xtce:Condition xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:ParameterInstanceRef parameterRef="P1"/>
@@ -256,8 +257,8 @@ def test_comparison(xml_string, test_parsed_data, current_parsed_value, expected
     <xtce:ParameterInstanceRef parameterRef="P2"/>
 </xtce:Condition>
 """,
-         {'P1': parser.ParsedDataItem('P1', 4, None, 700),
-          'P2': parser.ParsedDataItem('P2', 3, None, 678)}, False),
+         {'P1': parseables.ParsedDataItem('P1', 4, None, 700),
+          'P2': parseables.ParsedDataItem('P2', 3, None, 678)}, False),
         ("""
 <xtce:Condition xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:ParameterInstanceRef parameterRef="P1" useCalibratedValue="false"/>
@@ -265,8 +266,8 @@ def test_comparison(xml_string, test_parsed_data, current_parsed_value, expected
     <xtce:ParameterInstanceRef parameterRef="P2" useCalibratedValue="false"/>
 </xtce:Condition>
 """,
-         {'P1': parser.ParsedDataItem('P1', 'abcd', None),
-          'P2': parser.ParsedDataItem('P2', 'abcd', None)}, True),
+         {'P1': parseables.ParsedDataItem('P1', 'abcd', None),
+          'P2': parseables.ParsedDataItem('P2', 'abcd', None)}, True),
         ("""
 <xtce:Condition xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:ParameterInstanceRef parameterRef="P1"/>
@@ -274,14 +275,14 @@ def test_comparison(xml_string, test_parsed_data, current_parsed_value, expected
     <xtce:ParameterInstanceRef parameterRef="P2"/>
 </xtce:Condition>
 """,
-         {'P1': parser.ParsedDataItem('P1', 1, None, 3.14),
-          'P2': parser.ParsedDataItem('P2', 180, None, 3.14)}, True),
+         {'P1': parseables.ParsedDataItem('P1', 1, None, 3.14),
+          'P2': parseables.ParsedDataItem('P2', 180, None, 3.14)}, True),
     ]
 )
 def test_condition(xml_string, test_parsed_data, expected_condition_result):
     """Test Condition object"""
     element = ElementTree.fromstring(xml_string)
-    condition = xtcedef.Condition.from_match_criteria_xml_element(element, TEST_NAMESPACE)
+    condition = comparisons.Condition.from_match_criteria_xml_element(element, TEST_NAMESPACE)
     assert condition.evaluate(test_parsed_data, None) == expected_condition_result
 
 
@@ -311,10 +312,10 @@ def test_condition(xml_string, test_parsed_data, expected_condition_result):
     </xtce:ORedConditions>
 </xtce:BooleanExpression>
 """,
-         {'P': parser.ParsedDataItem('P', 4, None, 0),
-          'P2': parser.ParsedDataItem('P2', 4, None, 700),
-          'P3': parser.ParsedDataItem('P3', 4, None, 701),
-          'P4': parser.ParsedDataItem('P4', 4, None, 98)}, True),
+         {'P': parseables.ParsedDataItem('P', 4, None, 0),
+          'P2': parseables.ParsedDataItem('P2', 4, None, 700),
+          'P3': parseables.ParsedDataItem('P3', 4, None, 701),
+          'P4': parseables.ParsedDataItem('P4', 4, None, 98)}, True),
         ("""
 <xtce:BooleanExpression xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:ANDedConditions>
@@ -343,12 +344,12 @@ def test_condition(xml_string, test_parsed_data, expected_condition_result):
     </xtce:ANDedConditions>
 </xtce:BooleanExpression>
 """,
-         {'P': parser.ParsedDataItem('P', 4, None, 100),
-          'P0': parser.ParsedDataItem('P0', 4, None, 678),
-          'P1': parser.ParsedDataItem('P1', 4, None, 500),
-          'P2': parser.ParsedDataItem('P2', 4, None, 700),
-          'P3': parser.ParsedDataItem('P3', 4, None, 701),
-          'P4': parser.ParsedDataItem('P4', 4, None, 99)}, True),
+         {'P': parseables.ParsedDataItem('P', 4, None, 100),
+          'P0': parseables.ParsedDataItem('P0', 4, None, 678),
+          'P1': parseables.ParsedDataItem('P1', 4, None, 500),
+          'P2': parseables.ParsedDataItem('P2', 4, None, 700),
+          'P3': parseables.ParsedDataItem('P3', 4, None, 701),
+          'P4': parseables.ParsedDataItem('P4', 4, None, 99)}, True),
     ]
 )
 def test_boolean_expression(xml_string, test_parsed_data, expected_result):
@@ -356,9 +357,9 @@ def test_boolean_expression(xml_string, test_parsed_data, expected_result):
     element = ElementTree.fromstring(xml_string)
     if isinstance(expected_result, Exception):
         with pytest.raises(type(expected_result)):
-            xtcedef.BooleanExpression.from_match_criteria_xml_element(element, TEST_NAMESPACE)
+            comparisons.BooleanExpression.from_match_criteria_xml_element(element, TEST_NAMESPACE)
     else:
-        expression = xtcedef.BooleanExpression.from_match_criteria_xml_element(element, TEST_NAMESPACE)
+        expression = comparisons.BooleanExpression.from_match_criteria_xml_element(element, TEST_NAMESPACE)
         assert expression.evaluate(test_parsed_data, current_parsed_value=None) == expected_result
 
 
@@ -370,13 +371,13 @@ def test_boolean_expression(xml_string, test_parsed_data, expected_result):
     <xtce:Comparison useCalibratedValue="false" parameterRef="P1" value="1"/>
 </xtce:DiscreteLookup>
 """,
-         {'P1': parser.ParsedDataItem('P1', 1, None, 678)}, 10),
+         {'P1': parseables.ParsedDataItem('P1', 1, None, 678)}, 10),
         ("""
 <xtce:DiscreteLookup value="10" xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:Comparison useCalibratedValue="false" parameterRef="P1" value="1"/>
 </xtce:DiscreteLookup>
 """,
-         {'P1': parser.ParsedDataItem('P1', 0, None, 678)}, None),
+         {'P1': parseables.ParsedDataItem('P1', 0, None, 678)}, None),
         ("""
 <xtce:DiscreteLookup value="11" xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:ComparisonList>
@@ -386,15 +387,15 @@ def test_boolean_expression(xml_string, test_parsed_data, expected_result):
 </xtce:DiscreteLookup>
 """,
          {
-             'MSN__PARAM1': parser.ParsedDataItem('MSN__PARAM1', 3, None, 680),
-             'MSN__PARAM2': parser.ParsedDataItem('MSN__PARAM2', 3, None, 3000)
+             'MSN__PARAM1': parseables.ParsedDataItem('MSN__PARAM1', 3, None, 680),
+             'MSN__PARAM2': parseables.ParsedDataItem('MSN__PARAM2', 3, None, 3000)
          }, 11),
     ]
 )
 def test_discrete_lookup(xml_string, test_parsed_data, expected_lookup_result):
     """Test DiscreteLookup object"""
     element = ElementTree.fromstring(xml_string)
-    discrete_lookup = xtcedef.DiscreteLookup.from_discrete_lookup_xml_element(element, TEST_NAMESPACE)
+    discrete_lookup = comparisons.DiscreteLookup.from_discrete_lookup_xml_element(element, TEST_NAMESPACE)
     assert discrete_lookup.evaluate(test_parsed_data, current_parsed_value=None) == expected_lookup_result
 
 
@@ -423,19 +424,19 @@ def test_discrete_lookup(xml_string, test_parsed_data, expected_lookup_result):
     </xtce:Calibrator>
 </xtce:ContextCalibrator>
 """,
-         xtcedef.ContextCalibrator(
+         calibrators.ContextCalibrator(
              match_criteria=[
-                 xtcedef.Comparison(required_value='678', referenced_parameter='EXI__FPGAT', operator='>=',
+                 comparisons.Comparison(required_value='678', referenced_parameter='EXI__FPGAT', operator='>=',
                                     use_calibrated_value=True),
-                 xtcedef.Comparison(required_value='4096', referenced_parameter='EXI__FPGAT', operator='<',
+                 comparisons.Comparison(required_value='4096', referenced_parameter='EXI__FPGAT', operator='<',
                                     use_calibrated_value=True),
              ],
-             calibrator=xtcedef.PolynomialCalibrator(coefficients=[
-                 xtcedef.PolynomialCoefficient(coefficient=0.5, exponent=0),
-                 xtcedef.PolynomialCoefficient(coefficient=1.5, exponent=1),
-                 xtcedef.PolynomialCoefficient(coefficient=-0.045, exponent=2),
-                 xtcedef.PolynomialCoefficient(coefficient=1.25, exponent=3),
-                 xtcedef.PolynomialCoefficient(coefficient=0.0025, exponent=4)
+             calibrator=calibrators.PolynomialCalibrator(coefficients=[
+                 calibrators.PolynomialCoefficient(coefficient=0.5, exponent=0),
+                 calibrators.PolynomialCoefficient(coefficient=1.5, exponent=1),
+                 calibrators.PolynomialCoefficient(coefficient=-0.045, exponent=2),
+                 calibrators.PolynomialCoefficient(coefficient=1.25, exponent=3),
+                 calibrators.PolynomialCoefficient(coefficient=0.0025, exponent=4)
              ]))),
         ("""
 <xtce:ContextCalibrator xmlns:xtce="http://www.omg.org/space/xtce">
@@ -453,17 +454,17 @@ def test_discrete_lookup(xml_string, test_parsed_data, expected_lookup_result):
     </xtce:Calibrator>
 </xtce:ContextCalibrator>
 """,
-         xtcedef.ContextCalibrator(
+         calibrators.ContextCalibrator(
              match_criteria=[
-                 xtcedef.Comparison(required_value='3.14', referenced_parameter='EXI__FPGAT', operator='!=',
+                 comparisons.Comparison(required_value='3.14', referenced_parameter='EXI__FPGAT', operator='!=',
                                     use_calibrated_value=True),
              ],
-             calibrator=xtcedef.PolynomialCalibrator(coefficients=[
-                 xtcedef.PolynomialCoefficient(coefficient=0.5, exponent=0),
-                 xtcedef.PolynomialCoefficient(coefficient=1.5, exponent=1),
-                 xtcedef.PolynomialCoefficient(coefficient=-0.045, exponent=2),
-                 xtcedef.PolynomialCoefficient(coefficient=1.25, exponent=3),
-                 xtcedef.PolynomialCoefficient(coefficient=0.0025, exponent=4)
+             calibrator=calibrators.PolynomialCalibrator(coefficients=[
+                 calibrators.PolynomialCoefficient(coefficient=0.5, exponent=0),
+                 calibrators.PolynomialCoefficient(coefficient=1.5, exponent=1),
+                 calibrators.PolynomialCoefficient(coefficient=-0.045, exponent=2),
+                 calibrators.PolynomialCoefficient(coefficient=1.25, exponent=3),
+                 calibrators.PolynomialCoefficient(coefficient=0.0025, exponent=4)
              ]))),
         ("""
 <xtce:ContextCalibrator xmlns:xtce="http://www.omg.org/space/xtce">
@@ -491,23 +492,23 @@ def test_discrete_lookup(xml_string, test_parsed_data, expected_lookup_result):
     </xtce:Calibrator>
 </xtce:ContextCalibrator>
 """,
-         xtcedef.ContextCalibrator(
+         calibrators.ContextCalibrator(
              match_criteria=[
-                 xtcedef.BooleanExpression(
-                     expression=xtcedef.Anded(
+                 comparisons.BooleanExpression(
+                     expression=comparisons.Anded(
                          conditions=[
-                             xtcedef.Condition(left_param='P1', operator='==', right_value='100',
+                             comparisons.Condition(left_param='P1', operator='==', right_value='100',
                                                right_use_calibrated_value=False),
-                             xtcedef.Condition(left_param='P4', operator='!=', right_value='99',
+                             comparisons.Condition(left_param='P4', operator='!=', right_value='99',
                                                right_use_calibrated_value=False)
                          ],
                          ors=[]
                      )
                  ),
              ],
-             calibrator=xtcedef.PolynomialCalibrator(coefficients=[
-                 xtcedef.PolynomialCoefficient(coefficient=0.5, exponent=0),
-                 xtcedef.PolynomialCoefficient(coefficient=1.5, exponent=1),
+             calibrator=calibrators.PolynomialCalibrator(coefficients=[
+                 calibrators.PolynomialCoefficient(coefficient=0.5, exponent=0),
+                 calibrators.PolynomialCoefficient(coefficient=1.5, exponent=1),
              ]))),
     ]
 )
@@ -515,79 +516,79 @@ def test_context_calibrator(xml_string, expectation):
     """Test parsing a ContextCalibrator from an XML element"""
     element = ElementTree.fromstring(xml_string)
 
-    result = xtcedef.ContextCalibrator.from_context_calibrator_xml_element(element, TEST_NAMESPACE)
+    result = calibrators.ContextCalibrator.from_context_calibrator_xml_element(element, TEST_NAMESPACE)
     assert result == expectation
 
 
 @pytest.mark.parametrize(
     ('context_calibrator', 'parsed_data', 'parsed_value', 'match_expectation', 'expectation'),
     [
-        (xtcedef.ContextCalibrator(
+        (calibrators.ContextCalibrator(
              match_criteria=[
-                 xtcedef.Comparison(required_value='678', referenced_parameter='EXI__FPGAT', operator='>=',
+                 comparisons.Comparison(required_value='678', referenced_parameter='EXI__FPGAT', operator='>=',
                                     use_calibrated_value=True),
-                 xtcedef.Comparison(required_value='4096', referenced_parameter='EXI__FPGAT', operator='<',
+                 comparisons.Comparison(required_value='4096', referenced_parameter='EXI__FPGAT', operator='<',
                                     use_calibrated_value=True),
              ],
-             calibrator=xtcedef.PolynomialCalibrator(coefficients=[
-                 xtcedef.PolynomialCoefficient(coefficient=0.5, exponent=0),
-                 xtcedef.PolynomialCoefficient(coefficient=1.5, exponent=1)
+             calibrator=calibrators.PolynomialCalibrator(coefficients=[
+                 calibrators.PolynomialCoefficient(coefficient=0.5, exponent=0),
+                 calibrators.PolynomialCoefficient(coefficient=1.5, exponent=1)
              ])),
-            {"EXI__FPGAT": parser.ParsedDataItem("EXI__FPGAT", 600, derived_value=700)},
+            {"EXI__FPGAT": parseables.ParsedDataItem("EXI__FPGAT", 600, derived_value=700)},
             42, True, 63.5),
-        (xtcedef.ContextCalibrator(
+        (calibrators.ContextCalibrator(
              match_criteria=[
-                 xtcedef.Comparison(required_value='3.14', referenced_parameter='EXI__FPGAT', operator='!=',
+                 comparisons.Comparison(required_value='3.14', referenced_parameter='EXI__FPGAT', operator='!=',
                                     use_calibrated_value=True),
              ],
-             calibrator=xtcedef.PolynomialCalibrator(coefficients=[
-                 xtcedef.PolynomialCoefficient(coefficient=0.5, exponent=0),
-                 xtcedef.PolynomialCoefficient(coefficient=1.5, exponent=1),
+             calibrator=calibrators.PolynomialCalibrator(coefficients=[
+                 calibrators.PolynomialCoefficient(coefficient=0.5, exponent=0),
+                 calibrators.PolynomialCoefficient(coefficient=1.5, exponent=1),
              ])),
-         {"EXI__FPGAT": parser.ParsedDataItem("EXI__FPGAT", 3.14, derived_value=700.0)},
+         {"EXI__FPGAT": parseables.ParsedDataItem("EXI__FPGAT", 3.14, derived_value=700.0)},
          42, True, 63.5),
-        (xtcedef.ContextCalibrator(
+        (calibrators.ContextCalibrator(
              match_criteria=[
-                 xtcedef.BooleanExpression(
-                     expression=xtcedef.Anded(
+                 comparisons.BooleanExpression(
+                     expression=comparisons.Anded(
                          conditions=[
-                             xtcedef.Condition(left_param='P1', operator='==', right_value='700',
+                             comparisons.Condition(left_param='P1', operator='==', right_value='700',
                                                right_use_calibrated_value=False),
-                             xtcedef.Condition(left_param='P2', operator='!=', right_value='99',
+                             comparisons.Condition(left_param='P2', operator='!=', right_value='99',
                                                right_use_calibrated_value=False)
                          ],
                          ors=[]
                      )
                  ),
              ],
-             calibrator=xtcedef.PolynomialCalibrator(coefficients=[
-                 xtcedef.PolynomialCoefficient(coefficient=0.5, exponent=0),
-                 xtcedef.PolynomialCoefficient(coefficient=1.5, exponent=1),
+             calibrator=calibrators.PolynomialCalibrator(coefficients=[
+                 calibrators.PolynomialCoefficient(coefficient=0.5, exponent=0),
+                 calibrators.PolynomialCoefficient(coefficient=1.5, exponent=1),
              ])),
-         {"P1": parser.ParsedDataItem("P1", 100.0, derived_value=700.0),
-          "P2": parser.ParsedDataItem("P2", 99, derived_value=700.0)},
+         {"P1": parseables.ParsedDataItem("P1", 100.0, derived_value=700.0),
+          "P2": parseables.ParsedDataItem("P2", 99, derived_value=700.0)},
          42, True, 63.5),
-        (xtcedef.ContextCalibrator(
+        (calibrators.ContextCalibrator(
              match_criteria=[
-                 xtcedef.BooleanExpression(
-                     expression=xtcedef.Ored(
+                 comparisons.BooleanExpression(
+                     expression=comparisons.Ored(
                          conditions=[  # Neither of these are true given the parsed data so far
-                             xtcedef.Condition(left_param='P1', operator='==', right_value='700',
+                             comparisons.Condition(left_param='P1', operator='==', right_value='700',
                                                left_use_calibrated_value=False,
                                                right_use_calibrated_value=False),
-                             xtcedef.Condition(left_param='P2', operator='!=', right_value='700',
+                             comparisons.Condition(left_param='P2', operator='!=', right_value='700',
                                                right_use_calibrated_value=False)
                          ],
                          ands=[]
                      )
                  ),
              ],
-             calibrator=xtcedef.PolynomialCalibrator(coefficients=[
-                 xtcedef.PolynomialCoefficient(coefficient=0.5, exponent=0),
-                 xtcedef.PolynomialCoefficient(coefficient=1.5, exponent=1),
+             calibrator=calibrators.PolynomialCalibrator(coefficients=[
+                 calibrators.PolynomialCoefficient(coefficient=0.5, exponent=0),
+                 calibrators.PolynomialCoefficient(coefficient=1.5, exponent=1),
              ])),
-         {"P1": parser.ParsedDataItem("P1", 100.0, derived_value=700.0),
-          "P2": parser.ParsedDataItem("P2", 99, derived_value=700.0)},
+         {"P1": parseables.ParsedDataItem("P1", 100.0, derived_value=700.0),
+          "P2": parseables.ParsedDataItem("P2", 99, derived_value=700.0)},
          42, False, 63.5),
     ]
 )
@@ -613,10 +614,10 @@ def test_context_calibrator_calibrate(context_calibrator, parsed_data, parsed_va
     <xtce:SplinePoint raw="3" calibrated="5E2"/>
 </xtce:SplineCalibrator> 
 """,
-         xtcedef.SplineCalibrator(order=0, extrapolate=True, points=[
-             xtcedef.SplinePoint(raw=1, calibrated=10),
-             xtcedef.SplinePoint(raw=2.7, calibrated=100.948),
-             xtcedef.SplinePoint(raw=3, calibrated=500),
+         calibrators.SplineCalibrator(order=0, extrapolate=True, points=[
+             calibrators.SplinePoint(raw=1, calibrated=10),
+             calibrators.SplinePoint(raw=2.7, calibrated=100.948),
+             calibrators.SplinePoint(raw=3, calibrated=500),
          ])),
         ("""
 <xtce:SplineCalibrator xmlns:xtce="http://www.omg.org/space/xtce">
@@ -625,10 +626,10 @@ def test_context_calibrator_calibrate(context_calibrator, parsed_data, parsed_va
     <xtce:SplinePoint raw="3" calibrated="5E2"/>
 </xtce:SplineCalibrator> 
 """,
-         xtcedef.SplineCalibrator(order=0, extrapolate=False, points=[
-             xtcedef.SplinePoint(raw=1, calibrated=10),
-             xtcedef.SplinePoint(raw=2.7, calibrated=100.948),
-             xtcedef.SplinePoint(raw=3, calibrated=500),
+         calibrators.SplineCalibrator(order=0, extrapolate=False, points=[
+             calibrators.SplinePoint(raw=1, calibrated=10),
+             calibrators.SplinePoint(raw=2.7, calibrated=100.948),
+             calibrators.SplinePoint(raw=3, calibrated=500),
          ])),
         ]
 )
@@ -638,9 +639,9 @@ def test_spline_calibrator(xml_string: str, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            xtcedef.SplineCalibrator.from_calibrator_xml_element(element, TEST_NAMESPACE)
+            calibrators.SplineCalibrator.from_calibrator_xml_element(element, TEST_NAMESPACE)
     else:
-        result = xtcedef.SplineCalibrator.from_calibrator_xml_element(element, TEST_NAMESPACE)
+        result = calibrators.SplineCalibrator.from_calibrator_xml_element(element, TEST_NAMESPACE)
         assert result == expectation
 
 
@@ -649,30 +650,30 @@ def test_spline_calibrator(xml_string: str, expectation):
     [
         # Zero order
         (-10, 0, True, 0.),
-        (-10, 0, False, xtcedef.CalibrationError()),
+        (-10, 0, False, CalibrationError()),
         (-1, 0, True, 0.),
         (-1, 0, False, 0.),
         (1.5, 0, False, 3.),
-        (5., 0, False, xtcedef.CalibrationError()),
+        (5., 0, False, CalibrationError()),
         (5., 0, True, 2.),
         # First order
         (-10, 1, True, -27.),
-        (-10, 1, False, xtcedef.CalibrationError()),
+        (-10, 1, False, CalibrationError()),
         (-1, 1, True, 0.),
         (-1, 1, False, 0.),
         (1.5, 1, False, 2.25),
-        (5., 1, False, xtcedef.CalibrationError()),
+        (5., 1, False, CalibrationError()),
         (5., 1, True, 0.5),
     ],
 )
 def test_spline_calibrator_calibrate(xq, order, extrapolate, expectation):
     """Test spline default_calibrator interpolation routines"""
     spline_points = [
-        xtcedef.SplinePoint(-1., 0.),
-        xtcedef.SplinePoint(0., 3.),
-        xtcedef.SplinePoint(2., 2),
+        calibrators.SplinePoint(-1., 0.),
+        calibrators.SplinePoint(0., 3.),
+        calibrators.SplinePoint(2., 2),
     ]
-    calibrator = xtcedef.SplineCalibrator(spline_points, order=order, extrapolate=extrapolate)
+    calibrator = calibrators.SplineCalibrator(spline_points, order=order, extrapolate=extrapolate)
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
@@ -694,12 +695,12 @@ def test_spline_calibrator_calibrate(xq, order, extrapolate, expectation):
     <xtce:Term exponent="4" coefficient="2.5E-3"/>
 </xtce:PolynomialCalibrator> 
 """,
-         xtcedef.PolynomialCalibrator(coefficients=[
-             xtcedef.PolynomialCoefficient(coefficient=0.5, exponent=0),
-             xtcedef.PolynomialCoefficient(coefficient=1.5, exponent=1),
-             xtcedef.PolynomialCoefficient(coefficient=-0.045, exponent=2),
-             xtcedef.PolynomialCoefficient(coefficient=1.25, exponent=3),
-             xtcedef.PolynomialCoefficient(coefficient=0.0025, exponent=4),
+         calibrators.PolynomialCalibrator(coefficients=[
+             calibrators.PolynomialCoefficient(coefficient=0.5, exponent=0),
+             calibrators.PolynomialCoefficient(coefficient=1.5, exponent=1),
+             calibrators.PolynomialCoefficient(coefficient=-0.045, exponent=2),
+             calibrators.PolynomialCoefficient(coefficient=1.25, exponent=3),
+             calibrators.PolynomialCoefficient(coefficient=0.0025, exponent=4),
          ])),
         ]
 )
@@ -709,9 +710,9 @@ def test_polynomial_calibrator(xml_string: str, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            xtcedef.PolynomialCalibrator.from_calibrator_xml_element(element, TEST_NAMESPACE)
+            calibrators.PolynomialCalibrator.from_calibrator_xml_element(element, TEST_NAMESPACE)
     else:
-        result = xtcedef.PolynomialCalibrator.from_calibrator_xml_element(element, TEST_NAMESPACE)
+        result = calibrators.PolynomialCalibrator.from_calibrator_xml_element(element, TEST_NAMESPACE)
         assert result == expectation
 
 
@@ -726,11 +727,11 @@ def test_polynomial_calibrator(xml_string: str, expectation):
 def test_polynomial_calibrator_calibrate(xq, expectation):
     """Test polynomial default_calibrator interpolation routines"""
     polynomial_coefficients = [
-        xtcedef.PolynomialCoefficient(1.5, 0),
-        xtcedef.PolynomialCoefficient(0, 1),
-        xtcedef.PolynomialCoefficient(1., 2)
+        calibrators.PolynomialCoefficient(1.5, 0),
+        calibrators.PolynomialCoefficient(0, 1),
+        calibrators.PolynomialCoefficient(1., 2)
     ]
-    calibrator = xtcedef.PolynomialCalibrator(polynomial_coefficients)
+    calibrator = calibrators.PolynomialCalibrator(polynomial_coefficients)
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
@@ -753,7 +754,7 @@ def test_polynomial_calibrator_calibrate(xq, expectation):
     </xtce:SizeInBits>
 </xtce:StringDataEncoding>
 """,
-         xtcedef.StringDataEncoding(termination_character='0058', encoding='UTF-16BE')),
+         encodings.StringDataEncoding(termination_character='0058', encoding='UTF-16BE')),
         ("""
 <xtce:StringDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:SizeInBits>
@@ -763,7 +764,7 @@ def test_polynomial_calibrator_calibrate(xq, expectation):
     </xtce:SizeInBits>
 </xtce:StringDataEncoding>
 """,
-         xtcedef.StringDataEncoding(fixed_length=17)),
+         encodings.StringDataEncoding(fixed_length=17)),
         ("""
 <xtce:StringDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:SizeInBits>
@@ -776,7 +777,7 @@ def test_polynomial_calibrator_calibrate(xq, expectation):
     </xtce:SizeInBits>
 </xtce:StringDataEncoding>
 """,
-         xtcedef.StringDataEncoding(dynamic_length_reference='SizeFromThisParameter',
+         encodings.StringDataEncoding(dynamic_length_reference='SizeFromThisParameter',
                                     length_linear_adjuster=object())),
         ("""
 <xtce:StringDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
@@ -794,10 +795,10 @@ def test_polynomial_calibrator_calibrate(xq, expectation):
     </xtce:SizeInBits>
 </xtce:StringDataEncoding>
 """,
-         xtcedef.StringDataEncoding(
+         encodings.StringDataEncoding(
              discrete_lookup_length=[
-                 xtcedef.DiscreteLookup([xtcedef.Comparison('1', 'P1')], 10),
-                 xtcedef.DiscreteLookup([xtcedef.Comparison('2', 'P1')], 25)
+                 comparisons.DiscreteLookup([comparisons.Comparison('1', 'P1')], 10),
+                 comparisons.DiscreteLookup([comparisons.Comparison('2', 'P1')], 25)
              ])),
         ("""
 <xtce:StringDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
@@ -808,7 +809,7 @@ def test_polynomial_calibrator_calibrate(xq, expectation):
     </xtce:SizeInBits>
 </xtce:StringDataEncoding>
 """,
-         xtcedef.ElementNotFoundError())
+         definitions.ElementNotFoundError())
         ]
 )
 def test_string_data_encoding(xml_string: str, expectation):
@@ -817,9 +818,9 @@ def test_string_data_encoding(xml_string: str, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            xtcedef.StringDataEncoding.from_data_encoding_xml_element(element, TEST_NAMESPACE)
+            encodings.StringDataEncoding.from_data_encoding_xml_element(element, TEST_NAMESPACE)
     else:
-        result = xtcedef.StringDataEncoding.from_data_encoding_xml_element(element, TEST_NAMESPACE)
+        result = encodings.StringDataEncoding.from_data_encoding_xml_element(element, TEST_NAMESPACE)
         assert result == expectation
 
 
@@ -829,11 +830,11 @@ def test_string_data_encoding(xml_string: str, expectation):
         ("""
 <xtce:IntegerDataEncoding xmlns:xtce="http://www.omg.org/space/xtce" sizeInBits="4" encoding="unsigned"/>
 """,
-         xtcedef.IntegerDataEncoding(size_in_bits=4, encoding='unsigned')),
+         encodings.IntegerDataEncoding(size_in_bits=4, encoding='unsigned')),
         ("""
 <xtce:IntegerDataEncoding xmlns:xtce="http://www.omg.org/space/xtce" sizeInBits="4"/>
 """,
-         xtcedef.IntegerDataEncoding(size_in_bits=4, encoding='unsigned')),
+         encodings.IntegerDataEncoding(size_in_bits=4, encoding='unsigned')),
         ("""
 <xtce:IntegerDataEncoding xmlns:xtce="http://www.omg.org/space/xtce" sizeInBits="16" encoding="unsigned">
     <xtce:DefaultCalibrator>
@@ -844,10 +845,10 @@ def test_string_data_encoding(xml_string: str, expectation):
     </xtce:DefaultCalibrator>
 </xtce:IntegerDataEncoding>
 """,
-         xtcedef.IntegerDataEncoding(
+         encodings.IntegerDataEncoding(
              size_in_bits=16, encoding='unsigned',
-             default_calibrator=xtcedef.PolynomialCalibrator([
-                 xtcedef.PolynomialCoefficient(0.012155, 1), xtcedef.PolynomialCoefficient(2.54, 0)
+             default_calibrator=calibrators.PolynomialCalibrator([
+                 calibrators.PolynomialCoefficient(0.012155, 1), calibrators.PolynomialCoefficient(2.54, 0)
              ]))),
         ("""
 <xtce:IntegerDataEncoding xmlns:xtce="http://www.omg.org/space/xtce" sizeInBits="12" encoding="unsigned">
@@ -883,25 +884,25 @@ def test_string_data_encoding(xml_string: str, expectation):
     </xtce:ContextCalibratorList>
     </xtce:IntegerDataEncoding>
 """,
-         xtcedef.IntegerDataEncoding(size_in_bits=12, encoding='unsigned',
+         encodings.IntegerDataEncoding(size_in_bits=12, encoding='unsigned',
                                      default_calibrator=None,
                                      context_calibrators=[
-                                         xtcedef.ContextCalibrator(
-                                             match_criteria=[xtcedef.Comparison(required_value='0', operator=">=",
+                                         calibrators.ContextCalibrator(
+                                             match_criteria=[comparisons.Comparison(required_value='0', operator=">=",
                                                                                 referenced_parameter='MSN__PARAM'),
-                                                             xtcedef.Comparison(required_value='678', operator="<",
+                                                             comparisons.Comparison(required_value='678', operator="<",
                                                                                 referenced_parameter='MSN__PARAM')],
-                                             calibrator=xtcedef.PolynomialCalibrator(
-                                                 coefficients=[xtcedef.PolynomialCoefficient(142.998, 0),
-                                                               xtcedef.PolynomialCoefficient(-0.349712, 1)])),
-                                         xtcedef.ContextCalibrator(
-                                             match_criteria=[xtcedef.Comparison(required_value='678', operator=">=",
+                                             calibrator=calibrators.PolynomialCalibrator(
+                                                 coefficients=[calibrators.PolynomialCoefficient(142.998, 0),
+                                                               calibrators.PolynomialCoefficient(-0.349712, 1)])),
+                                         calibrators.ContextCalibrator(
+                                             match_criteria=[comparisons.Comparison(required_value='678', operator=">=",
                                                                                 referenced_parameter='MSN__PARAM'),
-                                                             xtcedef.Comparison(required_value='4096', operator="<=",
+                                                             comparisons.Comparison(required_value='4096', operator="<=",
                                                                                 referenced_parameter='MSN__PARAM')],
-                                             calibrator=xtcedef.PolynomialCalibrator(
-                                                 coefficients=[xtcedef.PolynomialCoefficient(100.488, 0),
-                                                               xtcedef.PolynomialCoefficient(-0.110197, 1)]))
+                                             calibrator=calibrators.PolynomialCalibrator(
+                                                 coefficients=[calibrators.PolynomialCoefficient(100.488, 0),
+                                                               calibrators.PolynomialCoefficient(-0.110197, 1)]))
                                      ])),
     ]
 )
@@ -911,9 +912,9 @@ def test_integer_data_encoding(xml_string: str, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            xtcedef.IntegerDataEncoding.from_data_encoding_xml_element(element, TEST_NAMESPACE)
+            encodings.IntegerDataEncoding.from_data_encoding_xml_element(element, TEST_NAMESPACE)
     else:
-        result = xtcedef.IntegerDataEncoding.from_data_encoding_xml_element(element, TEST_NAMESPACE)
+        result = encodings.IntegerDataEncoding.from_data_encoding_xml_element(element, TEST_NAMESPACE)
         assert result == expectation
 
 
@@ -934,10 +935,10 @@ def test_integer_data_encoding(xml_string: str, expectation):
     </xtce:DefaultCalibrator>
 </xtce:FloatDataEncoding>
 """,
-         xtcedef.FloatDataEncoding(
+         encodings.FloatDataEncoding(
              size_in_bits=16, encoding='IEEE-754',
-             default_calibrator=xtcedef.PolynomialCalibrator([
-                 xtcedef.PolynomialCoefficient(0.012155, 1), xtcedef.PolynomialCoefficient(2.54, 0)
+             default_calibrator=calibrators.PolynomialCalibrator([
+                 calibrators.PolynomialCoefficient(0.012155, 1), calibrators.PolynomialCoefficient(2.54, 0)
              ]))),
         ("""
 <xtce:FloatDataEncoding xmlns:xtce="http://www.omg.org/space/xtce" sizeInBits="16">
@@ -979,28 +980,28 @@ def test_integer_data_encoding(xml_string: str, expectation):
     </xtce:DefaultCalibrator>
 </xtce:FloatDataEncoding>
 """,
-         xtcedef.FloatDataEncoding(
+         encodings.FloatDataEncoding(
              size_in_bits=16, encoding='IEEE-754',
-             default_calibrator=xtcedef.PolynomialCalibrator([
-                 xtcedef.PolynomialCoefficient(0.012155, 1), xtcedef.PolynomialCoefficient(2.54, 0)
+             default_calibrator=calibrators.PolynomialCalibrator([
+                 calibrators.PolynomialCoefficient(0.012155, 1), calibrators.PolynomialCoefficient(2.54, 0)
              ]),
              context_calibrators=[
-                 xtcedef.ContextCalibrator(
-                     match_criteria=[xtcedef.Comparison(required_value='0', operator=">=",
+                 calibrators.ContextCalibrator(
+                     match_criteria=[comparisons.Comparison(required_value='0', operator=">=",
                                                         referenced_parameter='MSN__PARAM'),
-                                     xtcedef.Comparison(required_value='678', operator="<",
+                                     comparisons.Comparison(required_value='678', operator="<",
                                                         referenced_parameter='MSN__PARAM')],
-                     calibrator=xtcedef.PolynomialCalibrator(
-                         coefficients=[xtcedef.PolynomialCoefficient(142.998, 0),
-                                       xtcedef.PolynomialCoefficient(-0.349712, 1)])),
-                 xtcedef.ContextCalibrator(
-                     match_criteria=[xtcedef.Comparison(required_value='678', operator=">=",
+                     calibrator=calibrators.PolynomialCalibrator(
+                         coefficients=[calibrators.PolynomialCoefficient(142.998, 0),
+                                       calibrators.PolynomialCoefficient(-0.349712, 1)])),
+                 calibrators.ContextCalibrator(
+                     match_criteria=[comparisons.Comparison(required_value='678', operator=">=",
                                                         referenced_parameter='MSN__PARAM'),
-                                     xtcedef.Comparison(required_value='4096', operator="<=",
+                                     comparisons.Comparison(required_value='4096', operator="<=",
                                                         referenced_parameter='MSN__PARAM')],
-                     calibrator=xtcedef.PolynomialCalibrator(
-                         coefficients=[xtcedef.PolynomialCoefficient(100.488, 0),
-                                       xtcedef.PolynomialCoefficient(-0.110197, 1)]))
+                     calibrator=calibrators.PolynomialCalibrator(
+                         coefficients=[calibrators.PolynomialCoefficient(100.488, 0),
+                                       calibrators.PolynomialCoefficient(-0.110197, 1)]))
              ]
          )),
     ]
@@ -1011,9 +1012,9 @@ def test_float_data_encoding(xml_string: str, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            xtcedef.FloatDataEncoding.from_data_encoding_xml_element(element, TEST_NAMESPACE)
+            encodings.FloatDataEncoding.from_data_encoding_xml_element(element, TEST_NAMESPACE)
     else:
-        result = xtcedef.FloatDataEncoding.from_data_encoding_xml_element(element, TEST_NAMESPACE)
+        result = encodings.FloatDataEncoding.from_data_encoding_xml_element(element, TEST_NAMESPACE)
         assert result == expectation
 
 
@@ -1027,7 +1028,7 @@ def test_float_data_encoding(xml_string: str, expectation):
     </xtce:SizeInBits>
 </xtce:BinaryDataEncoding>
 """,
-         xtcedef.BinaryDataEncoding(fixed_size_in_bits=256)),
+         encodings.BinaryDataEncoding(fixed_size_in_bits=256)),
         ("""
 <xtce:BinaryDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:SizeInBits>
@@ -1038,7 +1039,7 @@ def test_float_data_encoding(xml_string: str, expectation):
     </xtce:SizeInBits>
 </xtce:BinaryDataEncoding>
 """,
-         xtcedef.BinaryDataEncoding(
+         encodings.BinaryDataEncoding(
              size_reference_parameter='SizeFromThisParameter',
              linear_adjuster=lambda x: 25 + 8*x)),
         ("""
@@ -1055,9 +1056,9 @@ def test_float_data_encoding(xml_string: str, expectation):
     </xtce:SizeInBits>
 </xtce:BinaryDataEncoding>
 """,
-         xtcedef.BinaryDataEncoding(size_discrete_lookup_list=[
-                 xtcedef.DiscreteLookup([xtcedef.Comparison('1', 'P1')], 10),
-                 xtcedef.DiscreteLookup([xtcedef.Comparison('2', 'P1')], 25)
+         encodings.BinaryDataEncoding(size_discrete_lookup_list=[
+                 comparisons.DiscreteLookup([comparisons.Comparison('1', 'P1')], 10),
+                 comparisons.DiscreteLookup([comparisons.Comparison('2', 'P1')], 25)
              ])),
     ]
 )
@@ -1067,9 +1068,9 @@ def test_binary_data_encoding(xml_string: str, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            xtcedef.BinaryDataEncoding.from_data_encoding_xml_element(element, TEST_NAMESPACE)
+            encodings.BinaryDataEncoding.from_data_encoding_xml_element(element, TEST_NAMESPACE)
     else:
-        result = xtcedef.BinaryDataEncoding.from_data_encoding_xml_element(element, TEST_NAMESPACE)
+        result = encodings.BinaryDataEncoding.from_data_encoding_xml_element(element, TEST_NAMESPACE)
         assert result == expectation
 
 
@@ -1091,8 +1092,8 @@ def test_binary_data_encoding(xml_string: str, expectation):
     </xtce:StringDataEncoding>
 </xtce:StringParameterType> 
 """,
-         xtcedef.StringParameterType(name='TEST_STRING_Type',
-                                     encoding=xtcedef.StringDataEncoding(fixed_length=40))),
+         parameters.StringParameterType(name='TEST_STRING_Type',
+                                     encoding=encodings.StringDataEncoding(fixed_length=40))),
         ("""
 <xtce:StringParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_STRING_Type">
     <xtce:StringDataEncoding>
@@ -1102,8 +1103,8 @@ def test_binary_data_encoding(xml_string: str, expectation):
     </xtce:StringDataEncoding>
 </xtce:StringParameterType> 
 """,
-         xtcedef.StringParameterType(name='TEST_STRING_Type',
-                                     encoding=xtcedef.StringDataEncoding(leading_length_size=17))),
+         parameters.StringParameterType(name='TEST_STRING_Type',
+                                     encoding=encodings.StringDataEncoding(leading_length_size=17))),
         ("""
 <xtce:StringParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_STRING_Type">
     <xtce:StringDataEncoding>
@@ -1113,8 +1114,8 @@ def test_binary_data_encoding(xml_string: str, expectation):
     </xtce:StringDataEncoding>
 </xtce:StringParameterType> 
 """,
-         xtcedef.StringParameterType(name='TEST_STRING_Type',
-                                     encoding=xtcedef.StringDataEncoding(termination_character='00'))),
+         parameters.StringParameterType(name='TEST_STRING_Type',
+                                     encoding=encodings.StringDataEncoding(termination_character='00'))),
     ]
 )
 def test_string_parameter_type(xml_string: str, expectation):
@@ -1123,9 +1124,9 @@ def test_string_parameter_type(xml_string: str, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            xtcedef.StringParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+            parameters.StringParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
     else:
-        result = xtcedef.StringParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+        result = parameters.StringParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
         assert result == expectation
 
 
@@ -1133,89 +1134,89 @@ def test_string_parameter_type(xml_string: str, expectation):
     ('parameter_type', 'packet', 'expected'),
     [
         # Fixed length test
-        (xtcedef.StringParameterType(
+        (parameters.StringParameterType(
             'TEST_STRING',
-            xtcedef.StringDataEncoding(fixed_length=3,  # Giving length in bytes
+            encodings.StringDataEncoding(fixed_length=3,  # Giving length in bytes
                                        length_linear_adjuster=lambda x: 8*x)),
          # This still 123X456
-         xtcedef.Packet(b'123X456'),
+         parseables.Packet(b'123X456'),
          '123'),
         # Dynamic reference length
-        (xtcedef.StringParameterType(
+        (parameters.StringParameterType(
             'TEST_STRING',
-            xtcedef.StringDataEncoding(dynamic_length_reference='STR_LEN',
+            encodings.StringDataEncoding(dynamic_length_reference='STR_LEN',
                                        use_calibrated_value=False,
                                        length_linear_adjuster=lambda x: 8*x)),
-         xtcedef.Packet(b'BAD WOLF', parsed_data={
-             'STR_LEN': parser.ParsedDataItem('STR_LEN', 8, None)}),
+         parseables.Packet(b'BAD WOLF', parsed_data={
+             'STR_LEN': parseables.ParsedDataItem('STR_LEN', 8, None)}),
          'BAD WOLF'),
         # Discrete lookup test
-        (xtcedef.StringParameterType(
+        (parameters.StringParameterType(
             'TEST_STRING',
-            xtcedef.StringDataEncoding(discrete_lookup_length=[
-                xtcedef.DiscreteLookup([
-                    xtcedef.Comparison(7, 'P1', '>'),
-                    xtcedef.Comparison(99, 'P2', '==', use_calibrated_value=False)
+            encodings.StringDataEncoding(discrete_lookup_length=[
+                comparisons.DiscreteLookup([
+                    comparisons.Comparison(7, 'P1', '>'),
+                    comparisons.Comparison(99, 'P2', '==', use_calibrated_value=False)
                 ], lookup_value=8)
             ], length_linear_adjuster=lambda x: 8*x)),
-         xtcedef.Packet(b'BAD WOLF', parsed_data={
-             'P1': parser.ParsedDataItem('P1', 7, None, 7.55), 'P2': parser.ParsedDataItem('P2', 99, None, 100)},),
+         parseables.Packet(b'BAD WOLF', parsed_data={
+             'P1': parseables.ParsedDataItem('P1', 7, None, 7.55), 'P2': parseables.ParsedDataItem('P2', 99, None, 100)},),
          'BAD WOLF'),
         # Termination character tests
-        (xtcedef.StringParameterType(
+        (parameters.StringParameterType(
             'TEST_STRING',
-            xtcedef.StringDataEncoding(encoding='UTF-8',
+            encodings.StringDataEncoding(encoding='UTF-8',
                                        termination_character='58')),
          # 123X456 + extra characters, termination character is X
-         xtcedef.Packet(b'123X456000000000000000000000000000000000000000000000'),
+         parseables.Packet(b'123X456000000000000000000000000000000000000000000000'),
          '123'),
-        (xtcedef.StringParameterType(
+        (parameters.StringParameterType(
             'TEST_STRING',
-            xtcedef.StringDataEncoding(encoding='UTF-8',
+            encodings.StringDataEncoding(encoding='UTF-8',
                                        termination_character='58')),
          # 56bits + 123X456 + extra characters, termination character is X
-         xtcedef.Packet(b'9090909123X456000000000000000000000000000000000000000000000', pos=56),
+         parseables.Packet(b'9090909123X456000000000000000000000000000000000000000000000', pos=56),
          '123'),
-        (xtcedef.StringParameterType(
+        (parameters.StringParameterType(
             'TEST_STRING',
-            xtcedef.StringDataEncoding(encoding='UTF-8',
+            encodings.StringDataEncoding(encoding='UTF-8',
                                        termination_character='58')),
          # 53bits + 123X456 + extra characters, termination character is X
          # This is the same string as above but bit-shifted left by 3 bits
-         xtcedef.Packet(b'\x03K;s{\x93)\x89\x91\x9a\xc1\xa1\xa9\xb3K;s{\x93(', pos=53),
+         parseables.Packet(b'\x03K;s{\x93)\x89\x91\x9a\xc1\xa1\xa9\xb3K;s{\x93(', pos=53),
          '123'),
-        (xtcedef.StringParameterType(
+        (parameters.StringParameterType(
             "TEST_STRING",
-            xtcedef.StringDataEncoding(encoding="UTF-8",
+            encodings.StringDataEncoding(encoding="UTF-8",
                                        termination_character='00')),
-         xtcedef.Packet("false_is_truthy".encode("UTF-8") + b'\x00ABCD'),
+         parseables.Packet("false_is_truthy".encode("UTF-8") + b'\x00ABCD'),
          'false_is_truthy'),
-        (xtcedef.StringParameterType(
+        (parameters.StringParameterType(
             "TEST_STRING",
-            xtcedef.StringDataEncoding(encoding="UTF-16BE",
+            encodings.StringDataEncoding(encoding="UTF-16BE",
                                        termination_character='0021')),
-         xtcedef.Packet("false_is_truthy".encode("UTF-16BE") + b'\x00\x21ignoreme'),
+         parseables.Packet("false_is_truthy".encode("UTF-16BE") + b'\x00\x21ignoreme'),
          'false_is_truthy'),
-        (xtcedef.StringParameterType(
+        (parameters.StringParameterType(
             'TEST_STRING',
-            xtcedef.StringDataEncoding(encoding='UTF-16LE',
+            encodings.StringDataEncoding(encoding='UTF-16LE',
                                        termination_character='5800')),
          # 123X456, termination character is X
-         xtcedef.Packet('123X456'.encode('UTF-16LE')),
+         parseables.Packet('123X456'.encode('UTF-16LE')),
          '123'),
-        (xtcedef.StringParameterType(
+        (parameters.StringParameterType(
             'TEST_STRING',
-            xtcedef.StringDataEncoding(encoding='UTF-16BE',
+            encodings.StringDataEncoding(encoding='UTF-16BE',
                                        termination_character='0058')),
-         xtcedef.Packet('123X456'.encode('UTF-16BE')),
+         parseables.Packet('123X456'.encode('UTF-16BE')),
          '123'),
         # Leading length test
-        (xtcedef.StringParameterType(
+        (parameters.StringParameterType(
             'TEST_STRING',
-            xtcedef.StringDataEncoding(leading_length_size=5)),
+            encodings.StringDataEncoding(leading_length_size=5)),
          # This is still 123X456 but with 11000 prepended (a 5-bit representation of the number 24)
          # This represents a string length (in bits) of 24 bits.
-         xtcedef.Packet(0b1100000110001001100100011001101011000001101000011010100110110000.to_bytes(8, byteorder="big")),
+         parseables.Packet(0b1100000110001001100100011001101011000001101000011010100110110000.to_bytes(8, byteorder="big")),
          '123'),
     ]
 )
@@ -1236,8 +1237,8 @@ def test_string_parameter_parsing(parameter_type, packet, expected):
     <xtce:IntegerDataEncoding sizeInBits="16" encoding="unsigned"/>
 </xtce:IntegerParameterType>
 """,
-         xtcedef.IntegerParameterType(name='TEST_INT_Type', unit='smoot',
-                                      encoding=xtcedef.IntegerDataEncoding(size_in_bits=16, encoding='unsigned'))),
+         parameters.IntegerParameterType(name='TEST_INT_Type', unit='smoot',
+                                      encoding=encodings.IntegerDataEncoding(size_in_bits=16, encoding='unsigned'))),
         ("""
 <xtce:IntegerParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_INT_Type">
     <xtce:UnitSet>
@@ -1254,13 +1255,13 @@ def test_string_parameter_parsing(parameter_type, packet, expected):
     </xtce:IntegerDataEncoding>
 </xtce:IntegerParameterType>
 """,
-         xtcedef.IntegerParameterType(name='TEST_INT_Type', unit='smoot',
-                                      encoding=xtcedef.IntegerDataEncoding(
+         parameters.IntegerParameterType(name='TEST_INT_Type', unit='smoot',
+                                      encoding=encodings.IntegerDataEncoding(
                                        size_in_bits=16, encoding='unsigned',
-                                       default_calibrator=xtcedef.PolynomialCalibrator([
-                                           xtcedef.PolynomialCoefficient(2772.24, 0),
-                                           xtcedef.PolynomialCoefficient(-41.6338, 1),
-                                           xtcedef.PolynomialCoefficient(-0.185486, 2)
+                                       default_calibrator=calibrators.PolynomialCalibrator([
+                                           calibrators.PolynomialCoefficient(2772.24, 0),
+                                           calibrators.PolynomialCoefficient(-41.6338, 1),
+                                           calibrators.PolynomialCoefficient(-0.185486, 2)
                                        ])
                                    ))),
         ("""
@@ -1279,15 +1280,15 @@ def test_string_parameter_parsing(parameter_type, packet, expected):
     </xtce:IntegerDataEncoding>
 </xtce:IntegerParameterType>
 """,
-         xtcedef.IntegerParameterType(name='TEST_INT_Type', unit='smoot',
-                                      encoding=xtcedef.IntegerDataEncoding(
+         parameters.IntegerParameterType(name='TEST_INT_Type', unit='smoot',
+                                      encoding=encodings.IntegerDataEncoding(
                                        size_in_bits=16, encoding='unsigned',
-                                       default_calibrator=xtcedef.SplineCalibrator(
+                                       default_calibrator=calibrators.SplineCalibrator(
                                            order=0, extrapolate=False,
                                            points=[
-                                               xtcedef.SplinePoint(raw=1, calibrated=10),
-                                               xtcedef.SplinePoint(raw=2, calibrated=100),
-                                               xtcedef.SplinePoint(raw=3, calibrated=500),
+                                               calibrators.SplinePoint(raw=1, calibrated=10),
+                                               calibrators.SplinePoint(raw=2, calibrated=100),
+                                               calibrators.SplinePoint(raw=3, calibrated=500),
                                            ]
                                        )))),
     ]
@@ -1298,9 +1299,9 @@ def test_integer_parameter_type(xml_string: str, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            xtcedef.IntegerParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+            parameters.IntegerParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
     else:
-        result = xtcedef.IntegerParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+        result = parameters.IntegerParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
         assert result == expectation
 
 
@@ -1308,87 +1309,87 @@ def test_integer_parameter_type(xml_string: str, expectation):
     ('parameter_type', 'packet', 'expected'),
     [
         # 16-bit unsigned starting at byte boundary
-        (xtcedef.IntegerParameterType('TEST_INT', xtcedef.IntegerDataEncoding(16, 'unsigned')),
-         xtcedef.Packet(0b1000000000000000.to_bytes(length=2, byteorder='big')),
+        (parameters.IntegerParameterType('TEST_INT', encodings.IntegerDataEncoding(16, 'unsigned')),
+         parseables.Packet(0b1000000000000000.to_bytes(length=2, byteorder='big')),
          32768),
         # 16-bit unsigned little endian at byte boundary
-        (xtcedef.IntegerParameterType(
+        (parameters.IntegerParameterType(
             'TEST_INT',
-            xtcedef.IntegerDataEncoding(16, 'unsigned', byte_order="leastSignificantByteFirst")),
-         xtcedef.Packet(0b1000000000000000.to_bytes(length=2, byteorder='big')),
+            encodings.IntegerDataEncoding(16, 'unsigned', byte_order="leastSignificantByteFirst")),
+         parseables.Packet(0b1000000000000000.to_bytes(length=2, byteorder='big')),
          128),
         # 16-bit signed starting at byte boundary
-        (xtcedef.IntegerParameterType('TEST_INT', xtcedef.IntegerDataEncoding(16, 'signed')),
-         xtcedef.Packet(0b1111111111010110.to_bytes(length=2, byteorder='big')),
+        (parameters.IntegerParameterType('TEST_INT', encodings.IntegerDataEncoding(16, 'signed')),
+         parseables.Packet(0b1111111111010110.to_bytes(length=2, byteorder='big')),
          -42),
         # 16-bit signed little endian starting at byte boundary
-        (xtcedef.IntegerParameterType(
+        (parameters.IntegerParameterType(
             'TEST_INT',
-            xtcedef.IntegerDataEncoding(16, 'signed', byte_order="leastSignificantByteFirst")),
-         xtcedef.Packet(0b1101011011111111.to_bytes(length=2, byteorder='big')),
+            encodings.IntegerDataEncoding(16, 'signed', byte_order="leastSignificantByteFirst")),
+         parseables.Packet(0b1101011011111111.to_bytes(length=2, byteorder='big')),
          -42),
         # 16-bit signed integer starting at a byte boundary,
         # calibrated by a polynomial y = (x*2 + 5); x = -42; y = -84 + 5 = -79
-        (xtcedef.IntegerParameterType(
+        (parameters.IntegerParameterType(
             'TEST_INT',
-            xtcedef.IntegerDataEncoding(
+            encodings.IntegerDataEncoding(
                 16, 'signed',
                 context_calibrators=[
-                    xtcedef.ContextCalibrator([
-                        xtcedef.Condition(left_param='PKT_APID', operator='==',
+                    calibrators.ContextCalibrator([
+                        comparisons.Condition(left_param='PKT_APID', operator='==',
                                           right_value=1101, left_use_calibrated_value=False,
                                           right_use_calibrated_value=False)],
-                        xtcedef.PolynomialCalibrator([xtcedef.PolynomialCoefficient(5, 0),
-                                                      xtcedef.PolynomialCoefficient(2, 1)]))
+                        calibrators.PolynomialCalibrator([calibrators.PolynomialCoefficient(5, 0),
+                                                      calibrators.PolynomialCoefficient(2, 1)]))
                 ])),
-         xtcedef.Packet(0b1111111111010110.to_bytes(length=2, byteorder='big'),
-                            parsed_data={'PKT_APID': parser.ParsedDataItem('PKT_APID', 1101)},),
+         parseables.Packet(0b1111111111010110.to_bytes(length=2, byteorder='big'),
+                            parsed_data={'PKT_APID': parseables.ParsedDataItem('PKT_APID', 1101)},),
          -79),
         # 12-bit unsigned integer starting at bit 4 of the first byte
-        (xtcedef.IntegerParameterType('TEST_INT', xtcedef.IntegerDataEncoding(12, 'unsigned')),
+        (parameters.IntegerParameterType('TEST_INT', encodings.IntegerDataEncoding(12, 'unsigned')),
          # 11111000 00000000
          #     |--uint:12--|
-         xtcedef.Packet(0b1111100000000000.to_bytes(length=2, byteorder='big'), pos=4),
+         parseables.Packet(0b1111100000000000.to_bytes(length=2, byteorder='big'), pos=4),
          2048),
         # 13-bit unsigned integer starting on bit 2 of the second byte
-        (xtcedef.IntegerParameterType('TEST_INT', xtcedef.IntegerDataEncoding(13, 'unsigned')),
+        (parameters.IntegerParameterType('TEST_INT', encodings.IntegerDataEncoding(13, 'unsigned')),
          # 10101010 11100000 00000001
          #            |--uint:13---|
-         xtcedef.Packet(0b101010101110000000000001.to_bytes(length=3, byteorder='big'), pos=10),
+         parseables.Packet(0b101010101110000000000001.to_bytes(length=3, byteorder='big'), pos=10),
          4096),
         # 16-bit unsigned integer starting on bit 2 of the first byte
-        (xtcedef.IntegerParameterType('TEST_INT', xtcedef.IntegerDataEncoding(16, 'unsigned')),
+        (parameters.IntegerParameterType('TEST_INT', encodings.IntegerDataEncoding(16, 'unsigned')),
          # 10101010 11100000 00000001
          #   |----uint:16-----|
-         xtcedef.Packet(0b101010101110000000000001.to_bytes(length=3, byteorder='big'), pos=2),
+         parseables.Packet(0b101010101110000000000001.to_bytes(length=3, byteorder='big'), pos=2),
          43904),
         # 12-bit signed integer starting on bit 4 of the first byte
-        (xtcedef.IntegerParameterType('TEST_INT', xtcedef.IntegerDataEncoding(12, 'signed')),
+        (parameters.IntegerParameterType('TEST_INT', encodings.IntegerDataEncoding(12, 'signed')),
          # 11111000 00000000
          #     |---int:12--|
-         xtcedef.Packet(0b1111100000000000.to_bytes(length=2, byteorder='big'), pos=4),
+         parseables.Packet(0b1111100000000000.to_bytes(length=2, byteorder='big'), pos=4),
          -2048),
         # 12-bit signed integer starting on bit 6 of the first byte
-        (xtcedef.IntegerParameterType('TEST_INT', xtcedef.IntegerDataEncoding(12, 'signed')),
+        (parameters.IntegerParameterType('TEST_INT', encodings.IntegerDataEncoding(12, 'signed')),
          # 12-bit signed integer starting on bit 4 of the first byte
          #  11111110 00000000 00111111 10101010
          #        |---int:12---|
-         xtcedef.Packet(0b11111110000000000011111110101010.to_bytes(length=4, byteorder='big'), pos=6),
+         parseables.Packet(0b11111110000000000011111110101010.to_bytes(length=4, byteorder='big'), pos=6),
          -2048),
         # 12-bit signed little endian integer starting on bit 6 of the first byte
-        (xtcedef.IntegerParameterType(
+        (parameters.IntegerParameterType(
             'TEST_INT',
-            xtcedef.IntegerDataEncoding(12, 'signed', byte_order='leastSignificantByteFirst')),
+            encodings.IntegerDataEncoding(12, 'signed', byte_order='leastSignificantByteFirst')),
          # 12-bit signed little endian integer starting on bit 4 of the first byte. The LSB of the integer comes first
          #  11111100 00000010 00111111 10101010
          #        |---int:12---|
-         xtcedef.Packet(0b11111100000000100011111110101010.to_bytes(length=4, byteorder='big'), pos=6),
+         parseables.Packet(0b11111100000000100011111110101010.to_bytes(length=4, byteorder='big'), pos=6),
          -2048),
-        (xtcedef.IntegerParameterType('TEST_INT', xtcedef.IntegerDataEncoding(3, 'twosComplement')),
+        (parameters.IntegerParameterType('TEST_INT', encodings.IntegerDataEncoding(3, 'twosComplement')),
          # 3-bit signed integer starting at bit 7 of the first byte
          #  00000001      11000000       00000000
          #         |-int:3-|
-         xtcedef.Packet(0b000000011100000000000000.to_bytes(length=3, byteorder='big'), pos=7),
+         parseables.Packet(0b000000011100000000000000.to_bytes(length=3, byteorder='big'), pos=7),
          -1),
     ]
 )
@@ -1412,8 +1413,8 @@ def test_integer_parameter_parsing(parameter_type, packet, expected):
     <xtce:FloatDataEncoding sizeInBits="16"/>
 </xtce:FloatParameterType>
 """,
-         xtcedef.FloatParameterType(name='TEST_INT_Type', unit='smoot',
-                                    encoding=xtcedef.FloatDataEncoding(size_in_bits=16, encoding='IEEE-754'))),
+         parameters.FloatParameterType(name='TEST_INT_Type', unit='smoot',
+                                    encoding=encodings.FloatDataEncoding(size_in_bits=16, encoding='IEEE-754'))),
         ("""
 <xtce:FloatParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_INT_Type">
     <xtce:UnitSet>
@@ -1422,8 +1423,8 @@ def test_integer_parameter_parsing(parameter_type, packet, expected):
     <xtce:IntegerDataEncoding sizeInBits="16" encoding="unsigned"/>
 </xtce:FloatParameterType>
 """,
-         xtcedef.FloatParameterType(name='TEST_INT_Type', unit='smoot',
-                                    encoding=xtcedef.IntegerDataEncoding(size_in_bits=16, encoding='unsigned'))),
+         parameters.FloatParameterType(name='TEST_INT_Type', unit='smoot',
+                                    encoding=encodings.IntegerDataEncoding(size_in_bits=16, encoding='unsigned'))),
         ("""
 <xtce:FloatParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_INT_Type">
     <xtce:UnitSet>
@@ -1440,13 +1441,13 @@ def test_integer_parameter_parsing(parameter_type, packet, expected):
     </xtce:IntegerDataEncoding>
 </xtce:FloatParameterType>
 """,
-         xtcedef.FloatParameterType(name='TEST_INT_Type', unit='smoot',
-                                    encoding=xtcedef.IntegerDataEncoding(
+         parameters.FloatParameterType(name='TEST_INT_Type', unit='smoot',
+                                    encoding=encodings.IntegerDataEncoding(
                                      size_in_bits=16, encoding='unsigned',
-                                     default_calibrator=xtcedef.PolynomialCalibrator([
-                                         xtcedef.PolynomialCoefficient(2772.24, 0),
-                                         xtcedef.PolynomialCoefficient(-41.6338, 1),
-                                         xtcedef.PolynomialCoefficient(-0.185486, 2)
+                                     default_calibrator=calibrators.PolynomialCalibrator([
+                                         calibrators.PolynomialCoefficient(2772.24, 0),
+                                         calibrators.PolynomialCoefficient(-41.6338, 1),
+                                         calibrators.PolynomialCoefficient(-0.185486, 2)
                                      ])
                                     ))),
         ("""
@@ -1465,15 +1466,15 @@ def test_integer_parameter_parsing(parameter_type, packet, expected):
     </xtce:IntegerDataEncoding>
 </xtce:FloatParameterType>
 """,
-         xtcedef.FloatParameterType(name='TEST_INT_Type', unit='smoot',
-                                    encoding=xtcedef.IntegerDataEncoding(
+         parameters.FloatParameterType(name='TEST_INT_Type', unit='smoot',
+                                    encoding=encodings.IntegerDataEncoding(
                                      size_in_bits=16, encoding='unsigned',
-                                     default_calibrator=xtcedef.SplineCalibrator(
+                                     default_calibrator=calibrators.SplineCalibrator(
                                          order=0, extrapolate=False,
                                          points=[
-                                             xtcedef.SplinePoint(raw=1, calibrated=10.),
-                                             xtcedef.SplinePoint(raw=2, calibrated=100.),
-                                             xtcedef.SplinePoint(raw=3, calibrated=500.),
+                                             calibrators.SplinePoint(raw=1, calibrated=10.),
+                                             calibrators.SplinePoint(raw=2, calibrated=100.),
+                                             calibrators.SplinePoint(raw=3, calibrated=500.),
                                          ]
                                      )))),
     ]
@@ -1484,9 +1485,9 @@ def test_float_parameter_type(xml_string: str, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            xtcedef.FloatParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+            parameters.FloatParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
     else:
-        result = xtcedef.FloatParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+        result = parameters.FloatParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
         assert result == expectation
 
 
@@ -1494,97 +1495,97 @@ def test_float_parameter_type(xml_string: str, expectation):
     ('parameter_type', 'packet', 'expected'),
     [
         # Test big endion 32-bit IEEE float
-        (xtcedef.FloatParameterType('TEST_FLOAT', xtcedef.FloatDataEncoding(32)),
-         xtcedef.Packet(0b01000000010010010000111111010000.to_bytes(length=4, byteorder='big')),
+        (parameters.FloatParameterType('TEST_FLOAT', encodings.FloatDataEncoding(32)),
+         parseables.Packet(0b01000000010010010000111111010000.to_bytes(length=4, byteorder='big')),
          3.14159),
         # Test little endian 32-bit IEEE float
-        (xtcedef.FloatParameterType(
+        (parameters.FloatParameterType(
             'TEST_FLOAT',
-            xtcedef.FloatDataEncoding(32, byte_order='leastSignificantByteFirst')),
-         xtcedef.Packet(0b01000000010010010000111111010000.to_bytes(length=4, byteorder='little')),
+            encodings.FloatDataEncoding(32, byte_order='leastSignificantByteFirst')),
+         parseables.Packet(0b01000000010010010000111111010000.to_bytes(length=4, byteorder='little')),
          3.14159),
         # Test big endian 64-bit float
-        (xtcedef.FloatParameterType('TEST_FLOAT', xtcedef.FloatDataEncoding(64)),
-         xtcedef.Packet(b'\x3F\xF9\xE3\x77\x9B\x97\xF4\xA8'),  # 64-bit IEEE 754 value of Phi
+        (parameters.FloatParameterType('TEST_FLOAT', encodings.FloatDataEncoding(64)),
+         parseables.Packet(b'\x3F\xF9\xE3\x77\x9B\x97\xF4\xA8'),  # 64-bit IEEE 754 value of Phi
          1.6180339),
         # Test float parameter type encoded as big endian 16-bit integer with contextual polynomial calibrator
-        (xtcedef.FloatParameterType(
+        (parameters.FloatParameterType(
             'TEST_FLOAT',
-            xtcedef.IntegerDataEncoding(
+            encodings.IntegerDataEncoding(
                 16, 'signed',
                 context_calibrators=[
-                    xtcedef.ContextCalibrator([
-                        xtcedef.Condition(left_param='PKT_APID', operator='==',
+                    calibrators.ContextCalibrator([
+                        comparisons.Condition(left_param='PKT_APID', operator='==',
                                           right_value=1101, left_use_calibrated_value=False,
                                           right_use_calibrated_value=False)],
-                        xtcedef.PolynomialCalibrator([xtcedef.PolynomialCoefficient(5.6, 0),
-                                                      xtcedef.PolynomialCoefficient(2.1, 1)]))
+                        calibrators.PolynomialCalibrator([calibrators.PolynomialCoefficient(5.6, 0),
+                                                      calibrators.PolynomialCoefficient(2.1, 1)]))
                 ])),
-         xtcedef.Packet(0b1111111111010110.to_bytes(length=2, byteorder='big'),
-                            parsed_data={'PKT_APID': parser.ParsedDataItem('PKT_APID', 1101)}),
+         parseables.Packet(0b1111111111010110.to_bytes(length=2, byteorder='big'),
+                            parsed_data={'PKT_APID': parseables.ParsedDataItem('PKT_APID', 1101)}),
          -82.600000),
         # Test MIL 1750A encoded floats.
         # Test values taken from: https://www.xgc-tek.com/manuals/mil-std-1750a/c191.html#AEN324
-        (xtcedef.FloatParameterType(
+        (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
-            xtcedef.FloatDataEncoding(32, encoding="MIL-1750A")),
-         xtcedef.Packet(b'\x7f\xff\xff\x7f'),
+            encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
+         parseables.Packet(b'\x7f\xff\xff\x7f'),
          0.9999998 * (2 ** 127)),
-        (xtcedef.FloatParameterType(
+        (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
-            xtcedef.FloatDataEncoding(32, encoding="MIL-1750A")),
-         xtcedef.Packet(b'\x40\x00\x00\x7f'),
+            encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
+         parseables.Packet(b'\x40\x00\x00\x7f'),
          0.5 * (2 ** 127)),
-        (xtcedef.FloatParameterType(
+        (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
-            xtcedef.FloatDataEncoding(32, encoding="MIL-1750A")),
-         xtcedef.Packet(b'\x50\x00\x00\x04'),
+            encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
+         parseables.Packet(b'\x50\x00\x00\x04'),
          0.625 * (2 ** 4)),
-        (xtcedef.FloatParameterType(
+        (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
-            xtcedef.FloatDataEncoding(32, encoding="MIL-1750A")),
-         xtcedef.Packet(b'\x40\x00\x00\x01'),
+            encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
+         parseables.Packet(b'\x40\x00\x00\x01'),
          0.5 * (2 ** 1)),
-        (xtcedef.FloatParameterType(
+        (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
-            xtcedef.FloatDataEncoding(32, encoding="MIL-1750A")),
-         xtcedef.Packet(b'\x40\x00\x00\x00'),
+            encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
+         parseables.Packet(b'\x40\x00\x00\x00'),
          0.5 * (2 ** 0)),
-        (xtcedef.FloatParameterType(
+        (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
-            xtcedef.FloatDataEncoding(32, encoding="MIL-1750A")),
-         xtcedef.Packet(b'\x40\x00\x00\xff'),
+            encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
+         parseables.Packet(b'\x40\x00\x00\xff'),
          0.5 * (2 ** -1)),
-        (xtcedef.FloatParameterType(
+        (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
-            xtcedef.FloatDataEncoding(32, encoding="MIL-1750A")),
-         xtcedef.Packet(b'\x40\x00\x00\x80'),
+            encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
+         parseables.Packet(b'\x40\x00\x00\x80'),
          0.5 * (2 ** -128)),
-        (xtcedef.FloatParameterType(
+        (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
-            xtcedef.FloatDataEncoding(32, encoding="MIL-1750A")),
-         xtcedef.Packet(b'\x00\x00\x00\x00'),
+            encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
+         parseables.Packet(b'\x00\x00\x00\x00'),
          0.0 * (2 ** 0)),
-        (xtcedef.FloatParameterType(
+        (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
-            xtcedef.FloatDataEncoding(32, encoding="MIL-1750A")),
-         xtcedef.Packet(b'\x80\x00\x00\x00'),
+            encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
+         parseables.Packet(b'\x80\x00\x00\x00'),
          -1.0 * (2 ** 0)),
-        (xtcedef.FloatParameterType(
+        (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
-            xtcedef.FloatDataEncoding(32, encoding="MIL-1750A")),
-         xtcedef.Packet(b'\xBF\xFF\xFF\x80'),
+            encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
+         parseables.Packet(b'\xBF\xFF\xFF\x80'),
          -0.5000001 * (2 ** -128)),
-        (xtcedef.FloatParameterType(
+        (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
-            xtcedef.FloatDataEncoding(32, encoding="MIL-1750A")),
-         xtcedef.Packet(b'\x9F\xFF\xFF\x04'),
+            encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
+         parseables.Packet(b'\x9F\xFF\xFF\x04'),
          -0.7500001 * (2 ** 4)),
         # Little endian version of previous test
-        (xtcedef.FloatParameterType(
+        (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
-            xtcedef.FloatDataEncoding(32, encoding="MIL-1750A", byte_order="leastSignificantByteFirst")),
-         xtcedef.Packet(b'\x04\xFF\xFF\x9F'),
+            encodings.FloatDataEncoding(32, encoding="MIL-1750A", byte_order="leastSignificantByteFirst")),
+         parseables.Packet(b'\x04\xFF\xFF\x9F'),
          -0.7500001 * (2 ** 4)),
     ]
 )
@@ -1614,8 +1615,8 @@ def test_float_parameter_parsing(parameter_type, packet, expected):
     </xtce:EnumerationList>
 </xtce:EnumeratedParameterType>
 """,
-         xtcedef.EnumeratedParameterType(name='TEST_ENUM_Type',
-                                         encoding=xtcedef.IntegerDataEncoding(size_in_bits=2, encoding='unsigned'),
+         parameters.EnumeratedParameterType(name='TEST_ENUM_Type',
+                                         encoding=encodings.IntegerDataEncoding(size_in_bits=2, encoding='unsigned'),
                                          # NOTE: Duplicate final value is on purpose to make sure we handle that case
                                          enumeration={0: 'BOOT_POR', 1: 'BOOT_RETURN', 2: 'OP_LOW', 3: 'OP_HIGH', 4: 'OP_HIGH'})),
     ]
@@ -1626,24 +1627,24 @@ def test_enumerated_parameter_type(xml_string: str, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            xtcedef.EnumeratedParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+            parameters.EnumeratedParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
     else:
-        result = xtcedef.EnumeratedParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+        result = parameters.EnumeratedParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
         assert result == expectation
 
 
 @pytest.mark.parametrize(
     ('parameter_type', 'packet', 'expected'),
     [
-        (xtcedef.EnumeratedParameterType(
+        (parameters.EnumeratedParameterType(
             'TEST_ENUM',
-            xtcedef.IntegerDataEncoding(16, 'unsigned'), {32768: 'NOMINAL'}),
-         xtcedef.Packet(0b1000000000000000.to_bytes(length=2, byteorder='big')),
+            encodings.IntegerDataEncoding(16, 'unsigned'), {32768: 'NOMINAL'}),
+         parseables.Packet(0b1000000000000000.to_bytes(length=2, byteorder='big')),
          'NOMINAL'),
-        (xtcedef.EnumeratedParameterType(
+        (parameters.EnumeratedParameterType(
             'TEST_FLOAT',
-            xtcedef.IntegerDataEncoding(16, 'signed'),  {-42: 'VAL_LOW'}),
-         xtcedef.Packet(0b1111111111010110.to_bytes(length=2, byteorder='big')),
+            encodings.IntegerDataEncoding(16, 'signed'),  {-42: 'VAL_LOW'}),
+         parseables.Packet(0b1111111111010110.to_bytes(length=2, byteorder='big')),
          'VAL_LOW'),
     ]
 )
@@ -1671,8 +1672,8 @@ def test_enumerated_parameter_parsing(parameter_type, packet, expected):
     </xtce:BinaryDataEncoding>
 </xtce:BinaryParameterType>
 """,
-         xtcedef.BinaryParameterType(name='TEST_PARAM_Type', unit='smoot',
-                                     encoding=xtcedef.BinaryDataEncoding(fixed_size_in_bits=256))),
+         parameters.BinaryParameterType(name='TEST_PARAM_Type', unit='smoot',
+                                     encoding=encodings.BinaryDataEncoding(fixed_size_in_bits=256))),
         ("""
 <xtce:BinaryParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
     <xtce:UnitSet/>
@@ -1683,8 +1684,8 @@ def test_enumerated_parameter_parsing(parameter_type, packet, expected):
     </xtce:BinaryDataEncoding>
 </xtce:BinaryParameterType>
 """,
-         xtcedef.BinaryParameterType(name='TEST_PARAM_Type', unit=None,
-                                     encoding=xtcedef.BinaryDataEncoding(fixed_size_in_bits=128))),
+         parameters.BinaryParameterType(name='TEST_PARAM_Type', unit=None,
+                                     encoding=encodings.BinaryDataEncoding(fixed_size_in_bits=128))),
         ("""
 <xtce:BinaryParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
     <xtce:UnitSet/>
@@ -1698,8 +1699,8 @@ def test_enumerated_parameter_parsing(parameter_type, packet, expected):
     </xtce:BinaryDataEncoding>
 </xtce:BinaryParameterType>
 """,
-         xtcedef.BinaryParameterType(name='TEST_PARAM_Type',
-                                     encoding=xtcedef.BinaryDataEncoding(
+         parameters.BinaryParameterType(name='TEST_PARAM_Type',
+                                     encoding=encodings.BinaryDataEncoding(
                                          size_reference_parameter='SizeFromThisParameter',
                                          use_calibrated_value=False,
                                          linear_adjuster=lambda x: x))),
@@ -1715,8 +1716,8 @@ def test_enumerated_parameter_parsing(parameter_type, packet, expected):
     </xtce:BinaryDataEncoding>
 </xtce:BinaryParameterType>
 """,
-         xtcedef.BinaryParameterType(name='TEST_PARAM_Type', unit=None,
-                                     encoding=xtcedef.BinaryDataEncoding(
+         parameters.BinaryParameterType(name='TEST_PARAM_Type', unit=None,
+                                     encoding=encodings.BinaryDataEncoding(
                                          size_reference_parameter='SizeFromThisParameter'))),
     ]
 )
@@ -1726,9 +1727,9 @@ def test_binary_parameter_type(xml_string: str, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            xtcedef.BinaryParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+            parameters.BinaryParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
     else:
-        result = xtcedef.BinaryParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+        result = parameters.BinaryParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
         assert result == expectation
 
 
@@ -1736,30 +1737,30 @@ def test_binary_parameter_type(xml_string: str, expectation):
     ('parameter_type', 'packet', 'expected'),
     [
         # fixed size
-        (xtcedef.BinaryParameterType(
+        (parameters.BinaryParameterType(
             'TEST_BIN',
-            xtcedef.BinaryDataEncoding(fixed_size_in_bits=16)),
-         xtcedef.Packet(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big')),
+            encodings.BinaryDataEncoding(fixed_size_in_bits=16)),
+         parseables.Packet(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big')),
          b'42'),
         # discrete lookup list size
-        (xtcedef.BinaryParameterType(
+        (parameters.BinaryParameterType(
             'TEST_BIN',
-            xtcedef.BinaryDataEncoding(size_discrete_lookup_list=[
-                xtcedef.DiscreteLookup([
-                    xtcedef.Comparison(required_value=7.4, referenced_parameter='P1',
+            encodings.BinaryDataEncoding(size_discrete_lookup_list=[
+                comparisons.DiscreteLookup([
+                    comparisons.Comparison(required_value=7.4, referenced_parameter='P1',
                                        operator='==', use_calibrated_value=True)
                 ], lookup_value=2)
             ], linear_adjuster=lambda x: 8*x)),
-         xtcedef.Packet(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big'),
-                            parsed_data={'P1': parser.ParsedDataItem('P1', 1, None, 7.4)}),
+         parseables.Packet(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big'),
+                            parsed_data={'P1': parseables.ParsedDataItem('P1', 1, None, 7.4)}),
          b'42'),
         # dynamic size reference to other parameter
-        (xtcedef.BinaryParameterType(
+        (parameters.BinaryParameterType(
             'TEST_BIN',
-            xtcedef.BinaryDataEncoding(size_reference_parameter='BIN_LEN',
+            encodings.BinaryDataEncoding(size_reference_parameter='BIN_LEN',
                                        use_calibrated_value=False, linear_adjuster=lambda x: 8*x)),
-         xtcedef.Packet(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big'),
-                            parsed_data={'BIN_LEN': parser.ParsedDataItem('BIN_LEN', 2, None)}),
+         parseables.Packet(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big'),
+                            parsed_data={'BIN_LEN': parseables.ParsedDataItem('BIN_LEN', 2, None)}),
          b'42'),
     ]
 )
@@ -1784,8 +1785,8 @@ def test_binary_parameter_parsing(parameter_type, packet, expected):
     </xtce:BinaryDataEncoding>
 </xtce:BooleanParameterType>
 """,
-         xtcedef.BooleanParameterType(name='TEST_PARAM_Type', unit='smoot',
-                                      encoding=xtcedef.BinaryDataEncoding(fixed_size_in_bits=1))),
+         parameters.BooleanParameterType(name='TEST_PARAM_Type', unit='smoot',
+                                      encoding=encodings.BinaryDataEncoding(fixed_size_in_bits=1))),
         ("""
 <xtce:BooleanParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
     <xtce:UnitSet>
@@ -1794,8 +1795,8 @@ def test_binary_parameter_parsing(parameter_type, packet, expected):
     <xtce:IntegerDataEncoding encoding="unsigned" sizeInBits="1"/>
 </xtce:BooleanParameterType>
 """,
-         xtcedef.BooleanParameterType(name='TEST_PARAM_Type', unit='smoot',
-                                      encoding=xtcedef.IntegerDataEncoding(size_in_bits=1, encoding="unsigned"))),
+         parameters.BooleanParameterType(name='TEST_PARAM_Type', unit='smoot',
+                                      encoding=encodings.IntegerDataEncoding(size_in_bits=1, encoding="unsigned"))),
         ("""
 <xtce:BooleanParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
     <xtce:UnitSet>
@@ -1808,8 +1809,8 @@ def test_binary_parameter_parsing(parameter_type, packet, expected):
     </xtce:StringDataEncoding>
 </xtce:BooleanParameterType>
 """,
-         xtcedef.BooleanParameterType(name='TEST_PARAM_Type', unit='smoot',
-                                      encoding=xtcedef.StringDataEncoding(termination_character='00'))),
+         parameters.BooleanParameterType(name='TEST_PARAM_Type', unit='smoot',
+                                      encoding=encodings.StringDataEncoding(termination_character='00'))),
     ]
 )
 def test_boolean_parameter_type(xml_string, expectation):
@@ -1818,44 +1819,44 @@ def test_boolean_parameter_type(xml_string, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            xtcedef.BooleanParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+            parameters.BooleanParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
     else:
-        result = xtcedef.BooleanParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+        result = parameters.BooleanParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
         assert result == expectation
 
 
 @pytest.mark.parametrize(
     ('parameter_type', 'packet', 'expected_raw', 'expected_derived'),
     [
-        (xtcedef.BooleanParameterType(
+        (parameters.BooleanParameterType(
             'TEST_BOOL',
-            xtcedef.BinaryDataEncoding(fixed_size_in_bits=1)),
-         xtcedef.Packet(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=64, byteorder='big')),
+            encodings.BinaryDataEncoding(fixed_size_in_bits=1)),
+         parseables.Packet(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=64, byteorder='big')),
          b'\x00', True),
-        (xtcedef.BooleanParameterType(
+        (parameters.BooleanParameterType(
             'TEST_BOOL',
-            xtcedef.StringDataEncoding(encoding="UTF-8", termination_character='00')),
-         xtcedef.Packet(0b011001100110000101101100011100110110010101011111011010010111001101011111011101000111001001110101011101000110100001111001000000000010101101010111.to_bytes(length=18, byteorder='big')),
+            encodings.StringDataEncoding(encoding="UTF-8", termination_character='00')),
+         parseables.Packet(0b011001100110000101101100011100110110010101011111011010010111001101011111011101000111001001110101011101000110100001111001000000000010101101010111.to_bytes(length=18, byteorder='big')),
          'false_is_truthy', True),
-        (xtcedef.BooleanParameterType(
+        (parameters.BooleanParameterType(
             'TEST_BOOL',
-            xtcedef.IntegerDataEncoding(size_in_bits=2, encoding="unsigned")),
-         xtcedef.Packet(0b0011.to_bytes(length=1, byteorder='big')),
+            encodings.IntegerDataEncoding(size_in_bits=2, encoding="unsigned")),
+         parseables.Packet(0b0011.to_bytes(length=1, byteorder='big')),
          0, False),
-        (xtcedef.BooleanParameterType(
+        (parameters.BooleanParameterType(
             'TEST_BOOL',
-            xtcedef.IntegerDataEncoding(size_in_bits=2, encoding="unsigned")),
-         xtcedef.Packet(0b00001111.to_bytes(length=1, byteorder='big'), pos=4),
+            encodings.IntegerDataEncoding(size_in_bits=2, encoding="unsigned")),
+         parseables.Packet(0b00001111.to_bytes(length=1, byteorder='big'), pos=4),
          3, True),
-        (xtcedef.BooleanParameterType(
+        (parameters.BooleanParameterType(
             'TEST_BOOL',
-            xtcedef.FloatDataEncoding(size_in_bits=16)),
-         xtcedef.Packet(0b01010001010000001111111110000000.to_bytes(length=4, byteorder='big')),
+            encodings.FloatDataEncoding(size_in_bits=16)),
+         parseables.Packet(0b01010001010000001111111110000000.to_bytes(length=4, byteorder='big')),
          42.0, True),
-        (xtcedef.BooleanParameterType(
+        (parameters.BooleanParameterType(
             'TEST_BOOL',
-            xtcedef.FloatDataEncoding(size_in_bits=16)),
-         xtcedef.Packet(0b00000000101000101000000111111111.to_bytes(length=4, byteorder='big'), pos=7),
+            encodings.FloatDataEncoding(size_in_bits=16)),
+         parseables.Packet(0b00000000101000101000000111111111.to_bytes(length=4, byteorder='big'), pos=7),
          42.0, True),
     ]
 )
@@ -1880,8 +1881,8 @@ def test_boolean_parameter_parsing(parameter_type, packet, expected_raw, expecte
     </xtce:ReferenceTime>
 </xtce:AbsoluteTimeParameterType>
 """,
-         xtcedef.AbsoluteTimeParameterType(name='TEST_PARAM_Type', unit='seconds',
-                                           encoding=xtcedef.IntegerDataEncoding(size_in_bits=32, encoding="unsigned"),
+         parameters.AbsoluteTimeParameterType(name='TEST_PARAM_Type', unit='seconds',
+                                           encoding=encodings.IntegerDataEncoding(size_in_bits=32, encoding="unsigned"),
                                            epoch="TAI", offset_from="MilliSeconds")),
         ("""
 <xtce:AbsoluteTimeParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
@@ -1894,14 +1895,14 @@ def test_boolean_parameter_parsing(parameter_type, packet, expected_raw, expecte
     </xtce:ReferenceTime>
 </xtce:AbsoluteTimeParameterType>
 """,
-         xtcedef.AbsoluteTimeParameterType(
+         parameters.AbsoluteTimeParameterType(
              name='TEST_PARAM_Type', unit='s',
-             encoding=xtcedef.IntegerDataEncoding(
+             encoding=encodings.IntegerDataEncoding(
                  size_in_bits=32, encoding="unsigned",
-                 default_calibrator=xtcedef.PolynomialCalibrator(
+                 default_calibrator=calibrators.PolynomialCalibrator(
                      coefficients=[
-                         xtcedef.PolynomialCoefficient(0, 0),
-                         xtcedef.PolynomialCoefficient(1E-6, 1)
+                         calibrators.PolynomialCoefficient(0, 0),
+                         calibrators.PolynomialCoefficient(1E-6, 1)
                      ])),
              epoch="2009-10-10T12:00:00-05:00", offset_from="MilliSeconds")),
         ("""
@@ -1911,13 +1912,13 @@ def test_boolean_parameter_parsing(parameter_type, packet, expected_raw, expecte
     </xtce:Encoding>
 </xtce:AbsoluteTimeParameterType>
 """,
-         xtcedef.AbsoluteTimeParameterType(
+         parameters.AbsoluteTimeParameterType(
              name='TEST_PARAM_Type', unit='s',
-             encoding=xtcedef.IntegerDataEncoding(
+             encoding=encodings.IntegerDataEncoding(
                  size_in_bits=32, encoding="unsigned",
-                 default_calibrator=xtcedef.PolynomialCalibrator(
+                 default_calibrator=calibrators.PolynomialCalibrator(
                      coefficients=[
-                         xtcedef.PolynomialCoefficient(1.31E-6, 1)
+                         calibrators.PolynomialCoefficient(1.31E-6, 1)
                      ]))
          )),
         ("""
@@ -1927,14 +1928,14 @@ def test_boolean_parameter_parsing(parameter_type, packet, expected_raw, expecte
     </xtce:Encoding>
 </xtce:AbsoluteTimeParameterType>
 """,
-         xtcedef.AbsoluteTimeParameterType(
+         parameters.AbsoluteTimeParameterType(
              name='TEST_PARAM_Type', unit='s',
-             encoding=xtcedef.IntegerDataEncoding(
+             encoding=encodings.IntegerDataEncoding(
                  size_in_bits=32, encoding="unsigned",
-                 default_calibrator=xtcedef.PolynomialCalibrator(
+                 default_calibrator=calibrators.PolynomialCalibrator(
                      coefficients=[
-                         xtcedef.PolynomialCoefficient(147.884, 0),
-                         xtcedef.PolynomialCoefficient(1, 1)
+                         calibrators.PolynomialCoefficient(147.884, 0),
+                         calibrators.PolynomialCoefficient(1, 1)
                      ]))
          )),
         ("""
@@ -1944,14 +1945,14 @@ def test_boolean_parameter_parsing(parameter_type, packet, expected_raw, expecte
     </xtce:Encoding>
 </xtce:AbsoluteTimeParameterType>
 """,
-         xtcedef.AbsoluteTimeParameterType(
+         parameters.AbsoluteTimeParameterType(
              name='TEST_PARAM_Type', unit='s',
-             encoding=xtcedef.FloatDataEncoding(
+             encoding=encodings.FloatDataEncoding(
                  size_in_bits=32, encoding="IEEE-754",
-                 default_calibrator=xtcedef.PolynomialCalibrator(
+                 default_calibrator=calibrators.PolynomialCalibrator(
                      coefficients=[
-                         xtcedef.PolynomialCoefficient(147.884, 0),
-                         xtcedef.PolynomialCoefficient(1, 1)
+                         calibrators.PolynomialCoefficient(147.884, 0),
+                         calibrators.PolynomialCoefficient(1, 1)
                      ]))
          )),
     ]
@@ -1962,46 +1963,46 @@ def test_absolute_time_parameter_type(xml_string, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            xtcedef.AbsoluteTimeParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+            parameters.AbsoluteTimeParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
     else:
-        result = xtcedef.AbsoluteTimeParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+        result = parameters.AbsoluteTimeParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
         assert result == expectation
 
 
 @pytest.mark.parametrize(
     ('parameter_type', 'packet', 'expected_raw', 'expected_derived'),
     [
-        (xtcedef.AbsoluteTimeParameterType(name='TEST_PARAM_Type', unit='seconds',
-                                           encoding=xtcedef.IntegerDataEncoding(size_in_bits=32, encoding="unsigned"),
+        (parameters.AbsoluteTimeParameterType(name='TEST_PARAM_Type', unit='seconds',
+                                           encoding=encodings.IntegerDataEncoding(size_in_bits=32, encoding="unsigned"),
                                            epoch="TAI", offset_from="MilliSeconds"),
          # Exactly 64 bits so neatly goes into a bytes object without padding
-         xtcedef.Packet(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big')),
+         parseables.Packet(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big')),
          875713280, 875713280),
-        (xtcedef.AbsoluteTimeParameterType(
+        (parameters.AbsoluteTimeParameterType(
              name='TEST_PARAM_Type', unit='s',
-             encoding=xtcedef.IntegerDataEncoding(
+             encoding=encodings.IntegerDataEncoding(
                  size_in_bits=32, encoding="unsigned",
-                 default_calibrator=xtcedef.PolynomialCalibrator(
+                 default_calibrator=calibrators.PolynomialCalibrator(
                      coefficients=[
-                         xtcedef.PolynomialCoefficient(0, 0),
-                         xtcedef.PolynomialCoefficient(1E-6, 1)
+                         calibrators.PolynomialCoefficient(0, 0),
+                         calibrators.PolynomialCoefficient(1E-6, 1)
                      ])),
              epoch="2009-10-10T12:00:00-05:00", offset_from="MilliSeconds"),
          # Exactly 64 bits so neatly goes into a bytes object without padding
-         xtcedef.Packet(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big')),
+         parseables.Packet(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big')),
          875713280, 875.7132799999999),
-        (xtcedef.AbsoluteTimeParameterType(
+        (parameters.AbsoluteTimeParameterType(
              name='TEST_PARAM_Type', unit='s',
-             encoding=xtcedef.FloatDataEncoding(
+             encoding=encodings.FloatDataEncoding(
                  size_in_bits=32, encoding="IEEE-754",
-                 default_calibrator=xtcedef.PolynomialCalibrator(
+                 default_calibrator=calibrators.PolynomialCalibrator(
                      coefficients=[
-                         xtcedef.PolynomialCoefficient(147.884, 0),
-                         xtcedef.PolynomialCoefficient(1, 1)
+                         calibrators.PolynomialCoefficient(147.884, 0),
+                         calibrators.PolynomialCoefficient(1, 1)
                      ]))),
          # 65 bits, so we need a 9th byte with 7 bits of padding to hold it,
          # which means we need to be starting at pos=7
-         xtcedef.Packet(0b01000000010010010000111111011011001001011000000000100100100000000.to_bytes(length=9, byteorder='big'), pos=7),
+         parseables.Packet(0b01000000010010010000111111011011001001011000000000100100100000000.to_bytes(length=9, byteorder='big'), pos=7),
          3.1415927, 151.02559269999998),
     ]
 )
@@ -2017,11 +2018,11 @@ def test_absolute_time_parameter_parsing(parameter_type, packet, expected_raw, e
 # ---------------
 def test_parameter():
     """Test Parameter"""
-    xtcedef.Parameter(name='TEST_INT',
-                      parameter_type=xtcedef.IntegerParameterType(
+    parameters.Parameter(name='TEST_INT',
+                      parameter_type=parameters.IntegerParameterType(
                        name='TEST_INT_Type',
                        unit='floops',
-                       encoding=xtcedef.IntegerDataEncoding(size_in_bits=16, encoding='unsigned')),
+                       encoding=encodings.IntegerDataEncoding(size_in_bits=16, encoding='unsigned')),
                       short_description="Param short desc",
                       long_description="This is a long description of the parameter")
 
@@ -2032,14 +2033,14 @@ def test_parameter():
 def test_parsing_xtce_document(test_data_dir):
     """Tests parsing an entire XTCE document and makes assertions about the contents"""
     with open(test_data_dir / "test_xtce.xml") as x:
-        xdef = xtcedef.XtcePacketDefinition(x, ns=TEST_NAMESPACE)
+        xdef = definitions.XtcePacketDefinition(x, ns=TEST_NAMESPACE)
 
     # Test Parameter Types
     ptname = "USEC_Type"
     pt = xdef.named_parameter_types[ptname]
     assert pt.name == ptname
     assert pt.unit == "us"
-    assert isinstance(pt.encoding, xtcedef.IntegerDataEncoding)
+    assert isinstance(pt.encoding, encodings.IntegerDataEncoding)
 
     # Test Parameters
     pname = "ADAET1DAY"  # Named parameter
@@ -2058,14 +2059,14 @@ def test_parsing_xtce_document(test_data_dir):
     scname = "SecondaryHeaderContainer"
     sc = xdef.named_containers[scname]
     assert sc.name == scname
-    assert sc == xtcedef.SequenceContainer(
+    assert sc == parseables.SequenceContainer(
         name=scname,
         entry_list=[
-            xtcedef.Parameter(
+            parameters.Parameter(
                 name="DOY",
-                parameter_type=xtcedef.FloatParameterType(
+                parameter_type=parameters.FloatParameterType(
                     name="DOY_Type",
-                    encoding=xtcedef.IntegerDataEncoding(
+                    encoding=encodings.IntegerDataEncoding(
                         size_in_bits=16, encoding="unsigned"
                     ),
                     unit="day"
@@ -2073,11 +2074,11 @@ def test_parsing_xtce_document(test_data_dir):
                 short_description="Secondary Header Day of Year",
                 long_description="CCSDS Packet 2nd Header Day of Year in days."
             ),
-            xtcedef.Parameter(
+            parameters.Parameter(
                 name="MSEC",
-                parameter_type=xtcedef.FloatParameterType(
+                parameter_type=parameters.FloatParameterType(
                     name="MSEC_Type",
-                    encoding=xtcedef.IntegerDataEncoding(
+                    encoding=encodings.IntegerDataEncoding(
                         size_in_bits=32, encoding="unsigned"
                     ),
                     unit="ms"
@@ -2085,11 +2086,11 @@ def test_parsing_xtce_document(test_data_dir):
                 short_description="Secondary Header Coarse Time (millisecond)",
                 long_description="CCSDS Packet 2nd Header Coarse Time in milliseconds."
             ),
-            xtcedef.Parameter(
+            parameters.Parameter(
                 name="USEC",
-                parameter_type=xtcedef.FloatParameterType(
+                parameter_type=parameters.FloatParameterType(
                     name="USEC_Type",
-                    encoding=xtcedef.IntegerDataEncoding(
+                    encoding=encodings.IntegerDataEncoding(
                         size_in_bits=16, encoding="unsigned"
                     ),
                     unit="us"
@@ -2117,4 +2118,4 @@ def test__extract_bits(start, nbits):
     s = '0000111100001111'
     data = int(s, 2).to_bytes(2, byteorder="big")
 
-    assert xtcedef._extract_bits(data, start, nbits) == int(s[start:start+nbits], 2)
+    assert parseables._extract_bits(data, start, nbits) == int(s[start:start+nbits], 2)

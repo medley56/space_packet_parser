@@ -2,7 +2,7 @@
 # Installed
 import pytest
 # Local
-from space_packet_parser import parser
+from space_packet_parser import parseables
 
 
 @pytest.mark.parametrize(
@@ -16,7 +16,7 @@ from space_packet_parser import parser
 )
 def test_parsed_data_item(name, raw_value, unit, derived_value, short_description, long_description, valid):
     """Test ParsedDataItem"""
-    pdi = parser.ParsedDataItem(name, raw_value, unit, derived_value, short_description, long_description)
+    pdi = parseables.ParsedDataItem(name, raw_value, unit, derived_value, short_description, long_description)
     assert pdi.name == name
     assert pdi.raw_value == raw_value
     assert pdi.unit == unit

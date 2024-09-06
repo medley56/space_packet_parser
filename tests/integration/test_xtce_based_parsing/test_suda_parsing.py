@@ -4,8 +4,8 @@ The packet definition used here is intended for IDEX, which is basically a rebui
 The data used here is SUDA data but the fields are parsed using IDEX naming conventions.
 """
 # Local
-from space_packet_parser import xtcedef
-from space_packet_parser import parser
+from space_packet_parser import definitions
+from space_packet_parser import parser, parseables
 
 
 def parse_hg_waveform(waveform_raw: str):
@@ -45,8 +45,8 @@ def parse_waveform_data(waveform: str, scitype: int):
 def test_suda_xtce_packet_parsing(suda_test_data_dir):
     """Test parsing a real XTCE document"""
     suda_xtce = suda_test_data_dir / 'suda_combined_science_definition.xml'
-    suda_definition = xtcedef.XtcePacketDefinition(xtce_document=suda_xtce)
-    assert isinstance(suda_definition, xtcedef.XtcePacketDefinition)
+    suda_definition = definitions.XtcePacketDefinition(xtce_document=suda_xtce)
+    assert isinstance(suda_definition, definitions.XtcePacketDefinition)
     suda_parser = parser.PacketParser(suda_definition)
     suda_packet_file = suda_test_data_dir / 'sciData_2022_130_17_41_53.spl'
 
@@ -55,7 +55,7 @@ def test_suda_xtce_packet_parsing(suda_test_data_dir):
                                                       skip_header_bits=32,
                                                       show_progress=True)
         for suda_packet in suda_packet_generator:
-            assert isinstance(suda_packet, parser.Packet)
+            assert isinstance(suda_packet, parseables.Packet)
             assert suda_packet.header['PKT_APID'].raw_value == 1425, "APID is not as expected."
             assert suda_packet.header['VERSION'].raw_value == 0, "CCSDS header VERSION incorrect."
 
