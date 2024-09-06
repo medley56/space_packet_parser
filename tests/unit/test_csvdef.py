@@ -1,7 +1,7 @@
 """Tests for the CSV based packet definition"""
 import pytest
 # Local
-from space_packet_parser import csvdef, packets, parameters, encodings, parser
+from space_packet_parser import csvdef, parameters, encodings, parseables, parser
 from space_packet_parser.csvdef import CsvPacketDefinition
 
 
@@ -58,4 +58,4 @@ def test_csv_packet_definition(ctim_test_data_dir):
         parser_inst = parser.PacketParser(csv_pkt_def)
         pkt_gen = parser_inst.generator(pkt_file, show_progress=True)
         packet = next(pkt_gen)
-    assert isinstance(packet, packets.Packet)
+    assert isinstance(packet, parseables.Packet)

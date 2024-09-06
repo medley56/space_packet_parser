@@ -7,7 +7,7 @@ import warnings
 import lxml.etree as ElementTree
 
 from space_packet_parser.exceptions import ElementNotFoundError, InvalidParameterTypeError
-from space_packet_parser import matches, packets, parameters
+from space_packet_parser import comparisons, parameters, parseables
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +66,8 @@ class XtcePacketDefinition:
             if sc.base_container_name:
                 self._sequence_container_cache[sc.base_container_name].inheritors.append(name)
 
-    def parse_sequence_container_contents(self, sequence_container: ElementTree.Element) -> packets.SequenceContainer:
+    def parse_sequence_container_contents(self,
+                                          sequence_container: ElementTree.Element) -> parseables.SequenceContainer:
         """Parses the list of parameters in a SequenceContainer element, recursively parsing nested SequenceContainers
         to build an entry list of parameters that flattens the nested structure to derive a sequential ordering of
         expected parameters for each SequenceContainer. Note that this also stores entry lists for containers that are
@@ -156,16 +157,16 @@ class XtcePacketDefinition:
             sequence_container.find('xtce:LongDescription', self.ns) is not None
         ) else None
 
-        return packets.SequenceContainer(name=sequence_container.attrib['name'],
-                                         entry_list=entry_list,
-                                         base_container_name=base_container_name,
-                                         restriction_criteria=restriction_criteria,
-                                         abstract=self._is_abstract_container(sequence_container),
-                                         short_description=short_description,
-                                         long_description=long_description)
+        return parseables.SequenceContainer(name=sequence_container.attrib['name'],
+                                            entry_list=entry_list,
+                                            base_container_name=base_container_name,
+                                            restriction_criteria=restriction_criteria,
+                                            abstract=self._is_abstract_container(sequence_container),
+                                            short_description=short_description,
+                                            long_description=long_description)
 
     @property
-    def named_containers(self) -> Dict[str, packets.SequenceContainer]:
+    def named_containers(self) -> Dict[str, parseables.SequenceContainer]:
         """Property accessor that returns the dict cache of SequenceContainer objects"""
         return self._sequence_container_cache
 
@@ -207,7 +208,7 @@ class XtcePacketDefinition:
             }
         """
 
-        def flatten_container(sequence_container: packets.SequenceContainer):
+        def flatten_container(sequence_container: parseables.SequenceContainer):
             """Flattens the representation of a SequenceContainer object into a list of Parameters (in order) and
             an aggregated dictionary of restriction criteria where the keys are Parameter names and the values are the
             required values of those parameters in order to adopt the SequenceContainer's definition.
@@ -227,7 +228,7 @@ class XtcePacketDefinition:
             aggregated_entry_list = []
             aggregated_restrictions = []
             for entry in sequence_container.entry_list:
-                if isinstance(entry, packets.SequenceContainer):
+                if isinstance(entry, parseables.SequenceContainer):
                     if entry.restriction_criteria:
                         aggregated_restrictions += entry.restriction_criteria
                     entry_list, restrictions = flatten_container(entry)
@@ -240,7 +241,7 @@ class XtcePacketDefinition:
         warnings.warn("The 'flattened_containers' property is deprecated to allow for dynamic container "
                       "inheritance matching during parsing.", DeprecationWarning)
         return {
-            name: packets.FlattenedContainer(*flatten_container(sc))
+            name: parseables.FlattenedContainer(*flatten_container(sc))
             for name, sc in self._sequence_container_cache.items()
             if not sc.abstract
         }
@@ -331,7 +332,7 @@ class XtcePacketDefinition:
 
     def _get_container_base_container(
             self,
-            container_element: ElementTree.Element) -> Tuple[ElementTree.Element, List[matches.MatchCriteria]]:
+            container_element: ElementTree.Element) -> Tuple[ElementTree.Element, List[comparisons.MatchCriteria]]:
         """Examines the container_element and returns information about its inheritance.
 
         Parameters
@@ -362,15 +363,15 @@ class XtcePacketDefinition:
                                           "This is not implemented.")
 
             if comparison_list_element is not None:
-                comparisons = comparison_list_element.findall('xtce:Comparison', self.ns)
+                comparison_items = comparison_list_element.findall('xtce:Comparison', self.ns)
                 restrictions = [
-                    matches.Comparison.from_match_criteria_xml_element(comp, self.ns) for comp in comparisons]
+                    comparisons.Comparison.from_match_criteria_xml_element(comp, self.ns) for comp in comparison_items]
             elif single_comparison_element is not None:
                 restrictions = [
-                    matches.Comparison.from_match_criteria_xml_element(single_comparison_element, self.ns)]
+                    comparisons.Comparison.from_match_criteria_xml_element(single_comparison_element, self.ns)]
             elif boolean_expression_element is not None:
                 restrictions = [
-                    matches.BooleanExpression.from_match_criteria_xml_element(boolean_expression_element, self.ns)]
+                    comparisons.BooleanExpression.from_match_criteria_xml_element(boolean_expression_element, self.ns)]
             else:
                 raise ValueError("Detected a RestrictionCriteria element containing no "
                                  "Comparison, ComparisonList, BooleanExpression or CustomAlgorithm.")

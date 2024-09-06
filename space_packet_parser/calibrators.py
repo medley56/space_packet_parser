@@ -7,10 +7,10 @@ from typing import List, Union
 import lxml.etree as ElementTree
 
 from space_packet_parser.exceptions import CalibrationError
-from space_packet_parser import matches
+from space_packet_parser import comparisons
 
 
-class Calibrator(matches.AttrComparable, metaclass=ABCMeta):
+class Calibrator(comparisons.AttrComparable, metaclass=ABCMeta):
     """Abstract base class for XTCE calibrators"""
 
     @classmethod
@@ -267,7 +267,7 @@ class MathOperationCalibrator(Calibrator):
         raise NotImplementedError(self.err_msg)
 
 
-class ContextCalibrator(matches.AttrComparable):
+class ContextCalibrator(comparisons.AttrComparable):
     """<xtce:ContextCalibrator>"""
 
     def __init__(self, match_criteria: list, calibrator: Calibrator):
@@ -286,7 +286,7 @@ class ContextCalibrator(matches.AttrComparable):
         self.calibrator = calibrator
 
     @staticmethod
-    def get_context_match_criteria(element: ElementTree.Element, ns: dict) -> List[matches.MatchCriteria]:
+    def get_context_match_criteria(element: ElementTree.Element, ns: dict) -> List[comparisons.MatchCriteria]:
         """Parse contextual requirements from a Comparison, ComparisonList, or BooleanExpression
 
         Parameters
@@ -303,13 +303,13 @@ class ContextCalibrator(matches.AttrComparable):
         """
         context_match_element = element.find('xtce:ContextMatch', ns)
         if context_match_element.find('xtce:ComparisonList', ns) is not None:
-            return [matches.Comparison.from_match_criteria_xml_element(el, ns)
+            return [comparisons.Comparison.from_match_criteria_xml_element(el, ns)
                     for el in context_match_element.findall('xtce:ComparisonList/xtce:Comparison', ns)]
         if context_match_element.find('xtce:Comparison', ns) is not None:
-            return [matches.Comparison.from_match_criteria_xml_element(
+            return [comparisons.Comparison.from_match_criteria_xml_element(
                 context_match_element.find('xtce:Comparison', ns), ns)]
         if context_match_element.find('xtce:BooleanExpression', ns) is not None:
-            return [matches.BooleanExpression.from_match_criteria_xml_element(
+            return [comparisons.BooleanExpression.from_match_criteria_xml_element(
                 context_match_element.find('xtce:BooleanExpression', ns), ns)]
         raise NotImplementedError("ContextCalibrator doesn't contain Comparison, ComparisonList, or BooleanExpression. "
                                   "This probably means the match criteria is an unsupported type "

@@ -1,7 +1,7 @@
 """Integration test for parsing JPSS packets"""
 # Local
 from space_packet_parser import xtcedef
-from space_packet_parser import parser
+from space_packet_parser import parser, parseables
 
 
 def test_jpss_xtce_packet_parsing(jpss_test_data_dir):
@@ -17,7 +17,7 @@ def test_jpss_xtce_packet_parsing(jpss_test_data_dir):
         jpss_packet_generator = jpss_parser.generator(binary_data, show_progress=True)
         n_packets = 0
         for jpss_packet in jpss_packet_generator:
-            assert isinstance(jpss_packet, parser.Packet)
+            assert isinstance(jpss_packet, parseables.Packet)
             assert jpss_packet.header['PKT_APID'].raw_value == 11
             assert jpss_packet.header['VERSION'].raw_value == 0
             n_packets += 1

@@ -6,7 +6,7 @@ import pytest
 import lxml.etree as ElementTree
 # Local
 from space_packet_parser.exceptions import CalibrationError, ComparisonError
-from space_packet_parser import calibrators, encodings, matches, packets, parameters, parser, xtcedef
+from space_packet_parser import calibrators, comparisons, encodings, parameters, parseables, parser, xtcedef
 
 XTCE_URI = "http://www.omg.org/space/xtce"
 TEST_NAMESPACE = {'xtce': XTCE_URI}
@@ -88,7 +88,7 @@ def test_unsupported_parameter_type_error(test_data_dir):
 
 def test_attr_comparable():
     """Test abstract class that allows comparisons based on all non-callable attributes"""
-    class TestClass(matches.AttrComparable):
+    class TestClass(comparisons.AttrComparable):
         """Test Class"""
         def __init__(self, public, private, dunder):
             self.public = public
@@ -120,82 +120,82 @@ def test_attr_comparable():
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="==" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 3, None, 678)}, None, True),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 3, None, 678)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="eq" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 3, None, 668)}, None, False),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 3, None, 668)}, None, False),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="!=" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 3, None, 678)}, None, False),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 3, None, 678)}, None, False),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="neq" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 3, None, 658)}, None, True),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 3, None, 658)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="&lt;" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 3, None, 679)}, None, False),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 3, None, 679)}, None, False),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="lt" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 3, None, 670)}, None, True),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 3, None, 670)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="&gt;" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 3, None, 678)}, None, False),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 3, None, 678)}, None, False),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="gt" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 3, None, 679)}, None, True),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 3, None, 679)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="&lt;=" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 3, None, 660)}, None, True),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 3, None, 660)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="leq" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 3, None, 690)}, None, False),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 3, None, 690)}, None, False),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="&gt;=" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 3, None, 660)}, None, False),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 3, None, 660)}, None, False),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="geq" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 3, None, 690)}, None, True),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 3, None, 690)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="==" value="678" parameterRef="MSN__PARAM" useCalibratedValue="false"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 678, None, 690)}, None, True),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 678, None, 690)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="==" value="678" parameterRef="MSN__PARAM" useCalibratedValue="true"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 3, None, 678)}, None, True),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 3, None, 678)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="==" value="foostring" parameterRef="MSN__PARAM" useCalibratedValue="false"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 'foostring', None, 'calibratedfoostring')}, None, True),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 'foostring', None, 'calibratedfoostring')}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="==" value="3.14" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': parser.ParsedDataItem('MSN__PARAM', 1, None, 3.14)}, None, True),
+         {'MSN__PARAM': parseables.ParsedDataItem('MSN__PARAM', 1, None, 3.14)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="==" value="3.0" parameterRef="REFERENCE_TO_OWN_RAW_VAL"/>
@@ -223,10 +223,10 @@ def test_comparison(xml_string, test_parsed_data, current_parsed_value, expected
     element = ElementTree.fromstring(xml_string)
     if isinstance(expected_comparison_result, Exception):
         with pytest.raises(type(expected_comparison_result)):
-            comparison = matches.Comparison.from_match_criteria_xml_element(element, TEST_NAMESPACE)
+            comparison = comparisons.Comparison.from_match_criteria_xml_element(element, TEST_NAMESPACE)
             comparison.evaluate(test_parsed_data, current_parsed_value)
     else:
-        comparison = matches.Comparison.from_match_criteria_xml_element(element, TEST_NAMESPACE)
+        comparison = comparisons.Comparison.from_match_criteria_xml_element(element, TEST_NAMESPACE)
         assert comparison.evaluate(test_parsed_data, current_parsed_value) == expected_comparison_result
 
 
@@ -240,8 +240,8 @@ def test_comparison(xml_string, test_parsed_data, current_parsed_value, expected
     <xtce:ParameterInstanceRef parameterRef="P2"/>
 </xtce:Condition>
 """,
-         {'P1': parser.ParsedDataItem('P1', 4, None, 700),
-          'P2': parser.ParsedDataItem('P2', 3, None, 678)}, True),
+         {'P1': parseables.ParsedDataItem('P1', 4, None, 700),
+          'P2': parseables.ParsedDataItem('P2', 3, None, 678)}, True),
         ("""
 <xtce:Condition xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:ParameterInstanceRef parameterRef="P1"/>
@@ -249,7 +249,7 @@ def test_comparison(xml_string, test_parsed_data, current_parsed_value, expected
     <xtce:Value>4</xtce:Value>
 </xtce:Condition>
 """,
-         {'P1': parser.ParsedDataItem('P1', 4, None, 700)}, True),
+         {'P1': parseables.ParsedDataItem('P1', 4, None, 700)}, True),
         ("""
 <xtce:Condition xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:ParameterInstanceRef parameterRef="P1"/>
@@ -257,8 +257,8 @@ def test_comparison(xml_string, test_parsed_data, current_parsed_value, expected
     <xtce:ParameterInstanceRef parameterRef="P2"/>
 </xtce:Condition>
 """,
-         {'P1': parser.ParsedDataItem('P1', 4, None, 700),
-          'P2': parser.ParsedDataItem('P2', 3, None, 678)}, False),
+         {'P1': parseables.ParsedDataItem('P1', 4, None, 700),
+          'P2': parseables.ParsedDataItem('P2', 3, None, 678)}, False),
         ("""
 <xtce:Condition xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:ParameterInstanceRef parameterRef="P1" useCalibratedValue="false"/>
@@ -266,8 +266,8 @@ def test_comparison(xml_string, test_parsed_data, current_parsed_value, expected
     <xtce:ParameterInstanceRef parameterRef="P2" useCalibratedValue="false"/>
 </xtce:Condition>
 """,
-         {'P1': parser.ParsedDataItem('P1', 'abcd', None),
-          'P2': parser.ParsedDataItem('P2', 'abcd', None)}, True),
+         {'P1': parseables.ParsedDataItem('P1', 'abcd', None),
+          'P2': parseables.ParsedDataItem('P2', 'abcd', None)}, True),
         ("""
 <xtce:Condition xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:ParameterInstanceRef parameterRef="P1"/>
@@ -275,14 +275,14 @@ def test_comparison(xml_string, test_parsed_data, current_parsed_value, expected
     <xtce:ParameterInstanceRef parameterRef="P2"/>
 </xtce:Condition>
 """,
-         {'P1': parser.ParsedDataItem('P1', 1, None, 3.14),
-          'P2': parser.ParsedDataItem('P2', 180, None, 3.14)}, True),
+         {'P1': parseables.ParsedDataItem('P1', 1, None, 3.14),
+          'P2': parseables.ParsedDataItem('P2', 180, None, 3.14)}, True),
     ]
 )
 def test_condition(xml_string, test_parsed_data, expected_condition_result):
     """Test Condition object"""
     element = ElementTree.fromstring(xml_string)
-    condition = matches.Condition.from_match_criteria_xml_element(element, TEST_NAMESPACE)
+    condition = comparisons.Condition.from_match_criteria_xml_element(element, TEST_NAMESPACE)
     assert condition.evaluate(test_parsed_data, None) == expected_condition_result
 
 
@@ -312,10 +312,10 @@ def test_condition(xml_string, test_parsed_data, expected_condition_result):
     </xtce:ORedConditions>
 </xtce:BooleanExpression>
 """,
-         {'P': parser.ParsedDataItem('P', 4, None, 0),
-          'P2': parser.ParsedDataItem('P2', 4, None, 700),
-          'P3': parser.ParsedDataItem('P3', 4, None, 701),
-          'P4': parser.ParsedDataItem('P4', 4, None, 98)}, True),
+         {'P': parseables.ParsedDataItem('P', 4, None, 0),
+          'P2': parseables.ParsedDataItem('P2', 4, None, 700),
+          'P3': parseables.ParsedDataItem('P3', 4, None, 701),
+          'P4': parseables.ParsedDataItem('P4', 4, None, 98)}, True),
         ("""
 <xtce:BooleanExpression xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:ANDedConditions>
@@ -344,12 +344,12 @@ def test_condition(xml_string, test_parsed_data, expected_condition_result):
     </xtce:ANDedConditions>
 </xtce:BooleanExpression>
 """,
-         {'P': parser.ParsedDataItem('P', 4, None, 100),
-          'P0': parser.ParsedDataItem('P0', 4, None, 678),
-          'P1': parser.ParsedDataItem('P1', 4, None, 500),
-          'P2': parser.ParsedDataItem('P2', 4, None, 700),
-          'P3': parser.ParsedDataItem('P3', 4, None, 701),
-          'P4': parser.ParsedDataItem('P4', 4, None, 99)}, True),
+         {'P': parseables.ParsedDataItem('P', 4, None, 100),
+          'P0': parseables.ParsedDataItem('P0', 4, None, 678),
+          'P1': parseables.ParsedDataItem('P1', 4, None, 500),
+          'P2': parseables.ParsedDataItem('P2', 4, None, 700),
+          'P3': parseables.ParsedDataItem('P3', 4, None, 701),
+          'P4': parseables.ParsedDataItem('P4', 4, None, 99)}, True),
     ]
 )
 def test_boolean_expression(xml_string, test_parsed_data, expected_result):
@@ -357,9 +357,9 @@ def test_boolean_expression(xml_string, test_parsed_data, expected_result):
     element = ElementTree.fromstring(xml_string)
     if isinstance(expected_result, Exception):
         with pytest.raises(type(expected_result)):
-            matches.BooleanExpression.from_match_criteria_xml_element(element, TEST_NAMESPACE)
+            comparisons.BooleanExpression.from_match_criteria_xml_element(element, TEST_NAMESPACE)
     else:
-        expression = matches.BooleanExpression.from_match_criteria_xml_element(element, TEST_NAMESPACE)
+        expression = comparisons.BooleanExpression.from_match_criteria_xml_element(element, TEST_NAMESPACE)
         assert expression.evaluate(test_parsed_data, current_parsed_value=None) == expected_result
 
 
@@ -371,13 +371,13 @@ def test_boolean_expression(xml_string, test_parsed_data, expected_result):
     <xtce:Comparison useCalibratedValue="false" parameterRef="P1" value="1"/>
 </xtce:DiscreteLookup>
 """,
-         {'P1': parser.ParsedDataItem('P1', 1, None, 678)}, 10),
+         {'P1': parseables.ParsedDataItem('P1', 1, None, 678)}, 10),
         ("""
 <xtce:DiscreteLookup value="10" xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:Comparison useCalibratedValue="false" parameterRef="P1" value="1"/>
 </xtce:DiscreteLookup>
 """,
-         {'P1': parser.ParsedDataItem('P1', 0, None, 678)}, None),
+         {'P1': parseables.ParsedDataItem('P1', 0, None, 678)}, None),
         ("""
 <xtce:DiscreteLookup value="11" xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:ComparisonList>
@@ -387,15 +387,15 @@ def test_boolean_expression(xml_string, test_parsed_data, expected_result):
 </xtce:DiscreteLookup>
 """,
          {
-             'MSN__PARAM1': parser.ParsedDataItem('MSN__PARAM1', 3, None, 680),
-             'MSN__PARAM2': parser.ParsedDataItem('MSN__PARAM2', 3, None, 3000)
+             'MSN__PARAM1': parseables.ParsedDataItem('MSN__PARAM1', 3, None, 680),
+             'MSN__PARAM2': parseables.ParsedDataItem('MSN__PARAM2', 3, None, 3000)
          }, 11),
     ]
 )
 def test_discrete_lookup(xml_string, test_parsed_data, expected_lookup_result):
     """Test DiscreteLookup object"""
     element = ElementTree.fromstring(xml_string)
-    discrete_lookup = matches.DiscreteLookup.from_discrete_lookup_xml_element(element, TEST_NAMESPACE)
+    discrete_lookup = comparisons.DiscreteLookup.from_discrete_lookup_xml_element(element, TEST_NAMESPACE)
     assert discrete_lookup.evaluate(test_parsed_data, current_parsed_value=None) == expected_lookup_result
 
 
@@ -426,9 +426,9 @@ def test_discrete_lookup(xml_string, test_parsed_data, expected_lookup_result):
 """,
          calibrators.ContextCalibrator(
              match_criteria=[
-                 matches.Comparison(required_value='678', referenced_parameter='EXI__FPGAT', operator='>=',
+                 comparisons.Comparison(required_value='678', referenced_parameter='EXI__FPGAT', operator='>=',
                                     use_calibrated_value=True),
-                 matches.Comparison(required_value='4096', referenced_parameter='EXI__FPGAT', operator='<',
+                 comparisons.Comparison(required_value='4096', referenced_parameter='EXI__FPGAT', operator='<',
                                     use_calibrated_value=True),
              ],
              calibrator=calibrators.PolynomialCalibrator(coefficients=[
@@ -456,7 +456,7 @@ def test_discrete_lookup(xml_string, test_parsed_data, expected_lookup_result):
 """,
          calibrators.ContextCalibrator(
              match_criteria=[
-                 matches.Comparison(required_value='3.14', referenced_parameter='EXI__FPGAT', operator='!=',
+                 comparisons.Comparison(required_value='3.14', referenced_parameter='EXI__FPGAT', operator='!=',
                                     use_calibrated_value=True),
              ],
              calibrator=calibrators.PolynomialCalibrator(coefficients=[
@@ -494,12 +494,12 @@ def test_discrete_lookup(xml_string, test_parsed_data, expected_lookup_result):
 """,
          calibrators.ContextCalibrator(
              match_criteria=[
-                 matches.BooleanExpression(
-                     expression=matches.Anded(
+                 comparisons.BooleanExpression(
+                     expression=comparisons.Anded(
                          conditions=[
-                             matches.Condition(left_param='P1', operator='==', right_value='100',
+                             comparisons.Condition(left_param='P1', operator='==', right_value='100',
                                                right_use_calibrated_value=False),
-                             matches.Condition(left_param='P4', operator='!=', right_value='99',
+                             comparisons.Condition(left_param='P4', operator='!=', right_value='99',
                                                right_use_calibrated_value=False)
                          ],
                          ors=[]
@@ -525,36 +525,36 @@ def test_context_calibrator(xml_string, expectation):
     [
         (calibrators.ContextCalibrator(
              match_criteria=[
-                 matches.Comparison(required_value='678', referenced_parameter='EXI__FPGAT', operator='>=',
+                 comparisons.Comparison(required_value='678', referenced_parameter='EXI__FPGAT', operator='>=',
                                     use_calibrated_value=True),
-                 matches.Comparison(required_value='4096', referenced_parameter='EXI__FPGAT', operator='<',
+                 comparisons.Comparison(required_value='4096', referenced_parameter='EXI__FPGAT', operator='<',
                                     use_calibrated_value=True),
              ],
              calibrator=calibrators.PolynomialCalibrator(coefficients=[
                  calibrators.PolynomialCoefficient(coefficient=0.5, exponent=0),
                  calibrators.PolynomialCoefficient(coefficient=1.5, exponent=1)
              ])),
-            {"EXI__FPGAT": parser.ParsedDataItem("EXI__FPGAT", 600, derived_value=700)},
+            {"EXI__FPGAT": parseables.ParsedDataItem("EXI__FPGAT", 600, derived_value=700)},
             42, True, 63.5),
         (calibrators.ContextCalibrator(
              match_criteria=[
-                 matches.Comparison(required_value='3.14', referenced_parameter='EXI__FPGAT', operator='!=',
+                 comparisons.Comparison(required_value='3.14', referenced_parameter='EXI__FPGAT', operator='!=',
                                     use_calibrated_value=True),
              ],
              calibrator=calibrators.PolynomialCalibrator(coefficients=[
                  calibrators.PolynomialCoefficient(coefficient=0.5, exponent=0),
                  calibrators.PolynomialCoefficient(coefficient=1.5, exponent=1),
              ])),
-         {"EXI__FPGAT": parser.ParsedDataItem("EXI__FPGAT", 3.14, derived_value=700.0)},
+         {"EXI__FPGAT": parseables.ParsedDataItem("EXI__FPGAT", 3.14, derived_value=700.0)},
          42, True, 63.5),
         (calibrators.ContextCalibrator(
              match_criteria=[
-                 matches.BooleanExpression(
-                     expression=matches.Anded(
+                 comparisons.BooleanExpression(
+                     expression=comparisons.Anded(
                          conditions=[
-                             matches.Condition(left_param='P1', operator='==', right_value='700',
+                             comparisons.Condition(left_param='P1', operator='==', right_value='700',
                                                right_use_calibrated_value=False),
-                             matches.Condition(left_param='P2', operator='!=', right_value='99',
+                             comparisons.Condition(left_param='P2', operator='!=', right_value='99',
                                                right_use_calibrated_value=False)
                          ],
                          ors=[]
@@ -565,18 +565,18 @@ def test_context_calibrator(xml_string, expectation):
                  calibrators.PolynomialCoefficient(coefficient=0.5, exponent=0),
                  calibrators.PolynomialCoefficient(coefficient=1.5, exponent=1),
              ])),
-         {"P1": parser.ParsedDataItem("P1", 100.0, derived_value=700.0),
-          "P2": parser.ParsedDataItem("P2", 99, derived_value=700.0)},
+         {"P1": parseables.ParsedDataItem("P1", 100.0, derived_value=700.0),
+          "P2": parseables.ParsedDataItem("P2", 99, derived_value=700.0)},
          42, True, 63.5),
         (calibrators.ContextCalibrator(
              match_criteria=[
-                 matches.BooleanExpression(
-                     expression=matches.Ored(
+                 comparisons.BooleanExpression(
+                     expression=comparisons.Ored(
                          conditions=[  # Neither of these are true given the parsed data so far
-                             matches.Condition(left_param='P1', operator='==', right_value='700',
+                             comparisons.Condition(left_param='P1', operator='==', right_value='700',
                                                left_use_calibrated_value=False,
                                                right_use_calibrated_value=False),
-                             matches.Condition(left_param='P2', operator='!=', right_value='700',
+                             comparisons.Condition(left_param='P2', operator='!=', right_value='700',
                                                right_use_calibrated_value=False)
                          ],
                          ands=[]
@@ -587,8 +587,8 @@ def test_context_calibrator(xml_string, expectation):
                  calibrators.PolynomialCoefficient(coefficient=0.5, exponent=0),
                  calibrators.PolynomialCoefficient(coefficient=1.5, exponent=1),
              ])),
-         {"P1": parser.ParsedDataItem("P1", 100.0, derived_value=700.0),
-          "P2": parser.ParsedDataItem("P2", 99, derived_value=700.0)},
+         {"P1": parseables.ParsedDataItem("P1", 100.0, derived_value=700.0),
+          "P2": parseables.ParsedDataItem("P2", 99, derived_value=700.0)},
          42, False, 63.5),
     ]
 )
@@ -797,8 +797,8 @@ def test_polynomial_calibrator_calibrate(xq, expectation):
 """,
          encodings.StringDataEncoding(
              discrete_lookup_length=[
-                 matches.DiscreteLookup([matches.Comparison('1', 'P1')], 10),
-                 matches.DiscreteLookup([matches.Comparison('2', 'P1')], 25)
+                 comparisons.DiscreteLookup([comparisons.Comparison('1', 'P1')], 10),
+                 comparisons.DiscreteLookup([comparisons.Comparison('2', 'P1')], 25)
              ])),
         ("""
 <xtce:StringDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
@@ -888,17 +888,17 @@ def test_string_data_encoding(xml_string: str, expectation):
                                      default_calibrator=None,
                                      context_calibrators=[
                                          calibrators.ContextCalibrator(
-                                             match_criteria=[matches.Comparison(required_value='0', operator=">=",
+                                             match_criteria=[comparisons.Comparison(required_value='0', operator=">=",
                                                                                 referenced_parameter='MSN__PARAM'),
-                                                             matches.Comparison(required_value='678', operator="<",
+                                                             comparisons.Comparison(required_value='678', operator="<",
                                                                                 referenced_parameter='MSN__PARAM')],
                                              calibrator=calibrators.PolynomialCalibrator(
                                                  coefficients=[calibrators.PolynomialCoefficient(142.998, 0),
                                                                calibrators.PolynomialCoefficient(-0.349712, 1)])),
                                          calibrators.ContextCalibrator(
-                                             match_criteria=[matches.Comparison(required_value='678', operator=">=",
+                                             match_criteria=[comparisons.Comparison(required_value='678', operator=">=",
                                                                                 referenced_parameter='MSN__PARAM'),
-                                                             matches.Comparison(required_value='4096', operator="<=",
+                                                             comparisons.Comparison(required_value='4096', operator="<=",
                                                                                 referenced_parameter='MSN__PARAM')],
                                              calibrator=calibrators.PolynomialCalibrator(
                                                  coefficients=[calibrators.PolynomialCoefficient(100.488, 0),
@@ -987,17 +987,17 @@ def test_integer_data_encoding(xml_string: str, expectation):
              ]),
              context_calibrators=[
                  calibrators.ContextCalibrator(
-                     match_criteria=[matches.Comparison(required_value='0', operator=">=",
+                     match_criteria=[comparisons.Comparison(required_value='0', operator=">=",
                                                         referenced_parameter='MSN__PARAM'),
-                                     matches.Comparison(required_value='678', operator="<",
+                                     comparisons.Comparison(required_value='678', operator="<",
                                                         referenced_parameter='MSN__PARAM')],
                      calibrator=calibrators.PolynomialCalibrator(
                          coefficients=[calibrators.PolynomialCoefficient(142.998, 0),
                                        calibrators.PolynomialCoefficient(-0.349712, 1)])),
                  calibrators.ContextCalibrator(
-                     match_criteria=[matches.Comparison(required_value='678', operator=">=",
+                     match_criteria=[comparisons.Comparison(required_value='678', operator=">=",
                                                         referenced_parameter='MSN__PARAM'),
-                                     matches.Comparison(required_value='4096', operator="<=",
+                                     comparisons.Comparison(required_value='4096', operator="<=",
                                                         referenced_parameter='MSN__PARAM')],
                      calibrator=calibrators.PolynomialCalibrator(
                          coefficients=[calibrators.PolynomialCoefficient(100.488, 0),
@@ -1057,8 +1057,8 @@ def test_float_data_encoding(xml_string: str, expectation):
 </xtce:BinaryDataEncoding>
 """,
          encodings.BinaryDataEncoding(size_discrete_lookup_list=[
-                 matches.DiscreteLookup([matches.Comparison('1', 'P1')], 10),
-                 matches.DiscreteLookup([matches.Comparison('2', 'P1')], 25)
+                 comparisons.DiscreteLookup([comparisons.Comparison('1', 'P1')], 10),
+                 comparisons.DiscreteLookup([comparisons.Comparison('2', 'P1')], 25)
              ])),
     ]
 )
@@ -1139,7 +1139,7 @@ def test_string_parameter_type(xml_string: str, expectation):
             encodings.StringDataEncoding(fixed_length=3,  # Giving length in bytes
                                        length_linear_adjuster=lambda x: 8*x)),
          # This still 123X456
-         packets.Packet(b'123X456'),
+         parseables.Packet(b'123X456'),
          '123'),
         # Dynamic reference length
         (parameters.StringParameterType(
@@ -1147,20 +1147,20 @@ def test_string_parameter_type(xml_string: str, expectation):
             encodings.StringDataEncoding(dynamic_length_reference='STR_LEN',
                                        use_calibrated_value=False,
                                        length_linear_adjuster=lambda x: 8*x)),
-         packets.Packet(b'BAD WOLF', parsed_data={
-             'STR_LEN': parser.ParsedDataItem('STR_LEN', 8, None)}),
+         parseables.Packet(b'BAD WOLF', parsed_data={
+             'STR_LEN': parseables.ParsedDataItem('STR_LEN', 8, None)}),
          'BAD WOLF'),
         # Discrete lookup test
         (parameters.StringParameterType(
             'TEST_STRING',
             encodings.StringDataEncoding(discrete_lookup_length=[
-                matches.DiscreteLookup([
-                    matches.Comparison(7, 'P1', '>'),
-                    matches.Comparison(99, 'P2', '==', use_calibrated_value=False)
+                comparisons.DiscreteLookup([
+                    comparisons.Comparison(7, 'P1', '>'),
+                    comparisons.Comparison(99, 'P2', '==', use_calibrated_value=False)
                 ], lookup_value=8)
             ], length_linear_adjuster=lambda x: 8*x)),
-         packets.Packet(b'BAD WOLF', parsed_data={
-             'P1': parser.ParsedDataItem('P1', 7, None, 7.55), 'P2': parser.ParsedDataItem('P2', 99, None, 100)},),
+         parseables.Packet(b'BAD WOLF', parsed_data={
+             'P1': parseables.ParsedDataItem('P1', 7, None, 7.55), 'P2': parseables.ParsedDataItem('P2', 99, None, 100)},),
          'BAD WOLF'),
         # Termination character tests
         (parameters.StringParameterType(
@@ -1168,14 +1168,14 @@ def test_string_parameter_type(xml_string: str, expectation):
             encodings.StringDataEncoding(encoding='UTF-8',
                                        termination_character='58')),
          # 123X456 + extra characters, termination character is X
-         packets.Packet(b'123X456000000000000000000000000000000000000000000000'),
+         parseables.Packet(b'123X456000000000000000000000000000000000000000000000'),
          '123'),
         (parameters.StringParameterType(
             'TEST_STRING',
             encodings.StringDataEncoding(encoding='UTF-8',
                                        termination_character='58')),
          # 56bits + 123X456 + extra characters, termination character is X
-         packets.Packet(b'9090909123X456000000000000000000000000000000000000000000000', pos=56),
+         parseables.Packet(b'9090909123X456000000000000000000000000000000000000000000000', pos=56),
          '123'),
         (parameters.StringParameterType(
             'TEST_STRING',
@@ -1183,32 +1183,32 @@ def test_string_parameter_type(xml_string: str, expectation):
                                        termination_character='58')),
          # 53bits + 123X456 + extra characters, termination character is X
          # This is the same string as above but bit-shifted left by 3 bits
-         packets.Packet(b'\x03K;s{\x93)\x89\x91\x9a\xc1\xa1\xa9\xb3K;s{\x93(', pos=53),
+         parseables.Packet(b'\x03K;s{\x93)\x89\x91\x9a\xc1\xa1\xa9\xb3K;s{\x93(', pos=53),
          '123'),
         (parameters.StringParameterType(
             "TEST_STRING",
             encodings.StringDataEncoding(encoding="UTF-8",
                                        termination_character='00')),
-         packets.Packet("false_is_truthy".encode("UTF-8") + b'\x00ABCD'),
+         parseables.Packet("false_is_truthy".encode("UTF-8") + b'\x00ABCD'),
          'false_is_truthy'),
         (parameters.StringParameterType(
             "TEST_STRING",
             encodings.StringDataEncoding(encoding="UTF-16BE",
                                        termination_character='0021')),
-         packets.Packet("false_is_truthy".encode("UTF-16BE") + b'\x00\x21ignoreme'),
+         parseables.Packet("false_is_truthy".encode("UTF-16BE") + b'\x00\x21ignoreme'),
          'false_is_truthy'),
         (parameters.StringParameterType(
             'TEST_STRING',
             encodings.StringDataEncoding(encoding='UTF-16LE',
                                        termination_character='5800')),
          # 123X456, termination character is X
-         packets.Packet('123X456'.encode('UTF-16LE')),
+         parseables.Packet('123X456'.encode('UTF-16LE')),
          '123'),
         (parameters.StringParameterType(
             'TEST_STRING',
             encodings.StringDataEncoding(encoding='UTF-16BE',
                                        termination_character='0058')),
-         packets.Packet('123X456'.encode('UTF-16BE')),
+         parseables.Packet('123X456'.encode('UTF-16BE')),
          '123'),
         # Leading length test
         (parameters.StringParameterType(
@@ -1216,7 +1216,7 @@ def test_string_parameter_type(xml_string: str, expectation):
             encodings.StringDataEncoding(leading_length_size=5)),
          # This is still 123X456 but with 11000 prepended (a 5-bit representation of the number 24)
          # This represents a string length (in bits) of 24 bits.
-         packets.Packet(0b1100000110001001100100011001101011000001101000011010100110110000.to_bytes(8, byteorder="big")),
+         parseables.Packet(0b1100000110001001100100011001101011000001101000011010100110110000.to_bytes(8, byteorder="big")),
          '123'),
     ]
 )
@@ -1310,23 +1310,23 @@ def test_integer_parameter_type(xml_string: str, expectation):
     [
         # 16-bit unsigned starting at byte boundary
         (parameters.IntegerParameterType('TEST_INT', encodings.IntegerDataEncoding(16, 'unsigned')),
-         packets.Packet(0b1000000000000000.to_bytes(length=2, byteorder='big')),
+         parseables.Packet(0b1000000000000000.to_bytes(length=2, byteorder='big')),
          32768),
         # 16-bit unsigned little endian at byte boundary
         (parameters.IntegerParameterType(
             'TEST_INT',
             encodings.IntegerDataEncoding(16, 'unsigned', byte_order="leastSignificantByteFirst")),
-         packets.Packet(0b1000000000000000.to_bytes(length=2, byteorder='big')),
+         parseables.Packet(0b1000000000000000.to_bytes(length=2, byteorder='big')),
          128),
         # 16-bit signed starting at byte boundary
         (parameters.IntegerParameterType('TEST_INT', encodings.IntegerDataEncoding(16, 'signed')),
-         packets.Packet(0b1111111111010110.to_bytes(length=2, byteorder='big')),
+         parseables.Packet(0b1111111111010110.to_bytes(length=2, byteorder='big')),
          -42),
         # 16-bit signed little endian starting at byte boundary
         (parameters.IntegerParameterType(
             'TEST_INT',
             encodings.IntegerDataEncoding(16, 'signed', byte_order="leastSignificantByteFirst")),
-         packets.Packet(0b1101011011111111.to_bytes(length=2, byteorder='big')),
+         parseables.Packet(0b1101011011111111.to_bytes(length=2, byteorder='big')),
          -42),
         # 16-bit signed integer starting at a byte boundary,
         # calibrated by a polynomial y = (x*2 + 5); x = -42; y = -84 + 5 = -79
@@ -1336,45 +1336,45 @@ def test_integer_parameter_type(xml_string: str, expectation):
                 16, 'signed',
                 context_calibrators=[
                     calibrators.ContextCalibrator([
-                        matches.Condition(left_param='PKT_APID', operator='==',
+                        comparisons.Condition(left_param='PKT_APID', operator='==',
                                           right_value=1101, left_use_calibrated_value=False,
                                           right_use_calibrated_value=False)],
                         calibrators.PolynomialCalibrator([calibrators.PolynomialCoefficient(5, 0),
                                                       calibrators.PolynomialCoefficient(2, 1)]))
                 ])),
-         packets.Packet(0b1111111111010110.to_bytes(length=2, byteorder='big'),
-                            parsed_data={'PKT_APID': parser.ParsedDataItem('PKT_APID', 1101)},),
+         parseables.Packet(0b1111111111010110.to_bytes(length=2, byteorder='big'),
+                            parsed_data={'PKT_APID': parseables.ParsedDataItem('PKT_APID', 1101)},),
          -79),
         # 12-bit unsigned integer starting at bit 4 of the first byte
         (parameters.IntegerParameterType('TEST_INT', encodings.IntegerDataEncoding(12, 'unsigned')),
          # 11111000 00000000
          #     |--uint:12--|
-         packets.Packet(0b1111100000000000.to_bytes(length=2, byteorder='big'), pos=4),
+         parseables.Packet(0b1111100000000000.to_bytes(length=2, byteorder='big'), pos=4),
          2048),
         # 13-bit unsigned integer starting on bit 2 of the second byte
         (parameters.IntegerParameterType('TEST_INT', encodings.IntegerDataEncoding(13, 'unsigned')),
          # 10101010 11100000 00000001
          #            |--uint:13---|
-         packets.Packet(0b101010101110000000000001.to_bytes(length=3, byteorder='big'), pos=10),
+         parseables.Packet(0b101010101110000000000001.to_bytes(length=3, byteorder='big'), pos=10),
          4096),
         # 16-bit unsigned integer starting on bit 2 of the first byte
         (parameters.IntegerParameterType('TEST_INT', encodings.IntegerDataEncoding(16, 'unsigned')),
          # 10101010 11100000 00000001
          #   |----uint:16-----|
-         packets.Packet(0b101010101110000000000001.to_bytes(length=3, byteorder='big'), pos=2),
+         parseables.Packet(0b101010101110000000000001.to_bytes(length=3, byteorder='big'), pos=2),
          43904),
         # 12-bit signed integer starting on bit 4 of the first byte
         (parameters.IntegerParameterType('TEST_INT', encodings.IntegerDataEncoding(12, 'signed')),
          # 11111000 00000000
          #     |---int:12--|
-         packets.Packet(0b1111100000000000.to_bytes(length=2, byteorder='big'), pos=4),
+         parseables.Packet(0b1111100000000000.to_bytes(length=2, byteorder='big'), pos=4),
          -2048),
         # 12-bit signed integer starting on bit 6 of the first byte
         (parameters.IntegerParameterType('TEST_INT', encodings.IntegerDataEncoding(12, 'signed')),
          # 12-bit signed integer starting on bit 4 of the first byte
          #  11111110 00000000 00111111 10101010
          #        |---int:12---|
-         packets.Packet(0b11111110000000000011111110101010.to_bytes(length=4, byteorder='big'), pos=6),
+         parseables.Packet(0b11111110000000000011111110101010.to_bytes(length=4, byteorder='big'), pos=6),
          -2048),
         # 12-bit signed little endian integer starting on bit 6 of the first byte
         (parameters.IntegerParameterType(
@@ -1383,13 +1383,13 @@ def test_integer_parameter_type(xml_string: str, expectation):
          # 12-bit signed little endian integer starting on bit 4 of the first byte. The LSB of the integer comes first
          #  11111100 00000010 00111111 10101010
          #        |---int:12---|
-         packets.Packet(0b11111100000000100011111110101010.to_bytes(length=4, byteorder='big'), pos=6),
+         parseables.Packet(0b11111100000000100011111110101010.to_bytes(length=4, byteorder='big'), pos=6),
          -2048),
         (parameters.IntegerParameterType('TEST_INT', encodings.IntegerDataEncoding(3, 'twosComplement')),
          # 3-bit signed integer starting at bit 7 of the first byte
          #  00000001      11000000       00000000
          #         |-int:3-|
-         packets.Packet(0b000000011100000000000000.to_bytes(length=3, byteorder='big'), pos=7),
+         parseables.Packet(0b000000011100000000000000.to_bytes(length=3, byteorder='big'), pos=7),
          -1),
     ]
 )
@@ -1496,17 +1496,17 @@ def test_float_parameter_type(xml_string: str, expectation):
     [
         # Test big endion 32-bit IEEE float
         (parameters.FloatParameterType('TEST_FLOAT', encodings.FloatDataEncoding(32)),
-         packets.Packet(0b01000000010010010000111111010000.to_bytes(length=4, byteorder='big')),
+         parseables.Packet(0b01000000010010010000111111010000.to_bytes(length=4, byteorder='big')),
          3.14159),
         # Test little endian 32-bit IEEE float
         (parameters.FloatParameterType(
             'TEST_FLOAT',
             encodings.FloatDataEncoding(32, byte_order='leastSignificantByteFirst')),
-         packets.Packet(0b01000000010010010000111111010000.to_bytes(length=4, byteorder='little')),
+         parseables.Packet(0b01000000010010010000111111010000.to_bytes(length=4, byteorder='little')),
          3.14159),
         # Test big endian 64-bit float
         (parameters.FloatParameterType('TEST_FLOAT', encodings.FloatDataEncoding(64)),
-         packets.Packet(b'\x3F\xF9\xE3\x77\x9B\x97\xF4\xA8'),  # 64-bit IEEE 754 value of Phi
+         parseables.Packet(b'\x3F\xF9\xE3\x77\x9B\x97\xF4\xA8'),  # 64-bit IEEE 754 value of Phi
          1.6180339),
         # Test float parameter type encoded as big endian 16-bit integer with contextual polynomial calibrator
         (parameters.FloatParameterType(
@@ -1515,77 +1515,77 @@ def test_float_parameter_type(xml_string: str, expectation):
                 16, 'signed',
                 context_calibrators=[
                     calibrators.ContextCalibrator([
-                        matches.Condition(left_param='PKT_APID', operator='==',
+                        comparisons.Condition(left_param='PKT_APID', operator='==',
                                           right_value=1101, left_use_calibrated_value=False,
                                           right_use_calibrated_value=False)],
                         calibrators.PolynomialCalibrator([calibrators.PolynomialCoefficient(5.6, 0),
                                                       calibrators.PolynomialCoefficient(2.1, 1)]))
                 ])),
-         packets.Packet(0b1111111111010110.to_bytes(length=2, byteorder='big'),
-                            parsed_data={'PKT_APID': parser.ParsedDataItem('PKT_APID', 1101)}),
+         parseables.Packet(0b1111111111010110.to_bytes(length=2, byteorder='big'),
+                            parsed_data={'PKT_APID': parseables.ParsedDataItem('PKT_APID', 1101)}),
          -82.600000),
         # Test MIL 1750A encoded floats.
         # Test values taken from: https://www.xgc-tek.com/manuals/mil-std-1750a/c191.html#AEN324
         (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
             encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
-         packets.Packet(b'\x7f\xff\xff\x7f'),
+         parseables.Packet(b'\x7f\xff\xff\x7f'),
          0.9999998 * (2 ** 127)),
         (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
             encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
-         packets.Packet(b'\x40\x00\x00\x7f'),
+         parseables.Packet(b'\x40\x00\x00\x7f'),
          0.5 * (2 ** 127)),
         (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
             encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
-         packets.Packet(b'\x50\x00\x00\x04'),
+         parseables.Packet(b'\x50\x00\x00\x04'),
          0.625 * (2 ** 4)),
         (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
             encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
-         packets.Packet(b'\x40\x00\x00\x01'),
+         parseables.Packet(b'\x40\x00\x00\x01'),
          0.5 * (2 ** 1)),
         (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
             encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
-         packets.Packet(b'\x40\x00\x00\x00'),
+         parseables.Packet(b'\x40\x00\x00\x00'),
          0.5 * (2 ** 0)),
         (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
             encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
-         packets.Packet(b'\x40\x00\x00\xff'),
+         parseables.Packet(b'\x40\x00\x00\xff'),
          0.5 * (2 ** -1)),
         (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
             encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
-         packets.Packet(b'\x40\x00\x00\x80'),
+         parseables.Packet(b'\x40\x00\x00\x80'),
          0.5 * (2 ** -128)),
         (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
             encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
-         packets.Packet(b'\x00\x00\x00\x00'),
+         parseables.Packet(b'\x00\x00\x00\x00'),
          0.0 * (2 ** 0)),
         (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
             encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
-         packets.Packet(b'\x80\x00\x00\x00'),
+         parseables.Packet(b'\x80\x00\x00\x00'),
          -1.0 * (2 ** 0)),
         (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
             encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
-         packets.Packet(b'\xBF\xFF\xFF\x80'),
+         parseables.Packet(b'\xBF\xFF\xFF\x80'),
          -0.5000001 * (2 ** -128)),
         (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
             encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
-         packets.Packet(b'\x9F\xFF\xFF\x04'),
+         parseables.Packet(b'\x9F\xFF\xFF\x04'),
          -0.7500001 * (2 ** 4)),
         # Little endian version of previous test
         (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
             encodings.FloatDataEncoding(32, encoding="MIL-1750A", byte_order="leastSignificantByteFirst")),
-         packets.Packet(b'\x04\xFF\xFF\x9F'),
+         parseables.Packet(b'\x04\xFF\xFF\x9F'),
          -0.7500001 * (2 ** 4)),
     ]
 )
@@ -1639,12 +1639,12 @@ def test_enumerated_parameter_type(xml_string: str, expectation):
         (parameters.EnumeratedParameterType(
             'TEST_ENUM',
             encodings.IntegerDataEncoding(16, 'unsigned'), {32768: 'NOMINAL'}),
-         packets.Packet(0b1000000000000000.to_bytes(length=2, byteorder='big')),
+         parseables.Packet(0b1000000000000000.to_bytes(length=2, byteorder='big')),
          'NOMINAL'),
         (parameters.EnumeratedParameterType(
             'TEST_FLOAT',
             encodings.IntegerDataEncoding(16, 'signed'),  {-42: 'VAL_LOW'}),
-         packets.Packet(0b1111111111010110.to_bytes(length=2, byteorder='big')),
+         parseables.Packet(0b1111111111010110.to_bytes(length=2, byteorder='big')),
          'VAL_LOW'),
     ]
 )
@@ -1740,27 +1740,27 @@ def test_binary_parameter_type(xml_string: str, expectation):
         (parameters.BinaryParameterType(
             'TEST_BIN',
             encodings.BinaryDataEncoding(fixed_size_in_bits=16)),
-         packets.Packet(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big')),
+         parseables.Packet(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big')),
          b'42'),
         # discrete lookup list size
         (parameters.BinaryParameterType(
             'TEST_BIN',
             encodings.BinaryDataEncoding(size_discrete_lookup_list=[
-                matches.DiscreteLookup([
-                    matches.Comparison(required_value=7.4, referenced_parameter='P1',
+                comparisons.DiscreteLookup([
+                    comparisons.Comparison(required_value=7.4, referenced_parameter='P1',
                                        operator='==', use_calibrated_value=True)
                 ], lookup_value=2)
             ], linear_adjuster=lambda x: 8*x)),
-         packets.Packet(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big'),
-                            parsed_data={'P1': parser.ParsedDataItem('P1', 1, None, 7.4)}),
+         parseables.Packet(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big'),
+                            parsed_data={'P1': parseables.ParsedDataItem('P1', 1, None, 7.4)}),
          b'42'),
         # dynamic size reference to other parameter
         (parameters.BinaryParameterType(
             'TEST_BIN',
             encodings.BinaryDataEncoding(size_reference_parameter='BIN_LEN',
                                        use_calibrated_value=False, linear_adjuster=lambda x: 8*x)),
-         packets.Packet(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big'),
-                            parsed_data={'BIN_LEN': parser.ParsedDataItem('BIN_LEN', 2, None)}),
+         parseables.Packet(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big'),
+                            parsed_data={'BIN_LEN': parseables.ParsedDataItem('BIN_LEN', 2, None)}),
          b'42'),
     ]
 )
@@ -1831,32 +1831,32 @@ def test_boolean_parameter_type(xml_string, expectation):
         (parameters.BooleanParameterType(
             'TEST_BOOL',
             encodings.BinaryDataEncoding(fixed_size_in_bits=1)),
-         packets.Packet(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=64, byteorder='big')),
+         parseables.Packet(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=64, byteorder='big')),
          b'\x00', True),
         (parameters.BooleanParameterType(
             'TEST_BOOL',
             encodings.StringDataEncoding(encoding="UTF-8", termination_character='00')),
-         packets.Packet(0b011001100110000101101100011100110110010101011111011010010111001101011111011101000111001001110101011101000110100001111001000000000010101101010111.to_bytes(length=18, byteorder='big')),
+         parseables.Packet(0b011001100110000101101100011100110110010101011111011010010111001101011111011101000111001001110101011101000110100001111001000000000010101101010111.to_bytes(length=18, byteorder='big')),
          'false_is_truthy', True),
         (parameters.BooleanParameterType(
             'TEST_BOOL',
             encodings.IntegerDataEncoding(size_in_bits=2, encoding="unsigned")),
-         packets.Packet(0b0011.to_bytes(length=1, byteorder='big')),
+         parseables.Packet(0b0011.to_bytes(length=1, byteorder='big')),
          0, False),
         (parameters.BooleanParameterType(
             'TEST_BOOL',
             encodings.IntegerDataEncoding(size_in_bits=2, encoding="unsigned")),
-         packets.Packet(0b00001111.to_bytes(length=1, byteorder='big'), pos=4),
+         parseables.Packet(0b00001111.to_bytes(length=1, byteorder='big'), pos=4),
          3, True),
         (parameters.BooleanParameterType(
             'TEST_BOOL',
             encodings.FloatDataEncoding(size_in_bits=16)),
-         packets.Packet(0b01010001010000001111111110000000.to_bytes(length=4, byteorder='big')),
+         parseables.Packet(0b01010001010000001111111110000000.to_bytes(length=4, byteorder='big')),
          42.0, True),
         (parameters.BooleanParameterType(
             'TEST_BOOL',
             encodings.FloatDataEncoding(size_in_bits=16)),
-         packets.Packet(0b00000000101000101000000111111111.to_bytes(length=4, byteorder='big'), pos=7),
+         parseables.Packet(0b00000000101000101000000111111111.to_bytes(length=4, byteorder='big'), pos=7),
          42.0, True),
     ]
 )
@@ -1976,7 +1976,7 @@ def test_absolute_time_parameter_type(xml_string, expectation):
                                            encoding=encodings.IntegerDataEncoding(size_in_bits=32, encoding="unsigned"),
                                            epoch="TAI", offset_from="MilliSeconds"),
          # Exactly 64 bits so neatly goes into a bytes object without padding
-         packets.Packet(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big')),
+         parseables.Packet(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big')),
          875713280, 875713280),
         (parameters.AbsoluteTimeParameterType(
              name='TEST_PARAM_Type', unit='s',
@@ -1989,7 +1989,7 @@ def test_absolute_time_parameter_type(xml_string, expectation):
                      ])),
              epoch="2009-10-10T12:00:00-05:00", offset_from="MilliSeconds"),
          # Exactly 64 bits so neatly goes into a bytes object without padding
-         packets.Packet(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big')),
+         parseables.Packet(0b0011010000110010010100110000000001001011000000000100100100000000.to_bytes(length=8, byteorder='big')),
          875713280, 875.7132799999999),
         (parameters.AbsoluteTimeParameterType(
              name='TEST_PARAM_Type', unit='s',
@@ -2002,7 +2002,7 @@ def test_absolute_time_parameter_type(xml_string, expectation):
                      ]))),
          # 65 bits, so we need a 9th byte with 7 bits of padding to hold it,
          # which means we need to be starting at pos=7
-         packets.Packet(0b01000000010010010000111111011011001001011000000000100100100000000.to_bytes(length=9, byteorder='big'), pos=7),
+         parseables.Packet(0b01000000010010010000111111011011001001011000000000100100100000000.to_bytes(length=9, byteorder='big'), pos=7),
          3.1415927, 151.02559269999998),
     ]
 )
@@ -2059,7 +2059,7 @@ def test_parsing_xtce_document(test_data_dir):
     scname = "SecondaryHeaderContainer"
     sc = xdef.named_containers[scname]
     assert sc.name == scname
-    assert sc == packets.SequenceContainer(
+    assert sc == parseables.SequenceContainer(
         name=scname,
         entry_list=[
             parameters.Parameter(
@@ -2118,4 +2118,4 @@ def test__extract_bits(start, nbits):
     s = '0000111100001111'
     data = int(s, 2).to_bytes(2, byteorder="big")
 
-    assert packets._extract_bits(data, start, nbits) == int(s[start:start+nbits], 2)
+    assert parseables._extract_bits(data, start, nbits) == int(s[start:start+nbits], 2)

@@ -5,7 +5,7 @@ import re
 from collections import namedtuple
 from pathlib import Path
 # Local
-from space_packet_parser import encodings, matches, parameters
+from space_packet_parser import comparisons, encodings, parameters
 
 FlattenedContainer = namedtuple('FlattenedContainer', ['entry_list', 'restrictions'])
 
@@ -168,9 +168,9 @@ class CsvPacketDefinition:
             last_apid = next_apid
 
         restrictions = [
-            matches.Comparison(required_value=last_apid,
-                               referenced_parameter=pkt_apid_header_name,
-                               use_calibrated_value=False)
+            comparisons.Comparison(required_value=last_apid,
+                                   referenced_parameter=pkt_apid_header_name,
+                                   use_calibrated_value=False)
         ]
 
         return restrictions

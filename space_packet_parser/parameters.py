@@ -7,10 +7,10 @@ import warnings
 
 import lxml.etree as ElementTree
 
-from space_packet_parser import calibrators, encodings, matches, packets
+from space_packet_parser import calibrators, comparisons, encodings, parseables
 
 
-class ParameterType(matches.AttrComparable, metaclass=ABCMeta):
+class ParameterType(comparisons.AttrComparable, metaclass=ABCMeta):
     """Abstract base class for XTCE parameter types"""
 
     def __init__(self, name: str, encoding: encodings.DataEncoding, unit: Optional[str] = None):
@@ -110,7 +110,7 @@ class ParameterType(matches.AttrComparable, metaclass=ABCMeta):
                 return data_encoding.from_data_encoding_xml_element(element, ns)
         return None
 
-    def parse_value(self, packet: packets.Packet, **kwargs):
+    def parse_value(self, packet: parseables.Packet, **kwargs):
         """Using the parameter type definition and associated data encoding, parse a value from a bit stream starting
         at the current cursor position.
 
@@ -231,7 +231,7 @@ class EnumeratedParameterType(ParameterType):
             for el in enumeration_list.iterfind('xtce:Enumeration', ns)
         }
 
-    def parse_value(self, packet: packets.Packet, **kwargs):
+    def parse_value(self, packet: parseables.Packet, **kwargs):
         """Using the parameter type definition and associated data encoding, parse a value from a bit stream starting
         at the current cursor position.
 
@@ -290,7 +290,7 @@ class BooleanParameterType(ParameterType):
                           f"encoded booleans is not specified in XTCE. e.g. is the string \"0\" truthy?")
         super().__init__(name, encoding, unit)
 
-    def parse_value(self, packet: packets.Packet, **kwargs):
+    def parse_value(self, packet: parseables.Packet, **kwargs):
         """Using the parameter type definition and associated data encoding, parse a value from a bit stream starting
         at the current cursor position.
 
@@ -494,7 +494,7 @@ class RelativeTimeParameterType(TimeParameterType):
 
 
 @dataclass
-class Parameter(packets.Parseable):
+class Parameter(parseables.Parseable):
     """<xtce:Parameter>
 
     Parameters
@@ -513,7 +513,7 @@ class Parameter(packets.Parseable):
     short_description: Optional[str] = None
     long_description: Optional[str] = None
 
-    def parse(self, packet: packets.Packet, **parse_value_kwargs) -> dict:
+    def parse(self, packet: parseables.Packet, **parse_value_kwargs) -> dict:
         """Parse this parameter from the packet data.
 
         Create a ``ParsedDataItem`` and add it to the parsed_items dictionary.
@@ -521,7 +521,7 @@ class Parameter(packets.Parseable):
         parsed_value, derived_value = self.parameter_type.parse_value(
             packet, **parse_value_kwargs)
 
-        packet.parsed_data[self.name] = packets.ParsedDataItem(
+        packet.parsed_data[self.name] = parseables.ParsedDataItem(
             name=self.name,
             unit=self.parameter_type.unit,
             raw_value=parsed_value,

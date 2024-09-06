@@ -8,13 +8,13 @@ import warnings
 import lxml.etree as ElementTree
 
 from space_packet_parser.exceptions import ElementNotFoundError
-from space_packet_parser import calibrators, matches, packets
+from space_packet_parser import calibrators, comparisons, parseables
 
 
 logger = logging.getLogger(__name__)
 
 
-class DataEncoding(matches.AttrComparable, metaclass=ABCMeta):
+class DataEncoding(comparisons.AttrComparable, metaclass=ABCMeta):
     """Abstract base class for XTCE data encodings"""
 
     @classmethod
@@ -131,7 +131,7 @@ class DataEncoding(matches.AttrComparable, metaclass=ABCMeta):
             return adjuster
         return None
 
-    def _calculate_size(self, packet: packets.Packet) -> int:
+    def _calculate_size(self, packet: parseables.Packet) -> int:
         """Calculate the size of the data item in bits.
 
         Parameters
@@ -147,7 +147,7 @@ class DataEncoding(matches.AttrComparable, metaclass=ABCMeta):
         """
         raise NotImplementedError()
 
-    def parse_value(self, packet: packets.Packet, **kwargs) -> Tuple[Any, Any]:
+    def parse_value(self, packet: parseables.Packet, **kwargs) -> Tuple[Any, Any]:
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
@@ -178,7 +178,7 @@ class StringDataEncoding(DataEncoding):
                  leading_length_size: Optional[int] = None,
                  dynamic_length_reference: Optional[str] = None,
                  use_calibrated_value: Optional[bool] = True,
-                 discrete_lookup_length: Optional[List[matches.DiscreteLookup]] = None,
+                 discrete_lookup_length: Optional[List[comparisons.DiscreteLookup]] = None,
                  length_linear_adjuster: Optional[callable] = None):
         # pylint: disable=pointless-statement
         f"""Constructor
@@ -248,7 +248,7 @@ class StringDataEncoding(DataEncoding):
         self.discrete_lookup_length = discrete_lookup_length
         self.length_linear_adjuster = length_linear_adjuster
 
-    def _calculate_size(self, packet: packets.Packet) -> int:
+    def _calculate_size(self, packet: parseables.Packet) -> int:
         """Calculate the length of the string data item in bits.
 
         Parameters
@@ -308,7 +308,7 @@ class StringDataEncoding(DataEncoding):
         return strlen_bits
         # pylint: enable=too-many-branches
 
-    def parse_value(self, packet: packets.Packet, **kwargs) -> Tuple[str, None]:
+    def parse_value(self, packet: parseables.Packet, **kwargs) -> Tuple[str, None]:
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
@@ -378,7 +378,7 @@ class StringDataEncoding(DataEncoding):
 
         discrete_lookup_list_element = fixed_element.find('xtce:DiscreteLookupList', ns)
         if discrete_lookup_list_element is not None:
-            discrete_lookup_list = [matches.DiscreteLookup.from_discrete_lookup_xml_element(el, ns)
+            discrete_lookup_list = [comparisons.DiscreteLookup.from_discrete_lookup_xml_element(el, ns)
                                     for el in discrete_lookup_list_element.findall('xtce:DiscreteLookup', ns)]
             return cls(encoding=encoding, byte_order=byte_order,
                        discrete_lookup_length=discrete_lookup_list)
@@ -440,11 +440,11 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
         self.default_calibrator = default_calibrator
         self.context_calibrators = context_calibrators
 
-    def _calculate_size(self, packet: packets.Packet) -> int:
+    def _calculate_size(self, packet: parseables.Packet) -> int:
         return self.size_in_bits
 
     @abstractmethod
-    def _get_raw_value(self, packet: packets.Packet) -> Union[int, float]:
+    def _get_raw_value(self, packet: parseables.Packet) -> Union[int, float]:
         """Read the raw value from the packet data
 
         Parameters
@@ -470,7 +470,7 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
         return val
 
     def parse_value(self,
-                    packet: packets.Packet,
+                    packet: parseables.Packet,
                     **kwargs) -> Tuple[Union[int, float], Union[int, float]]:
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
 
@@ -505,7 +505,7 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
 class IntegerDataEncoding(NumericDataEncoding):
     """<xtce:IntegerDataEncoding>"""
 
-    def _get_raw_value(self, packet: packets.Packet) -> int:
+    def _get_raw_value(self, packet: parseables.Packet) -> int:
         # Extract the bits from the data in big-endian order from the packet
         val = packet.read_as_int(self.size_in_bits)
         if self.byte_order == 'leastSignificantByteFirst':
@@ -668,7 +668,7 @@ class BinaryDataEncoding(DataEncoding):
 
     def __init__(self, fixed_size_in_bits: Optional[int] = None,
                  size_reference_parameter: Optional[str] = None, use_calibrated_value: bool = True,
-                 size_discrete_lookup_list: Optional[List[matches.DiscreteLookup]] = None,
+                 size_discrete_lookup_list: Optional[List[comparisons.DiscreteLookup]] = None,
                  linear_adjuster: Optional[callable] = None):
         """Constructor
 
@@ -695,7 +695,7 @@ class BinaryDataEncoding(DataEncoding):
         self.size_discrete_lookup_list = size_discrete_lookup_list
         self.linear_adjuster = linear_adjuster
 
-    def _calculate_size(self, packet: packets.Packet) -> int:
+    def _calculate_size(self, packet: parseables.Packet) -> int:
         """Determine the number of bits in the binary field.
 
         Returns
@@ -727,7 +727,7 @@ class BinaryDataEncoding(DataEncoding):
             len_bits = self.linear_adjuster(len_bits)
         return len_bits
 
-    def parse_value(self, packet: packets.Packet, word_size: Optional[int] = None, **kwargs):
+    def parse_value(self, packet: parseables.Packet, word_size: Optional[int] = None, **kwargs):
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
@@ -788,7 +788,7 @@ class BinaryDataEncoding(DataEncoding):
 
         discrete_lookup_list_element = element.find('xtce:SizeInBits/xtce:DiscreteLookupList', ns)
         if discrete_lookup_list_element is not None:
-            discrete_lookup_list = [matches.DiscreteLookup.from_discrete_lookup_xml_element(el, ns)
+            discrete_lookup_list = [comparisons.DiscreteLookup.from_discrete_lookup_xml_element(el, ns)
                                     for el in discrete_lookup_list_element.findall('xtce:DiscreteLookup', ns)]
             return cls(size_discrete_lookup_list=discrete_lookup_list)
 
