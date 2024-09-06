@@ -9,7 +9,7 @@ import time
 from typing import BinaryIO, Optional, Tuple, Union
 import warnings
 # Local
-from space_packet_parser import parseables, xtcedef, csvdef
+from space_packet_parser import definitions, parseables
 
 logger = logging.getLogger(__name__)
 
@@ -46,13 +46,13 @@ class PacketParser:
     """Class for parsing CCSDS packets"""
 
     def __init__(self,
-                 packet_definition: Union[xtcedef.XtcePacketDefinition, csvdef.CsvPacketDefinition],
+                 packet_definition: Union[definitions.XtcePacketDefinition, definitions.CsvPacketDefinition],
                  word_size: int = None):
         """Constructor
 
         Parameters
         ----------
-        packet_definition: xtcedef.XtcePacketDefinition or csvdef.CsvPacketDefinition
+        packet_definition: definitions.XtcePacketDefinition or definitions.CsvPacketDefinition
             The packet definition object to use for parsing incoming data.
         word_size: int, Optional
             Number of bits per word. If set, binary parameters are assumed to end on a word boundary and any unused bits
@@ -440,7 +440,7 @@ class PacketParser:
             # Wrap the bytes in a class that can keep track of position as we read from it
             packet = parseables.Packet(packet_bytes)
             try:
-                if isinstance(self.packet_definition, xtcedef.XtcePacketDefinition):
+                if isinstance(self.packet_definition, definitions.XtcePacketDefinition):
                     packet = self.parse_packet(packet,
                                                self.packet_definition.named_containers,
                                                root_container_name=root_container_name,

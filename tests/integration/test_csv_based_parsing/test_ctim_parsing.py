@@ -1,12 +1,12 @@
 """Test parsing of CTIM packet data"""
 # Local
-from space_packet_parser import csvdef, parser
+from space_packet_parser import definitions, parser
 
 
 def test_csv_packet_definition_parsing(ctim_test_data_dir):
     """Test parsing a real csv document"""
     test_csv_file = ctim_test_data_dir / 'ct_tlm.csv'
-    csv_pkt_def = csvdef.CsvPacketDefinition(test_csv_file)
+    csv_pkt_def = definitions.CsvPacketDefinition(test_csv_file)
 
     test_packet_file = ctim_test_data_dir / 'ccsds_2021_155_14_39_51'
     parser_inst = parser.PacketParser(csv_pkt_def)

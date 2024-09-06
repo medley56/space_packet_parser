@@ -1,8 +1,8 @@
 """Tests for the CSV based packet definition"""
 import pytest
 # Local
-from space_packet_parser import csvdef, parameters, encodings, parseables, parser
-from space_packet_parser.csvdef import CsvPacketDefinition
+from space_packet_parser import definitions, parameters, encodings, parseables, parser
+from space_packet_parser.definitions import CsvPacketDefinition
 
 
 @pytest.mark.parametrize(
@@ -38,7 +38,7 @@ from space_packet_parser.csvdef import CsvPacketDefinition
     ]
 )
 def test_get_param_type_from_str(dtype_str: str, name, expectation):
-    actual = csvdef.CsvPacketDefinition.get_param_type_from_str(dtype=dtype_str,
+    actual = definitions.CsvPacketDefinition.get_param_type_from_str(dtype=dtype_str,
                                                                 param_type_name=name,
                                                                 unit='foo')
 

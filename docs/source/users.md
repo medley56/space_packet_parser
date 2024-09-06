@@ -11,11 +11,11 @@ Usage with XTCE packet definition:
 
 ```python
 from pathlib import Path
-from space_packet_parser import xtcedef, parser
+from space_packet_parser import definitions, parser
 
 packet_file = Path('my_packets.pkts')
 xtce_document = Path('my_xtce_document.xml')
-packet_definition = xtcedef.XtcePacketDefinition(xtce_document)
+packet_definition = definitions.XtcePacketDefinition(xtce_document)
 
 # You can introspect the packet definition to learn about what was parsed
 pt = packet_definition.named_parameter_types["MY_PARAM_Type"]  # Look up a type (includes unit and encoding info)
@@ -38,11 +38,11 @@ Usage with CSV packet definition:
 
 ```python
 from pathlib import Path
-from space_packet_parser import csvdef, parser
+from space_packet_parser import definitions, parser
 
 packet_file = Path('my_packets.pkts')
 csv_document = Path('my_csv_file.csv')
-packet_definition = csvdef.CsvPacketDefinition(csv_document)
+packet_definition = definitions.CsvPacketDefinition(csv_document)
 my_parser = parser.PacketParser(packet_definition)
 
 with packet_file.open("rb") as binary_data:
