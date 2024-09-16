@@ -30,8 +30,8 @@ with packet_file.open("rb") as binary_data:
 
     for packet in packet_generator:
         # Do something with the packet data
-        print(packet.header['PKT_APID'])
-        print(packet.data)
+        print(packet['PKT_APID'])
+        print(packet.user_data)
 ```
 
 Usage with CSV packet definition:
@@ -50,8 +50,8 @@ with packet_file.open("rb") as binary_data:
 
     for packet in packet_generator:
         # Do something with the packet data
-        print(packet.header['PKT_APID'])
-        print(packet.data)
+        print(packet['PKT_APID'])
+        print(packet.user_data)
 ```
 
 ## Examples

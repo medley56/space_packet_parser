@@ -116,8 +116,8 @@ if __name__ == "__main__":
         p = next(idex_packet_generator)
         print(p)
         while True:
-            if 'IDX__SCI0TYPE' in p.data:
-                scitype = p.data['IDX__SCI0TYPE'].raw_value
+            if 'IDX__SCI0TYPE' in p:
+                scitype = p['IDX__SCI0TYPE'].raw_value
                 print(scitype)
                 if scitype == 1:  # This packet marks the beginning of an "event"
                     data = {}
@@ -125,23 +125,23 @@ if __name__ == "__main__":
                     # Each time we encounter a new scitype, that represents a new channel so we create a new array.
                     # A single channel of data may be spread between multiple packets, which must be concatenated.
                     p = next(idex_packet_generator)
-                    scitype = p.data['IDX__SCI0TYPE'].raw_value
+                    scitype = p['IDX__SCI0TYPE'].raw_value
                     print(scitype, end=", ")
-                    data[scitype] = p.data['IDX__SCI0RAW'].raw_value
+                    data[scitype] = p['IDX__SCI0RAW'].raw_value
                     while True:
                         # If we run into the end of the file, this will raise StopIteration and break both while loops
                         p_next = next(idex_packet_generator)
-                        next_scitype = p_next.data['IDX__SCI0TYPE'].raw_value
+                        next_scitype = p_next['IDX__SCI0TYPE'].raw_value
                         print(next_scitype, end=", ")
                         if next_scitype == scitype:
                             # If the scitype is the same as the last packet, then concatenate them
-                            data[scitype] += p_next.data['IDX__SCI0RAW'].raw_value
+                            data[scitype] += p_next['IDX__SCI0RAW'].raw_value
                         else:
                             # Otherwise check if we are at the end of the event (next scitype==1)
                             if next_scitype == 1:
                                 break
                             scitype = next_scitype
-                            data[scitype] = p_next.data['IDX__SCI0RAW'].raw_value
+                            data[scitype] = p_next['IDX__SCI0RAW'].raw_value
                     p = p_next
                     # If you have more than one complete event in a file (i.e. scitype 1, 2, 4, 8, 16, 32, 64),
                     # this loop would continue.

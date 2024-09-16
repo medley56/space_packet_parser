@@ -55,7 +55,7 @@ def test_suda_xtce_packet_parsing(suda_test_data_dir):
                                                       skip_header_bits=32,
                                                       show_progress=True)
         for suda_packet in suda_packet_generator:
-            assert isinstance(suda_packet, parseables.Packet)
+            assert isinstance(suda_packet, parseables.CCSDSPacket)
             assert suda_packet.header['PKT_APID'].raw_value == 1425, "APID is not as expected."
             assert suda_packet.header['VERSION'].raw_value == 0, "CCSDS header VERSION incorrect."
 
@@ -66,31 +66,31 @@ def test_suda_xtce_packet_parsing(suda_test_data_dir):
         try:
             p = next(suda_packet_generator)
             while True:
-                if 'IDX__SCIFETCHTYPE' in p.data:
-                    scitype = p.data['IDX__SCIFETCHTYPE'].raw_value
+                if 'IDX__SCIFETCHTYPE' in p:
+                    scitype = p['IDX__SCIFETCHTYPE'].raw_value
                     print(scitype)
                     if scitype == 1:  # beginning of an event
                         data = {}
                         event_header = p
                         # Each time we encounter a new scitype, we create a new array.
                         p = next(suda_packet_generator)
-                        scitype = p.data['IDX__SCIFETCHTYPE'].raw_value
+                        scitype = p['IDX__SCIFETCHTYPE'].raw_value
                         print(scitype, end=", ")
-                        data[scitype] = p.data['IDX__SCIFETCHRAW'].raw_value
+                        data[scitype] = p['IDX__SCIFETCHRAW'].raw_value
                         while True:
                             # If we run into the end of the file, this will raise StopIteration
                             p_next = next(suda_packet_generator)
-                            next_scitype = p_next.data['IDX__SCIFETCHTYPE'].raw_value
+                            next_scitype = p_next['IDX__SCIFETCHTYPE'].raw_value
                             print(next_scitype, end=", ")
                             if next_scitype == scitype:
                                 # If the scitype is the same as the last packet, then concatenate them
-                                data[scitype] += p_next.data['IDX__SCIFETCHRAW'].raw_value
+                                data[scitype] += p_next['IDX__SCIFETCHRAW'].raw_value
                             else:
                                 # Otherwise check if we are at the end of the event (next scitype==1)
                                 if next_scitype == 1:
                                     break
                                 scitype = next_scitype
-                                data[scitype] = p_next.data['IDX__SCIFETCHRAW'].raw_value
+                                data[scitype] = p_next['IDX__SCIFETCHRAW'].raw_value
                         p = p_next
                         # If you have more than one event in a file (i.e. scitype 1, 2, 4, 8, 16, 32, 64),
                         # this loop would continue.

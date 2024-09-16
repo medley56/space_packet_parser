@@ -15,5 +15,5 @@ def test_csv_packet_definition_parsing(ctim_test_data_dir):
         packets = list(pkt_gen)
 
     assert(len(packets) == 1499)
-    assert(packets[159].header['PKT_APID'].raw_value == 34)
-    assert(packets[159].data['SHCOARSE'].raw_value == 481168702)
+    assert(packets[159]['PKT_APID'].raw_value == 34)
+    assert(packets[159]['SHCOARSE'].raw_value == 481168702)

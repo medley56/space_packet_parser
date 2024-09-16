@@ -31,12 +31,12 @@ CCSDS_HEADER_LENGTH_BYTES = 6
 class UnrecognizedPacketTypeError(Exception):
     """Error raised when we can't figure out which kind of packet we are dealing with based on the header"""
 
-    def __init__(self, *args, partial_data: dict = None):
+    def __init__(self, *args, partial_data: Optional[dict] = None):
         """
         Parameters
         ----------
         partial_data : dict, Optional
-            Data parsed so far (for debugging at higher levels)
+            Packet data parsed so far (for debugging at higher levels)
         """
         super().__init__(*args)
         self.partial_data = partial_data
@@ -145,15 +145,15 @@ class PacketParser:
         # pylint: enable=inconsistent-return-statements
 
     @staticmethod
-    def parse_packet(packet: parseables.Packet,
-                     containers: dict,
-                     root_container_name: str = "CCSDSPacket",
-                     **parse_value_kwargs) -> parseables.Packet:
+    def parse_CCSDSPacket(packet: parseables.CCSDSPacket,
+                          containers: dict,
+                          root_container_name: str = "CCSDSPacket",
+                          **parse_value_kwargs) -> parseables.CCSDSPacket:
         """Parse binary packet data according to the self.packet_definition object
 
         Parameters
         ----------
-        packet: packets.Packet
+        packet: packets.CCSDSPacket
             Binary representation of the packet used to get the coming bits and any
             previously parsed data items to infer field lengths.
         containers : dict
@@ -168,11 +168,11 @@ class PacketParser:
         """
         current_container: parseables.SequenceContainer = containers[root_container_name]
         while True:
-            packet.parsed_data = current_container.parse(packet, **parse_value_kwargs)
+            current_container.parse(packet, **parse_value_kwargs)
 
             valid_inheritors = []
             for inheritor_name in current_container.inheritors:
-                if all(rc.evaluate(packet.parsed_data) for rc in containers[inheritor_name].restriction_criteria):
+                if all(rc.evaluate(packet) for rc in containers[inheritor_name].restriction_criteria):
                     valid_inheritors.append(inheritor_name)
 
             if len(valid_inheritors) == 1:
@@ -185,22 +185,24 @@ class PacketParser:
                     raise UnrecognizedPacketTypeError(
                         f"Detected an abstract container with no valid inheritors by restriction criteria. This might "
                         f"mean this packet type is not accounted for in the provided packet definition. "
-                        f"APID={packet.parsed_data['PKT_APID'].raw_value}.",
-                        partial_data=packet.parsed_data)
+                        f"APID={packet['PKT_APID'].raw_value}.",
+                        partial_data=packet)
                 break
 
             raise UnrecognizedPacketTypeError(
                 f"Multiple valid inheritors, {valid_inheritors} are possible for {current_container}.",
-                partial_data=packet.parsed_data)
+                partial_data=packet)
         return packet
 
     @staticmethod
-    def legacy_parse_packet(packet: parseables.Packet, entry_list: list, **parse_value_kwargs) -> parseables.Packet:
+    def legacy_parse_CCSDSPacket(packet: parseables.CCSDSPacket,
+                                 entry_list: list,
+                                 **parse_value_kwargs) -> parseables.CCSDSPacket:
         """Parse binary packet data according to the self.flattened_containers property
 
         Parameters
         ----------
-        packet : packets.Packet
+        packet : packets.CCSDSPacket
             Binary packet data to parse into Packets
         entry_list : list
             List of Parameter objects
@@ -214,7 +216,7 @@ class PacketParser:
         for parameter in entry_list[0:7]:
             parsed_value, _ = parameter.parameter_type.parse_value(packet)
 
-            packet.parsed_data[parameter.name] = parseables.ParsedDataItem(
+            packet[parameter.name] = parseables.ParsedDataItem(
                 name=parameter.name,
                 unit=parameter.parameter_type.unit,
                 raw_value=parsed_value
@@ -224,7 +226,7 @@ class PacketParser:
             parsed_value, derived_value = parameter.parameter_type.parse_value(
                 packet, **parse_value_kwargs)
 
-            packet.parsed_data[parameter.name] = parseables.ParsedDataItem(
+            packet[parameter.name] = parseables.ParsedDataItem(
                 name=parameter.name,
                 unit=parameter.parameter_type.unit,
                 raw_value=parsed_value,
@@ -425,7 +427,8 @@ class PacketParser:
             if ccsds_headers_only is True:
                 # update the current position to the end of the packet data
                 current_pos += n_bytes_packet
-                yield parseables.Packet(read_buffer[current_pos-n_bytes_packet:current_pos], parsed_data=header)
+                p = parseables.CCSDSPacket(raw_data=read_buffer[current_pos-n_bytes_packet:current_pos], **header)
+                yield p
                 continue
 
             # Based on PKT_LEN fill buffer enough to read a full packet
@@ -439,16 +442,16 @@ class PacketParser:
             packet_bytes = read_buffer[current_pos:current_pos + n_bytes_packet]
             current_pos += n_bytes_packet
             # Wrap the bytes in a class that can keep track of position as we read from it
-            packet = parseables.Packet(packet_bytes)
+            packet = parseables.CCSDSPacket(raw_data=packet_bytes)
             try:
                 if isinstance(self.packet_definition, definitions.XtcePacketDefinition):
-                    packet = self.parse_packet(packet,
-                                               self.packet_definition.named_containers,
-                                               root_container_name=root_container_name,
-                                               word_size=self.word_size)
+                    packet = self.parse_CCSDSPacket(packet,
+                                                    self.packet_definition.named_containers,
+                                                    root_container_name=root_container_name,
+                                                    word_size=self.word_size)
                 else:
                     _, parameter_list = self._determine_packet_by_restrictions(header)
-                    packet = self.legacy_parse_packet(packet, parameter_list, word_size=self.word_size)
+                    packet = self.legacy_parse_CCSDSPacket(packet, parameter_list, word_size=self.word_size)
             except UnrecognizedPacketTypeError as e:
                 logger.debug(f"Unrecognized error on packet with APID {header['PKT_APID'].raw_value}'")
                 if yield_unrecognized_packet_errors is True:
@@ -463,7 +466,7 @@ class PacketParser:
                                  f"{packet.header['PKT_LEN'].raw_value}. This might be because the CCSDS header is "
                                  f"incorrectly represented in your packet definition document.")
 
-            actual_length_parsed = packet.pos // 8
+            actual_length_parsed = packet.raw_data.pos // 8
             if actual_length_parsed != n_bytes_packet:
                 logger.warning(f"Parsed packet length "
                                f"({actual_length_parsed}B) did not match "
