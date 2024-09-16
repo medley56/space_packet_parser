@@ -110,13 +110,13 @@ class ParameterType(comparisons.AttrComparable, metaclass=ABCMeta):
                 return data_encoding.from_data_encoding_xml_element(element, ns)
         return None
 
-    def parse_value(self, packet: parseables.Packet, **kwargs):
+    def parse_value(self, packet: parseables.CCSDSPacket, **kwargs):
         """Using the parameter type definition and associated data encoding, parse a value from a bit stream starting
         at the current cursor position.
 
         Parameters
         ----------
-        packet: Packet
+        packet: CCSDSPacket
             Binary representation of the packet used to get the coming bits and any
             previously parsed data items to infer field lengths.
 
@@ -231,13 +231,13 @@ class EnumeratedParameterType(ParameterType):
             for el in enumeration_list.iterfind('xtce:Enumeration', ns)
         }
 
-    def parse_value(self, packet: parseables.Packet, **kwargs):
+    def parse_value(self, packet: parseables.CCSDSPacket, **kwargs):
         """Using the parameter type definition and associated data encoding, parse a value from a bit stream starting
         at the current cursor position.
 
         Parameters
         ----------
-        packet: Packet
+        packet: CCSDSPacket
             Binary representation of the packet used to get the coming bits and any
             previously parsed data items to infer field lengths.
 
@@ -290,13 +290,13 @@ class BooleanParameterType(ParameterType):
                           f"encoded booleans is not specified in XTCE. e.g. is the string \"0\" truthy?")
         super().__init__(name, encoding, unit)
 
-    def parse_value(self, packet: parseables.Packet, **kwargs):
+    def parse_value(self, packet: parseables.CCSDSPacket, **kwargs):
         """Using the parameter type definition and associated data encoding, parse a value from a bit stream starting
         at the current cursor position.
 
         Parameters
         ----------
-        packet: Packet
+        packet: CCSDSPacket
             Binary representation of the packet used to get the coming bits and any
             previously parsed data items to infer field lengths.
 
@@ -516,15 +516,15 @@ class Parameter(parseables.Parseable):
     short_description: Optional[str] = None
     long_description: Optional[str] = None
 
-    def parse(self, packet: parseables.Packet, **parse_value_kwargs) -> dict:
+    def parse(self, packet: parseables.CCSDSPacket, **parse_value_kwargs) -> None:
         """Parse this parameter from the packet data.
 
-        Create a ``ParsedDataItem`` and add it to the parsed_items dictionary.
+        Create a ``ParsedDataItem`` and add it to the packet dictionary.
         """
         parsed_value, derived_value = self.parameter_type.parse_value(
             packet, **parse_value_kwargs)
 
-        packet.parsed_data[self.name] = parseables.ParsedDataItem(
+        packet[self.name] = parseables.ParsedDataItem(
             name=self.name,
             unit=self.parameter_type.unit,
             raw_value=parsed_value,
@@ -532,4 +532,3 @@ class Parameter(parseables.Parseable):
             short_description=self.short_description,
             long_description=self.long_description
         )
-        return packet.parsed_data

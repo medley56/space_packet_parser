@@ -18,10 +18,10 @@ def test_jpss_xtce_packet_parsing(jpss_test_data_dir):
 
         n_packets = 0
         for jpss_packet in jpss_packet_generator:
-            assert isinstance(jpss_packet, parseables.Packet)
+            assert isinstance(jpss_packet, parseables.CCSDSPacket)
             assert jpss_packet.header['PKT_APID'].raw_value == 11
             assert jpss_packet.header['VERSION'].raw_value == 0
-            assert jpss_packet.data['USEC'].short_description == "Secondary Header Fine Time (microsecond)"
-            assert jpss_packet.data['USEC'].long_description == "CCSDS Packet 2nd Header Fine Time in microseconds."
+            assert jpss_packet['USEC'].short_description == "Secondary Header Fine Time (microsecond)"
+            assert jpss_packet['USEC'].long_description == "CCSDS Packet 2nd Header Fine Time in microseconds."
             n_packets += 1
         assert n_packets == 7200

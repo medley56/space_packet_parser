@@ -8,6 +8,7 @@ import warnings
 import lxml.etree as ElementTree
 
 from space_packet_parser.exceptions import ComparisonError
+from space_packet_parser import parseables
 
 
 # Common comparable mixin
@@ -66,13 +67,15 @@ class MatchCriteria(AttrComparable, metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def evaluate(self, parsed_data: dict, current_parsed_value: Optional[Union[int, float]] = None) -> bool:
+    def evaluate(self,
+                 packet: parseables.CCSDSPacket,
+                 current_parsed_value: Optional[Union[int, float]] = None) -> bool:
         """Evaluate match criteria down to a boolean.
 
         Parameters
         ----------
-        parsed_data : dict
-            Dictionary of parsed parameter data so far. Used to evaluate truthyness of the match criteria.
+        packet : parseables.CCSDSPacket
+            Packet data used to evaluate truthyness of the match criteria.
         current_parsed_value : any, Optional
             Uncalibrated value that is currently being matched (e.g. as a candidate for calibration).
             Used to resolve comparisons that reference their own raw value as a condition.
@@ -80,7 +83,7 @@ class MatchCriteria(AttrComparable, metaclass=ABCMeta):
         Returns
         -------
         : bool
-            Truthyness of this match criteria based on parsed_data values.
+            Truthyness of this match criteria based on previously parsed values.
         """
         raise NotImplementedError()
 
@@ -153,32 +156,34 @@ class Comparison(MatchCriteria):
 
         return cls(value, parameter_name, operator=operator, use_calibrated_value=use_calibrated_value)
 
-    def evaluate(self, parsed_data: dict, current_parsed_value: Optional[Union[int, float]] = None) -> bool:
+    def evaluate(self,
+                 packet: parseables.CCSDSPacket,
+                 current_parsed_value: Optional[Union[int, float]] = None) -> bool:
         """Evaluate comparison down to a boolean. If the parameter to compare is not present in the parsed_data dict,
         we assume that we are comparing against the current raw value in current_parsed_value.
 
         Parameters
         ----------
-        parsed_data : dict
-            Dictionary of parsed parameter data so far. Used to evaluate truthyness of the match criteria.
+        packet : parseables.CCSDSPacket
+            Packet data used to evaluate truthyness of the match criteria.
         current_parsed_value : Union[int, float]
             Optional. Uncalibrated value that is currently a candidate for calibration and so has not yet been added
-            to the parsed_data dict. Used to resolve calibrator conditions that reference their own
+            to the packet. Used to resolve calibrator conditions that reference their own
             raw value as a comparate.
 
         Returns
         -------
         : bool
-            Truthyness of this match criteria based on parsed_data values.
+            Truthyness of this match criteria based on previously parsed values.
         """
-        if self.referenced_parameter in parsed_data:
+        if self.referenced_parameter in packet:
             if self.use_calibrated_value:
-                parsed_value = parsed_data[self.referenced_parameter].derived_value
+                parsed_value = packet[self.referenced_parameter].derived_value
                 if not parsed_value:
                     raise ComparisonError(f"Comparison {self} was instructed to useCalibratedValue (the default)"
                                           f"but {self.referenced_parameter} does not appear to have a derived value.")
             else:
-                parsed_value = parsed_data[self.referenced_parameter].raw_value
+                parsed_value = packet[self.referenced_parameter].raw_value
         elif current_parsed_value is not None:
             # Assume then that the comparison is a reference to its own uncalibrated value
             parsed_value = current_parsed_value
@@ -315,27 +320,29 @@ class Condition(MatchCriteria):
         raise ValueError(f'Failed to parse a Condition element {element}. '
                          'See 3.4.3.4.2 of XTCE Green Book CCSDS 660.1-G-2')
 
-    def evaluate(self, parsed_data: dict, current_parsed_value: Optional[Union[int, float]] = None) -> bool:
+    def evaluate(self,
+                 packet: parseables.CCSDSPacket,
+                 current_parsed_value: Optional[Union[int, float]] = None) -> bool:
         """Evaluate match criteria down to a boolean.
 
         Parameters
         ----------
-        parsed_data : dict
-            Dictionary of parsed parameter data so far. Used to evaluate truthyness of the match criteria.
+        packet : parseables.CCSDSPacket
+            Packet data used to evaluate truthyness of the match criteria.
         current_parsed_value : Optional[Union[int, float]]
             Current value being parsed. NOTE: This is currently ignored. See the TODO item below.
 
         Returns
         -------
         : bool
-            Truthyness of this match criteria based on parsed_data values.
+            Truthyness of this match criteria based on previously parsed values.
         """
 
         def _get_parsed_value(parameter_name: str, use_calibrated: bool):
-            """Retrieves the previously parsed value from the passed in parsed_data"""
+            """Retrieves the previously parsed value from the passed in packet"""
             try:
-                return parsed_data[parameter_name].derived_value if use_calibrated \
-                    else parsed_data[parameter_name].raw_value
+                return packet[parameter_name].derived_value if use_calibrated \
+                    else packet[parameter_name].raw_value
             except KeyError as e:
                 raise ComparisonError(f"Attempting to perform a Condition evaluation on {self.left_param} but "
                                       "the referenced parameter does not appear in the hitherto parsed data passed to "
@@ -435,25 +442,27 @@ class BooleanExpression(MatchCriteria):
             return cls(expression=_parse_ored(element.find('xtce:ORedConditions', ns)))
         raise ValueError(f"Failed to parse {element}")
 
-    def evaluate(self, parsed_data: dict, current_parsed_value: Optional[Union[int, float]] = None) -> bool:
+    def evaluate(self,
+                 packet: parseables.CCSDSPacket,
+                 current_parsed_value: Optional[Union[int, float]] = None) -> bool:
         """Evaluate the criteria in the BooleanExpression down to a single boolean.
 
         Parameters
         ----------
-        parsed_data : dict
-            Dictionary of parsed parameter data so far. Used to evaluate truthyness of the match criteria.
+        packet : parseables.CCSDSPacket
+            Packet data used to evaluate truthyness of the match criteria.
         current_parsed_value : Optional[Union[int, float]]
             Current value being parsed.
 
         Returns
         -------
         : bool
-            Truthyness of this match criteria based on parsed_data values.
+            Truthyness of this match criteria based on previously parsed values.
         """
 
         def _or(ored: Ored):
             for condition in ored.conditions:
-                if condition.evaluate(parsed_data) is True:
+                if condition.evaluate(packet) is True:
                     return True
             for anded in ored.ands:
                 if _and(anded):
@@ -462,7 +471,7 @@ class BooleanExpression(MatchCriteria):
 
         def _and(anded: Anded):
             for condition in anded.conditions:
-                if condition.evaluate(parsed_data) is False:
+                if condition.evaluate(packet) is False:
                     return False
             for ored in anded.ors:
                 if not _or(ored):
@@ -470,7 +479,7 @@ class BooleanExpression(MatchCriteria):
             return True
 
         if isinstance(self.expression, Condition):
-            return self.expression.evaluate(parsed_data)
+            return self.expression.evaluate(packet)
         if isinstance(self.expression, Anded):
             return _and(self.expression)
         if isinstance(self.expression, Ored):
@@ -522,15 +531,15 @@ class DiscreteLookup(AttrComparable):
 
         return cls(match_criteria, lookup_value)
 
-    def evaluate(self, parsed_data: dict, current_parsed_value: Optional[Union[int, float]] = None) -> Any:
+    def evaluate(self, packet: parseables.CCSDSPacket, current_parsed_value: Optional[Union[int, float]] = None) -> Any:
         """Evaluate the lookup to determine if it is valid.
 
         Parameters
         ----------
-        parsed_data : dict
-            Data parsed so far (for referencing during criteria evaluation).
+        packet : parseables.CCSDSPacket
+            Packet data used to evaluate truthyness of the match criteria.
         current_parsed_value: Optional[Union[int, float]]
-            If referenced parameter in criterion isn't in parsed_data dict, we assume we are comparing against this
+            If referenced parameter in criterion isn't in the packet, we assume we are comparing against this
             currently parsed value.
 
         Returns
@@ -538,7 +547,7 @@ class DiscreteLookup(AttrComparable):
         : any
             Return the lookup value if the match criteria evaluate true. Return None otherwise.
         """
-        if all(criterion.evaluate(parsed_data, current_parsed_value) for criterion in self.match_criteria):
+        if all(criterion.evaluate(packet, current_parsed_value) for criterion in self.match_criteria):
             # If the parsed data so far satisfy all the match criteria
             return self.lookup_value
         return None

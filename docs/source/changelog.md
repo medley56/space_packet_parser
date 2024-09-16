@@ -16,6 +16,9 @@ Release notes for the `space_packet_parser` library
 - BREAKING: The return type of BinaryDataEncoding is now the raw bytes.
   To get the previous behavior you can convert the data to an integer and then format it as a binary string.
   ``f"{int.from_bytes(data, byteorder='big'):0{len(data)*8}b}"``
+- The ``CCSDSPacket`` class is now a dictionary subclass, enabling direct lookup of items from the Packet itself.
+- A ``RawPacketData`` class has been added that is a subclass of bytes. It keeps track of the current
+  parsing location and enables reading of bit lengths as integers or raw bytes.
 - Fix EnumeratedParameterType to handle duplicate labels
 - Add error reporting for unsupported and invalid parameter types
 - Add support for MIL-1750A floats (32-bit only)
