@@ -6,3 +6,4 @@
    developers.md
    changelog.md
    autoapi/index.rst
+   browser-demo.rst

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            max-width: 900px;
+        }
+        #output {
+            margin: 1rem;
+            min-height: 1rem;
+            padding: 1rem;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+
+<h4>Upload and read a binary CCSDS packet file in the browser</h4>
+
+The following example uses the <b>space_packet_parser</b> library to parse the packets.
+The Python code is run using Pyodide, a web assembly (WASM) version of Python.
+All data stays local and never gets sent to an external server.
+
+<div class="file-field input-field">
+  <div class="btn">
+    <span>Packet File</span>
+    <input type="file" id="packet_file">
+  </div>
+  <div class="file-path-wrapper">
+    <input class="file-path validate" type="text">
+  </div>
+</div>
+<div class="file-field input-field">
+  <div class="btn">
+    <span>XTCE File</span>
+    <input type="file" id="xtce_file">
+  </div>
+  <div class="file-path-wrapper">
+    <input class="file-path validate" type="text">
+  </div>
+</div>
+
+<button class="btn-large waves-effect waves-light" id="process">
+    Parse Packets
+</button>
+
+<div id="output"></div>
+
+
+<script type="text/javascript">
+
+    // Function to read file and display its contents
+    async function processPackets() {
+        const packetFileInput = document.getElementById('packet_file');
+        const packetFile = packetFileInput.files[0];
+
+        const xtceFileInput = document.getElementById('xtce_file');
+        const xtceFile = xtceFileInput.files[0];
+
+        if (!packetFile || !xtceFile) {
+            alert('Please select a packet file and XTCE definition file');
+            return;
+        }
+
+        const xtceFileText = await xtceFile.text();
+
+        // Read the file as binary using FileReader and ArrayBuffer
+        const arrayBuffer = await packetFile.arrayBuffer();
+        // Convert ArrayBuffer to Uint8Array (Python-friendly format for binary data)
+        const uint8Array = new Uint8Array(arrayBuffer);
+
+        // Setup our environment
+        let pyodide = await loadPyodide();
+        await pyodide.loadPackage("micropip");
+        const micropip = pyodide.pyimport("micropip");
+        await micropip.install('space_packet_parser');
+
+        // Pass the binary file content to Python by setting a Python global variable
+        pyodide.globals.set('packet_content', uint8Array);
+        // also pass in the XTCE file content
+        pyodide.globals.set('xtce_content', xtceFileText);
+
+        // Execute Python code to simulate opening a binary file
+        await pyodide.runPythonAsync(`
+            import io
+            from space_packet_parser.parser import PacketParser
+            from space_packet_parser.xtcedef import XtcePacketDefinition
+
+            # Create an in-memory binary file using io.BytesIO
+            packet_file_obj = io.BytesIO(packet_content.to_py())
+            xtce_file_obj = io.StringIO(xtce_content)
+            packet_def = XtcePacketDefinition(xtce_file_obj)
+            # print(xtce_file_obj.read())
+            packet_parser = PacketParser(packet_def)
+
+            count = 0
+            packet_generator = packet_parser.generator(packet_file_obj)
+            packets = list(packet_generator)
+            npackets = len(packets)
+            print(f"Total packets: {npackets}")
+        `);
+
+       // Import the Python list back to JavaScript as an array of dictionaries
+       const objectList = pyodide.globals.get('packets');
+       const nPackets = pyodide.globals.get('npackets');
+
+        // Display the list contents in the output div
+        const outputDiv = document.getElementById('output');
+        outputDiv.innerHTML = `<h4>Parsed ${nPackets} packets</h4>`;
+
+        // Create a list in HTML to display each object
+        const ol = document.createElement('ol');
+
+        // Iterate through the objectList to append each item
+        objectList.forEach(obj => {
+            const li = document.createElement('li');
+            li.textContent = `Packet: ${obj}`;
+            ol.appendChild(li);
+        });
+
+        // Append the list to the output div
+        outputDiv.appendChild(ol);
+    }
+
+    // Add event listener to the button
+    document.getElementById('process').addEventListener('click', processPackets);
+</script>
+
+</body>
+</html>
