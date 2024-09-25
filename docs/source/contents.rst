@@ -5,5 +5,5 @@
    users.md
    developers.md
    changelog.md
-   autoapi/index.rst
    browser-demo.rst
+   autoapi/index.rst

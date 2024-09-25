@@ -6,10 +6,8 @@ import socket
 import time
 # Installed
 import pytest
-
 # Local
 from space_packet_parser.definitions import XtcePacketDefinition
-from space_packet_parser.parser import PacketParser
 
 
 def send_data(sender: socket.socket, file: str):
@@ -44,8 +42,6 @@ def send_data(sender: socket.socket, file: str):
 def test_parsing_from_socket(jpss_test_data_dir):
     # Create packet def
     xdef = XtcePacketDefinition(jpss_test_data_dir / 'jpss1_geolocation_xtce_v1.xml')
-    # Create packet parser
-    parser = PacketParser(packet_definition=xdef)
     # Create socket
     sender, receiver = socket.socketpair()
     receiver.settimeout(3)
@@ -53,7 +49,7 @@ def test_parsing_from_socket(jpss_test_data_dir):
     p = Process(target=send_data, args=(sender, file,))
     p.start()
 
-    packet_generator = parser.generator(receiver, buffer_read_size_bytes=4096, show_progress=True)
+    packet_generator = xdef.packet_generator(receiver, buffer_read_size_bytes=4096, show_progress=True)
     with pytest.raises(socket.timeout):
         packets = []
         for p in packet_generator:

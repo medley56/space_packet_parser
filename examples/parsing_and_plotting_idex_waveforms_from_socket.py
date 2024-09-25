@@ -20,10 +20,9 @@ import time
 import matplotlib.pyplot as plt
 # Local
 from space_packet_parser import definitions
-from space_packet_parser import parser
 
 
-def send_data(sender: socket.socket, file: Path):
+def send_data(sender: socket.socket, file: Path) -> None:
     """Send data from a file as bytes via a socket with random chunk sizes and random waits between sending chunks
 
     Parameters
@@ -51,7 +50,7 @@ def send_data(sender: socket.socket, file: Path):
         print("\nFinished sending data.")
 
 
-def parse_hg_waveform(waveform_raw: str):
+def parse_hg_waveform(waveform_raw: str) -> list[int]:
     """Parse a binary string representing a high gain waveform"""
     ints = []
     for i in range(0, len(waveform_raw), 32):
@@ -65,7 +64,7 @@ def parse_hg_waveform(waveform_raw: str):
     return ints
 
 
-def parse_lg_waveform(waveform_raw: str):
+def parse_lg_waveform(waveform_raw: str) -> list[int]:
     """Parse a binary string representing a low gain waveform"""
     ints = []
     for i in range(0, len(waveform_raw), 32):
@@ -76,7 +75,7 @@ def parse_lg_waveform(waveform_raw: str):
     return ints
 
 
-def parse_waveform_data(waveform: bytes, scitype: int):
+def parse_waveform_data(waveform: bytes, scitype: int) -> list[int]:
     """Parse the binary string that represents a waveform"""
     print(f'Parsing waveform for scitype={scitype}')
     waveform_str = f"{int.from_bytes(waveform, byteorder='big'):0{len(waveform)*8}b}"
@@ -101,7 +100,6 @@ if __name__ == "__main__":
     idex_xtce = idex_test_data_dir / 'idex_combined_science_definition.xml'
     idex_definition = definitions.XtcePacketDefinition(xtce_document=idex_xtce)
     assert isinstance(idex_definition, definitions.XtcePacketDefinition)
-    idex_parser = parser.PacketParser(idex_definition)
     idex_packet_file = idex_test_data_dir / 'sciData_2023_052_14_45_05'
 
     sender, receiver = socket.socketpair()
@@ -110,8 +108,9 @@ if __name__ == "__main__":
     p.start()
 
     # Create a packet generator that listens to a socket
-    idex_packet_generator = idex_parser.generator(receiver)
-
+    idex_packet_generator = idex_definition.packet_generator(receiver)
+    # No data yet. We start recording data from an event when we encounter a packet with IDX__SCI0TYPE==1
+    data: dict[int, bytes] = {}
     try:
         p = next(idex_packet_generator)
         print(p)
@@ -134,12 +133,14 @@ if __name__ == "__main__":
                         next_scitype = p_next['IDX__SCI0TYPE'].raw_value
                         print(next_scitype, end=", ")
                         if next_scitype == scitype:
-                            # If the scitype is the same as the last packet, then concatenate them
+                            # If the scitype is the same as the last packet, then concatenate them.
+                            # This means the data for a particular waveform was too large
+                            # to downlink in a single packet.
                             data[scitype] += p_next['IDX__SCI0RAW'].raw_value
                         else:
                             # Otherwise check if we are at the end of the event (next scitype==1)
                             if next_scitype == 1:
-                                break
+                                break  # We have all packets for the event. Break the loop and plot the waveforms.
                             scitype = next_scitype
                             data[scitype] = p_next['IDX__SCI0RAW'].raw_value
                     p = p_next
@@ -148,12 +149,24 @@ if __name__ == "__main__":
                     # For this example, we only have one full event so we have already hit a StopIteration by
                     # this point.
 
+                if not data:
+                    print("The first packet did not mark the beginning of an event (IDX__SCI0TYPE != 1)."
+                          "The packet stream probably started in the middle of an event (series of packets)."
+                          "Continuing until we find a packet with IDX__SCI0TYPE == 1.")
+                    continue
+
                 # We denote channels by their scitype value (2, 4, 8, 16, 32, 64) and parse the waveform binary blob
                 # data using functions defined above.
-                data = {scitype: parse_waveform_data(waveform, scitype) for scitype, waveform in data.items()}
-                plot_full_event(data)
+                parsed_waveform_data: dict[int, list] = {
+                    scitype: parse_waveform_data(waveform, scitype)
+                    for scitype, waveform in data.items()
+                }
+                plot_full_event(parsed_waveform_data)
     except StopIteration:
-        data = {scitype: parse_waveform_data(waveform, scitype) for scitype, waveform in data.items()}
+        parsed_waveform_data: dict[int, list] = {
+            scitype: parse_waveform_data(waveform, scitype)
+            for scitype, waveform in data.items()
+        }
         plot_full_event(data)
         print("\nEncountered the end of the binary file.")
         pass

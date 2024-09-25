@@ -1,6 +1,8 @@
+"""Tests for packets"""
+# Standard
 import pytest
-
-from space_packet_parser import parseables
+# Local
+from space_packet_parser import packets
 
 
 @pytest.mark.parametrize(("raw_value", "start", "nbits", "expected"),
@@ -19,7 +21,7 @@ from space_packet_parser import parseables
                           (0b110000111100001100000000, 0, 24, 0b110000111100001100000000)])
 def test_raw_packet_data(raw_value, start, nbits, expected):
     raw_bytes = raw_value.to_bytes((raw_value.bit_length() + 7) // 8, "big")
-    raw_packet = parseables.RawPacketData(raw_bytes)
+    raw_packet = packets.RawPacketData(raw_bytes)
     raw_packet.pos = start
     assert raw_packet.read_as_int(nbits) == expected
     assert raw_packet.pos == start + nbits
@@ -31,7 +33,7 @@ def test_raw_packet_data(raw_value, start, nbits, expected):
 
 
 def test_ccsds_packet():
-    packet = parseables.CCSDSPacket(raw_data=b"123")
+    packet = packets.CCSDSPacket(raw_data=b"123")
     assert packet.raw_data == b"123"
     # There are no items yet, so it should be an empty dictionary
     assert packet == {}
@@ -47,3 +49,23 @@ def test_ccsds_packet():
 
     with pytest.raises(KeyError):
         packet[10]
+
+
+@pytest.mark.parametrize(
+    ('name', 'raw_value', 'unit', 'derived_value', 'short_description', 'long_description', 'valid'),
+    [
+        ('TEST', 0, 'smoots', 10, "short", "long", True),
+        ('TEST', 10, None, None, None, None, True),
+        (None, 10, 'foo', 10, None, None, False),
+        ('TEST', None, None, None, None, None, False)
+    ]
+)
+def test_parsed_data_item(name, raw_value, unit, derived_value, short_description, long_description, valid):
+    """Test ParsedDataItem"""
+    pdi = packets.ParsedDataItem(name, raw_value, unit, derived_value, short_description, long_description)
+    assert pdi.name == name
+    assert pdi.raw_value == raw_value
+    assert pdi.unit == unit
+    assert pdi.derived_value == derived_value
+    assert pdi.short_description == short_description
+    assert pdi.long_description == long_description
