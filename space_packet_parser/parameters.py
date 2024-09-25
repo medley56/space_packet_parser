@@ -7,7 +7,7 @@ import warnings
 
 import lxml.etree as ElementTree
 
-from space_packet_parser import calibrators, comparisons, encodings, parseables
+from space_packet_parser import calibrators, comparisons, encodings, packets
 
 
 class ParameterType(comparisons.AttrComparable, metaclass=ABCMeta):
@@ -119,7 +119,7 @@ class ParameterType(comparisons.AttrComparable, metaclass=ABCMeta):
         raise ValueError(f"No Data Encoding element found for Parameter Type "
                          f"{parameter_type_element.tag}: {parameter_type_element.attrib}")
 
-    def parse_value(self, packet: parseables.CCSDSPacket, **kwargs):
+    def parse_value(self, packet: packets.CCSDSPacket, **kwargs):
         """Using the parameter type definition and associated data encoding, parse a value from a bit stream starting
         at the current cursor position.
 
@@ -240,7 +240,7 @@ class EnumeratedParameterType(ParameterType):
             for el in enumeration_list.iterfind('xtce:Enumeration', ns)
         }
 
-    def parse_value(self, packet: parseables.CCSDSPacket, **kwargs):
+    def parse_value(self, packet: packets.CCSDSPacket, **kwargs):
         """Using the parameter type definition and associated data encoding, parse a value from a bit stream starting
         at the current cursor position.
 
@@ -299,7 +299,7 @@ class BooleanParameterType(ParameterType):
                           f"encoded booleans is not specified in XTCE. e.g. is the string \"0\" truthy?")
         super().__init__(name, encoding, unit)
 
-    def parse_value(self, packet: parseables.CCSDSPacket, **kwargs):
+    def parse_value(self, packet: packets.CCSDSPacket, **kwargs):
         """Using the parameter type definition and associated data encoding, parse a value from a bit stream starting
         at the current cursor position.
 
@@ -510,7 +510,7 @@ class RelativeTimeParameterType(TimeParameterType):
 
 
 @dataclass
-class Parameter(parseables.Parseable):
+class Parameter(packets.Parseable):
     """<xtce:Parameter>
 
     Parameters
@@ -529,7 +529,7 @@ class Parameter(parseables.Parseable):
     short_description: Optional[str] = None
     long_description: Optional[str] = None
 
-    def parse(self, packet: parseables.CCSDSPacket, **parse_value_kwargs) -> None:
+    def parse(self, packet: packets.CCSDSPacket, **parse_value_kwargs) -> None:
         """Parse this parameter from the packet data.
 
         Create a ``ParsedDataItem`` and add it to the packet dictionary.
@@ -537,7 +537,7 @@ class Parameter(parseables.Parseable):
         parsed_value, derived_value = self.parameter_type.parse_value(
             packet, **parse_value_kwargs)
 
-        packet[self.name] = parseables.ParsedDataItem(
+        packet[self.name] = packets.ParsedDataItem(
             name=self.name,
             unit=self.parameter_type.unit,
             raw_value=parsed_value,

@@ -17,6 +17,13 @@ To run all tests in docker containers (tests against many versions of python), r
 docker-compose up --build && docker-compose down
 ```
 
+## Building Documentation with Sphinx
+Documentation is automatically built on ReadTheDocs but you can also build it locally with:
+```bash
+# From docs directory
+make html && open build/html/index.html
+```
+
 ## Making a Pull Request
 Feel free to fork this repo and submit a PR! 
 - If you are working on an issue, link your PR to that issue.

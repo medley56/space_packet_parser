@@ -6,6 +6,8 @@ list and release milestones.
 Release notes for the `space_packet_parser` library
 
 ### v5.0.0 (unreleased)
+- BREAKING: Main API changed. No need to create separate definition and parser objects any more. Create only a 
+  definition from your XTCE document and instead of `my_parser.generator`, use `my_packet_definition.packet_generator`.
 - BREAKING: Removed CSV-based packet definition support. We may indirectly support this in the future via 
   a utility for converting CSV definitions to XTCE.
 - BREAKING: Separated out logical pieces into separate modules rather than everything
@@ -18,6 +20,9 @@ Release notes for the `space_packet_parser` library
 - BREAKING: The return type of BinaryDataEncoding is now the raw bytes.
   To get the previous behavior you can convert the data to an integer and then format it as a binary string.
   ``f"{int.from_bytes(data, byteorder='big'):0{len(data)*8}b}"``
+- BREAKING: Removed `word_size` kwarg from packet generator method. 
+  We expect all binary data to be integer number of bytes.
+- BREAKING: Changed `packet_generator` kwarg `skip_header_bits` to `skip_header_bytes`.
 - The ``CCSDSPacket`` class is now a dictionary subclass, enabling direct lookup of items from the Packet itself.
 - A ``RawPacketData`` class has been added that is a subclass of bytes. It keeps track of the current
   parsing location and enables reading of bit lengths as integers or raw bytes.

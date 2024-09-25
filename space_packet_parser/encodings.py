@@ -8,7 +8,7 @@ import warnings
 import lxml.etree as ElementTree
 
 from space_packet_parser.exceptions import ElementNotFoundError
-from space_packet_parser import calibrators, comparisons, parseables
+from space_packet_parser import calibrators, comparisons, packets
 
 
 logger = logging.getLogger(__name__)
@@ -131,7 +131,7 @@ class DataEncoding(comparisons.AttrComparable, metaclass=ABCMeta):
             return adjuster
         return None
 
-    def _calculate_size(self, packet: parseables.CCSDSPacket) -> int:
+    def _calculate_size(self, packet: packets.CCSDSPacket) -> int:
         """Calculate the size of the data item in bits.
 
         Parameters
@@ -147,7 +147,7 @@ class DataEncoding(comparisons.AttrComparable, metaclass=ABCMeta):
         """
         raise NotImplementedError()
 
-    def parse_value(self, packet: parseables.CCSDSPacket, **kwargs) -> Tuple[Any, Any]:
+    def parse_value(self, packet: packets.CCSDSPacket, **kwargs) -> Tuple[Any, Any]:
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
@@ -250,7 +250,7 @@ class StringDataEncoding(DataEncoding):
         self.discrete_lookup_length = discrete_lookup_length
         self.length_linear_adjuster = length_linear_adjuster
 
-    def _calculate_size(self, packet: parseables.CCSDSPacket) -> int:
+    def _calculate_size(self, packet: packets.CCSDSPacket) -> int:
         """Calculate the length of the string data item in bits.
 
         Parameters
@@ -310,7 +310,7 @@ class StringDataEncoding(DataEncoding):
         return strlen_bits
         # pylint: enable=too-many-branches
 
-    def parse_value(self, packet: parseables.CCSDSPacket, **kwargs) -> Tuple[str, None]:
+    def parse_value(self, packet: packets.CCSDSPacket, **kwargs) -> Tuple[str, None]:
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
@@ -444,11 +444,11 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
         self.default_calibrator = default_calibrator
         self.context_calibrators = context_calibrators
 
-    def _calculate_size(self, packet: parseables.CCSDSPacket) -> int:
+    def _calculate_size(self, packet: packets.CCSDSPacket) -> int:
         return self.size_in_bits
 
     @abstractmethod
-    def _get_raw_value(self, packet: parseables.CCSDSPacket) -> Union[int, float]:
+    def _get_raw_value(self, packet: packets.CCSDSPacket) -> Union[int, float]:
         """Read the raw value from the packet data
 
         Parameters
@@ -474,7 +474,7 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
         return val
 
     def parse_value(self,
-                    packet: parseables.CCSDSPacket,
+                    packet: packets.CCSDSPacket,
                     **kwargs) -> Tuple[Union[int, float], Union[int, float]]:
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
 
@@ -509,7 +509,7 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
 class IntegerDataEncoding(NumericDataEncoding):
     """<xtce:IntegerDataEncoding>"""
 
-    def _get_raw_value(self, packet: parseables.CCSDSPacket) -> int:
+    def _get_raw_value(self, packet: packets.CCSDSPacket) -> int:
         # Extract the bits from the data in big-endian order from the packet
         val = packet.raw_data.read_as_int(self.size_in_bits)
         if self.byte_order == 'leastSignificantByteFirst':
@@ -707,7 +707,7 @@ class BinaryDataEncoding(DataEncoding):
         self.size_discrete_lookup_list = size_discrete_lookup_list
         self.linear_adjuster = linear_adjuster
 
-    def _calculate_size(self, packet: parseables.CCSDSPacket) -> int:
+    def _calculate_size(self, packet: packets.CCSDSPacket) -> int:
         """Determine the number of bits in the binary field.
 
         Returns
@@ -739,7 +739,7 @@ class BinaryDataEncoding(DataEncoding):
             len_bits = self.linear_adjuster(len_bits)
         return len_bits
 
-    def parse_value(self, packet: parseables.CCSDSPacket, word_size: Optional[int] = None, **kwargs):
+    def parse_value(self, packet: packets.CCSDSPacket, **kwargs):
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
@@ -747,9 +747,6 @@ class BinaryDataEncoding(DataEncoding):
         packet: CCSDSPacket
             Binary representation of the packet used to get the coming bits and any
             previously parsed data items to infer field lengths.
-        word_size : Optional[int]
-            Word size for encoded data. This is used to ensure that the cursor ends up at the end of the last word
-            and ready to parse the next data field.
 
         Returns
         -------
@@ -760,11 +757,6 @@ class BinaryDataEncoding(DataEncoding):
         """
         nbits = self._calculate_size(packet)
         parsed_value = packet.raw_data.read_as_bytes(nbits)
-        if word_size:
-            cursor_position_in_word = packet.raw_data.pos % word_size
-            if cursor_position_in_word != 0:
-                logger.debug(f"Adjusting cursor position to the end of a {word_size} bit word.")
-                packet.raw_data.pos += word_size - cursor_position_in_word
         return parsed_value, None
 
     @classmethod

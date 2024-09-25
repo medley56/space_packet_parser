@@ -16,11 +16,13 @@ author = 'Gavin Medley, Michael Chambliss'
 extensions = [
     "myst_parser",
     "sphinx.ext.napoleon",
-    "autoapi.extension"
+    "autoapi.extension",
+    "sphinx.ext.mathjax"
 ]
 
 myst_enable_extensions = [
-    "html_image"
+    "html_image",
+    "dollarmath"
 ]
 
 autoapi_type = 'python'
