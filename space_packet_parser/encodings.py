@@ -171,7 +171,8 @@ class StringDataEncoding(DataEncoding):
     _supported_encodings = ('US-ASCII', 'ISO-8859-1', 'Windows-1252', 'UTF-8', 'UTF-16',
                             'UTF-16LE', 'UTF-16BE', 'UTF-32', 'UTF-32LE', 'UTF-32BE')
 
-    def __init__(self, *,
+    def __init__(self,
+                 *,
                  encoding: str = 'UTF-8',
                  byte_order: Optional[str] = None,
                  termination_character: Optional[str] = None,
@@ -410,7 +411,8 @@ class StringDataEncoding(DataEncoding):
 class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
     """Abstract class that is inherited by IntegerDataEncoding and FloatDataEncoding"""
 
-    def __init__(self, size_in_bits: int,
+    def __init__(self,
+                 size_in_bits: int,
                  encoding: str,
                  *,
                  byte_order: str = "mostSignificantByteFirst",
@@ -552,12 +554,15 @@ class FloatDataEncoding(NumericDataEncoding):
     """<xtce:FloatDataEncoding>"""
     _supported_encodings = ['IEEE-754', 'MIL-1750A']
 
-    def __init__(self, size_in_bits: int,
-                 *,
-                 encoding: str = 'IEEE-754',
-                 byte_order: str = 'mostSignificantByteFirst',
-                 default_calibrator: Optional[calibrators.Calibrator] = None,
-                 context_calibrators: Optional[List[calibrators.ContextCalibrator]] = None):
+    def __init__(
+            self,
+            size_in_bits: int,
+            *,
+            encoding: str = 'IEEE-754',
+            byte_order: str = 'mostSignificantByteFirst',
+            default_calibrator: Optional[calibrators.Calibrator] = None,
+            context_calibrators: Optional[List[calibrators.ContextCalibrator]] = None
+    ):
         """Constructor
 
         Parameters
@@ -584,7 +589,7 @@ class FloatDataEncoding(NumericDataEncoding):
         if encoding == 'IEEE-754' and size_in_bits not in (16, 32, 64):
             raise ValueError(f"Invalid size_in_bits value for IEEE-754 FloatDataEncoding, {size_in_bits}. "
                              "Must be 16, 32, or 64.")
-        super().__init__(size_in_bits, encoding=encoding, byte_order=byte_order,
+        super().__init__(size_in_bits=size_in_bits, encoding=encoding, byte_order=byte_order,
                          default_calibrator=default_calibrator, context_calibrators=context_calibrators)
         if self.encoding == "MIL-1750A":
             def _mil_parse_func(mil_bytes: bytes):
@@ -673,7 +678,8 @@ class BinaryDataEncoding(DataEncoding):
     def __init__(self,
                  *,
                  fixed_size_in_bits: Optional[int] = None,
-                 size_reference_parameter: Optional[str] = None, use_calibrated_value: bool = True,
+                 size_reference_parameter: Optional[str] = None,
+                 use_calibrated_value: bool = True,
                  size_discrete_lookup_list: Optional[List[comparisons.DiscreteLookup]] = None,
                  linear_adjuster: Optional[callable] = None):
         """Constructor

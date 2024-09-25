@@ -25,9 +25,13 @@ class ParameterType(comparisons.AttrComparable, metaclass=ABCMeta):
         unit : Optional[str]
             String describing the unit for the stored value.
         """
+        if name is None:
+            raise ValueError("Parameter Type name attribute is required.")
         self.name = name
-        self.unit = unit
+        if encoding is None:
+            raise ValueError("Parameter Type encoding attribute is required.")
         self.encoding = encoding
+        self.unit = unit
 
     def __repr__(self):
         module = self.__class__.__module__
@@ -49,7 +53,11 @@ class ParameterType(comparisons.AttrComparable, metaclass=ABCMeta):
         -------
         : ParameterType
         """
-        name = element.attrib['name']
+        try:
+            name = element.attrib['name']
+        except KeyError as e:
+            raise ValueError(f"Parameter Type name attribute is required for ParameterType element: "
+                             f"{element.tag}, {element.attrib}") from e
         unit = cls.get_units(element, ns)
         encoding = cls.get_data_encoding(element, ns)
         return cls(name, encoding, unit)
@@ -108,7 +116,8 @@ class ParameterType(comparisons.AttrComparable, metaclass=ABCMeta):
             element = parameter_type_element.find(f".//xtce:{data_encoding.__name__}", ns)
             if element is not None:
                 return data_encoding.from_data_encoding_xml_element(element, ns)
-        return None
+        raise ValueError(f"No Data Encoding element found for Parameter Type "
+                         f"{parameter_type_element.tag}: {parameter_type_element.attrib}")
 
     def parse_value(self, packet: parseables.CCSDSPacket, **kwargs):
         """Using the parameter type definition and associated data encoding, parse a value from a bit stream starting
@@ -317,11 +326,15 @@ class BooleanParameterType(ParameterType):
 class TimeParameterType(ParameterType, metaclass=ABCMeta):
     """Abstract class for time parameter types"""
 
-    def __init__(self, name: str, encoding: encodings.DataEncoding,
-                 *,
-                 unit: Optional[str] = None,
-                 epoch: Optional[str] = None,
-                 offset_from: Optional[str] = None):
+    def __init__(
+            self,
+            name: str,
+            encoding: encodings.DataEncoding,
+            *,
+            unit: Optional[str] = None,
+            epoch: Optional[str] = None,
+            offset_from: Optional[str] = None
+    ):
         """Constructor
 
         Parameters

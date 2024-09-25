@@ -1,0 +1,28 @@
+name: Run Style Checks and Test
+on: pull_request
+jobs:
+  pycodestyle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build . --file Dockerfile --target style --tag space-packet-parser-style:latest
+      - name: Run PyCodeStyle in Docker
+        run: docker run -i space-packet-parser-style:latest
+  pylint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build . --file Dockerfile --target lint --tag space-packet-parser-lint:latest
+      - name: Run Pylint in Docker
+        run: docker run -i space-packet-parser-lint:latest
+  python-version-matrix:
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    uses: ./.github/workflows/test-python-version.yml
+    with:
+      python-version: ${{ matrix.python-version }}
