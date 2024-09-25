@@ -236,7 +236,7 @@ class PacketParser:
         return packet
 
     @staticmethod
-    def print_progress(current_bytes: int, total_bytes: Optional[int],
+    def print_progress(*, current_bytes: int, total_bytes: Optional[int],
                        start_time_ns: int, current_packets: int,
                        end: str = '\r', log: bool = False):
         """Prints a progress bar, including statistics on parsing rate.
@@ -280,6 +280,7 @@ class PacketParser:
 
     def generator(self,  # pylint: disable=too-many-branches,too-many-statements
                   binary_data: Union[BinaryIO, socket.socket],
+                  *,
                   parse_bad_pkts: bool = True,
                   skip_header_bits: int = 0,
                   root_container_name="CCSDSPacket",

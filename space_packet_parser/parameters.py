@@ -317,8 +317,11 @@ class BooleanParameterType(ParameterType):
 class TimeParameterType(ParameterType, metaclass=ABCMeta):
     """Abstract class for time parameter types"""
 
-    def __init__(self, name: str, encoding: encodings.DataEncoding, unit: Optional[str] = None,
-                 epoch: Optional[str] = None, offset_from: Optional[str] = None):
+    def __init__(self, name: str, encoding: encodings.DataEncoding,
+                 *,
+                 unit: Optional[str] = None,
+                 epoch: Optional[str] = None,
+                 offset_from: Optional[str] = None):
         """Constructor
 
         Parameters
@@ -369,7 +372,7 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
             encoding.default_calibrator = encoding_unit_scaler
         epoch = cls.get_epoch(element, ns)
         offset_from = cls.get_offset_from(element, ns)
-        return cls(name, encoding, unit, epoch, offset_from)
+        return cls(name, encoding, unit=unit, epoch=epoch, offset_from=offset_from)
 
     @staticmethod
     def get_units(parameter_type_element: ElementTree.Element, ns: dict) -> Union[str, None]:

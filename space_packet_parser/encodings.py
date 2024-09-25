@@ -171,7 +171,8 @@ class StringDataEncoding(DataEncoding):
     _supported_encodings = ('US-ASCII', 'ISO-8859-1', 'Windows-1252', 'UTF-8', 'UTF-16',
                             'UTF-16LE', 'UTF-16BE', 'UTF-32', 'UTF-32LE', 'UTF-32BE')
 
-    def __init__(self, encoding: str = 'UTF-8',
+    def __init__(self, *,
+                 encoding: str = 'UTF-8',
                  byte_order: Optional[str] = None,
                  termination_character: Optional[str] = None,
                  fixed_length: Optional[int] = None,
@@ -411,6 +412,7 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
 
     def __init__(self, size_in_bits: int,
                  encoding: str,
+                 *,
                  byte_order: str = "mostSignificantByteFirst",
                  default_calibrator: Optional[calibrators.Calibrator] = None,
                  context_calibrators: Optional[List[calibrators.ContextCalibrator]] = None):
@@ -550,7 +552,9 @@ class FloatDataEncoding(NumericDataEncoding):
     """<xtce:FloatDataEncoding>"""
     _supported_encodings = ['IEEE-754', 'MIL-1750A']
 
-    def __init__(self, size_in_bits: int, encoding: str = 'IEEE-754',
+    def __init__(self, size_in_bits: int,
+                 *,
+                 encoding: str = 'IEEE-754',
                  byte_order: str = 'mostSignificantByteFirst',
                  default_calibrator: Optional[calibrators.Calibrator] = None,
                  context_calibrators: Optional[List[calibrators.ContextCalibrator]] = None):
@@ -666,7 +670,9 @@ class FloatDataEncoding(NumericDataEncoding):
 class BinaryDataEncoding(DataEncoding):
     """<xtce:BinaryDataEncoding>"""
 
-    def __init__(self, fixed_size_in_bits: Optional[int] = None,
+    def __init__(self,
+                 *,
+                 fixed_size_in_bits: Optional[int] = None,
                  size_reference_parameter: Optional[str] = None, use_calibrated_value: bool = True,
                  size_discrete_lookup_list: Optional[List[comparisons.DiscreteLookup]] = None,
                  linear_adjuster: Optional[callable] = None):

@@ -215,6 +215,7 @@ class Condition(MatchCriteria):
     def __init__(self,
                  left_param: str,
                  operator: str,
+                 *,
                  right_param: Optional[str] = None,
                  right_value: Optional[Any] = None,
                  left_use_calibrated_value: bool = True,
