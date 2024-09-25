@@ -1,7 +1,6 @@
 
 """Packet containers and parsing utilities for space packets."""
 
-from collections import namedtuple
 from dataclasses import dataclass, field
 from typing import Union, Optional, Protocol, List
 
@@ -184,9 +183,6 @@ class SequenceContainer(Parseable):
         """
         for entry in self.entry_list:
             entry.parse(packet=packet, **parse_value_kwargs)
-
-
-FlattenedContainer = namedtuple('FlattenedContainer', ['entry_list', 'restrictions'])
 
 
 def _extract_bits(data: bytes, start_bit: int, nbits: int):

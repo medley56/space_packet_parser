@@ -6,8 +6,7 @@ import io
 import logging
 import socket
 import time
-from typing import BinaryIO, Optional, Tuple, Union
-import warnings
+from typing import BinaryIO, Optional, Union
 # Local
 from space_packet_parser import definitions, parseables
 
@@ -46,13 +45,13 @@ class PacketParser:
     """Class for parsing CCSDS packets"""
 
     def __init__(self,
-                 packet_definition: Union[definitions.XtcePacketDefinition, definitions.CsvPacketDefinition],
+                 packet_definition: definitions.XtcePacketDefinition,
                  word_size: int = None):
         """Constructor
 
         Parameters
         ----------
-        packet_definition: definitions.XtcePacketDefinition or definitions.CsvPacketDefinition
+        packet_definition: definitions.XtcePacketDefinition
             The packet definition object to use for parsing incoming data.
         word_size: int, Optional
             Number of bits per word. If set, binary parameters are assumed to end on a word boundary and any unused bits
@@ -86,63 +85,6 @@ class PacketParser:
                 raw_value=parseables._extract_bits(packet_data, current_bit, item.nbits))
             current_bit += item.nbits
         return header
-
-    # DEPRECATED! Remove in next major release along with CSV parser
-    # pylint: disable=inconsistent-return-statements
-    def _determine_packet_by_restrictions(self, parsed_header: dict) -> Tuple[str, list]:
-        """Examines a dictionary representation of a CCSDS header and determines which packet type applies.
-        This packet type must be unique. If the header data satisfies the restrictions for more than one packet
-        type definition, an exception is raised.
-
-        Parameters
-        ----------
-        parsed_header : dict
-            Pre-parsed header data in dictionary form for evaluating restriction criteria.
-            NOTE: Restriction criteria can ONLY be evaluated against header items. There is no reasonable way to
-            start parsing all the BaseContainer inheritance restrictions without assuming that all restrictions will
-            be based on header items, which can be parsed ahead of time due to the consistent nature of a CCSDS header.
-
-        Returns
-        -------
-        : str
-            Name of packet definition.
-        : list
-            A list of Parameter objects
-        """
-        warnings.warn("The '_determine_packet_by_restrictions' method is deprecated.", DeprecationWarning)
-        flattened_containers = self.packet_definition.flattened_containers
-        meets_requirements = []
-        for container_name, flattened_container in flattened_containers.items():
-            try:
-                checks = [
-                    criterion.evaluate(parsed_header)
-                    for criterion in flattened_container.restrictions
-                ]
-            except AttributeError as err:
-                raise ValueError("Hitherto unparsed parameter name found in restriction criteria for container "
-                                 f"{container_name}. Because we can't parse packet data until we know the type, "
-                                 "only higher up parameters (e.g. APID) are permitted as container "
-                                 "restriction criteria.") from err
-
-            if all(checks):
-                meets_requirements.append(container_name)
-
-        if len(meets_requirements) == 1:
-            name = meets_requirements.pop()
-            return name, flattened_containers[name].entry_list
-
-        if len(meets_requirements) > 1:
-            raise UnrecognizedPacketTypeError(
-                "Found more than one possible packet definition based on restriction criteria. "
-                f"{meets_requirements}", partial_data=parsed_header)
-
-        if len(meets_requirements) < 1:
-            raise UnrecognizedPacketTypeError(
-                "Header does not allow any packet definitions based on restriction criteria. "
-                "Unable to choose a packet type to parse. "
-                "Note: Restricting container inheritance based on non-header data items is not possible in a "
-                "general way and is not supported by this package.", partial_data=parsed_header)
-        # pylint: enable=inconsistent-return-statements
 
     @staticmethod
     def parse_CCSDSPacket(packet: parseables.CCSDSPacket,
@@ -195,52 +137,15 @@ class PacketParser:
         return packet
 
     @staticmethod
-    def legacy_parse_CCSDSPacket(packet: parseables.CCSDSPacket,
-                                 entry_list: list,
-                                 **parse_value_kwargs) -> parseables.CCSDSPacket:
-        """Parse binary packet data according to the self.flattened_containers property
-
-        Parameters
-        ----------
-        packet : packets.CCSDSPacket
-            Binary packet data to parse into Packets
-        entry_list : list
-            List of Parameter objects
-
-        Returns
-        -------
-        Packet
-            A Packet object container header and data attributes.
-        """
-        warnings.warn("The 'legacy_parse_packet' method is deprecated.", DeprecationWarning)
-        for parameter in entry_list[0:7]:
-            parsed_value, _ = parameter.parameter_type.parse_value(packet)
-
-            packet[parameter.name] = parseables.ParsedDataItem(
-                name=parameter.name,
-                unit=parameter.parameter_type.unit,
-                raw_value=parsed_value
-            )
-
-        for parameter in entry_list[7:]:
-            parsed_value, derived_value = parameter.parameter_type.parse_value(
-                packet, **parse_value_kwargs)
-
-            packet[parameter.name] = parseables.ParsedDataItem(
-                name=parameter.name,
-                unit=parameter.parameter_type.unit,
-                raw_value=parsed_value,
-                derived_value=derived_value,
-                short_description=parameter.short_description,
-                long_description=parameter.long_description
-            )
-
-        return packet
-
-    @staticmethod
-    def print_progress(*, current_bytes: int, total_bytes: Optional[int],
-                       start_time_ns: int, current_packets: int,
-                       end: str = '\r', log: bool = False):
+    def print_progress(
+            *,
+            current_bytes: int,
+            total_bytes: Optional[int],
+            start_time_ns: int,
+            current_packets: int,
+            end: str = '\r',
+            log: bool = False
+    ):
         """Prints a progress bar, including statistics on parsing rate.
 
         Parameters
@@ -444,14 +349,10 @@ class PacketParser:
             # Wrap the bytes in a class that can keep track of position as we read from it
             packet = parseables.CCSDSPacket(raw_data=packet_bytes)
             try:
-                if isinstance(self.packet_definition, definitions.XtcePacketDefinition):
-                    packet = self.parse_CCSDSPacket(packet,
-                                                    self.packet_definition.named_containers,
-                                                    root_container_name=root_container_name,
-                                                    word_size=self.word_size)
-                else:
-                    _, parameter_list = self._determine_packet_by_restrictions(header)
-                    packet = self.legacy_parse_CCSDSPacket(packet, parameter_list, word_size=self.word_size)
+                packet = self.parse_CCSDSPacket(packet,
+                                                self.packet_definition.named_containers,
+                                                root_container_name=root_container_name,
+                                                word_size=self.word_size)
             except UnrecognizedPacketTypeError as e:
                 logger.debug(f"Unrecognized error on packet with APID {header['PKT_APID'].raw_value}'")
                 if yield_unrecognized_packet_errors is True:
