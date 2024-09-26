@@ -463,7 +463,8 @@ class XtcePacketDefinition:
             percentage = "???"
             progress = 0
 
-        elapsed_ns = time.time_ns() - start_time_ns
+        # Fast calls initially on Windows can result in a zero elapsed time
+        elapsed_ns = max(time.time_ns() - start_time_ns, 1)
         delta = dt.timedelta(microseconds=elapsed_ns / 1E3)
         kbps = int(current_bytes // 8 * 1E6 / elapsed_ns)
         pps = int(current_packets * 1E9 / elapsed_ns)
