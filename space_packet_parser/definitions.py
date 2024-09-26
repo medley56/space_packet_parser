@@ -532,36 +532,8 @@ class XtcePacketDefinition:
             If yield_unrecognized_packet_errors is True, it will yield an unraised exception object,
             which can be raised or used for debugging purposes.
         """
-
-        def read_bytes_from_source(source: Union[BinaryIO, socket.socket],
-                                   read_size_bytes: int) -> bytes:
-            """Read data from a source and return the bytes read.
-
-            Parameters
-            ----------
-            source : BinaryIO or socket.socket
-                Source of data.
-            read_size_bytes : int
-                Max number of bytes to read from the source per read attempt. For sockets, this should be a small
-                power of 2 (e.g. 4096) due to networking and hardware conventions. For a file or ConstBitStream object
-                this could be set to the full size of the data but a large value will increase memory utilization
-                when parsing large data sources all at once.
-
-            Returns
-            -------
-            : bytes
-                The bytes that were read from the source.
-            """
-            if isinstance(source, io.BufferedIOBase):
-                return source.read(read_size_bytes)
-            if isinstance(source, socket.socket):
-                return source.recv(read_size_bytes)
-            if isinstance(source, io.TextIOWrapper):
-                raise IOError("Packet data file opened in TextIO mode. You must open packet data in binary mode.")
-            raise IOError(f"Unrecognized data source: {source}")
-
         # ========
-        # Start of generator
+        # Set up the reader based on the type of binary_data
         # ========
         if isinstance(binary_data, io.BufferedIOBase):
             if buffer_read_size_bytes is None:
@@ -571,12 +543,18 @@ class XtcePacketDefinition:
             binary_data.seek(0, 0)
             logger.info(f"Creating packet generator from a filelike object, {binary_data}. "
                         f"Total length is {total_length_bytes} bytes")
-        else:  # It's a socket and we don't know how much data we will get
+            read_bytes_from_source = binary_data.read
+        elif isinstance(binary_data, socket.socket):  # It's a socket and we don't know how much data we will get
             logger.info("Creating packet generator to read from a socket. Total length to parse is unknown.")
             total_length_bytes = None  # We don't know how long it is
             if buffer_read_size_bytes is None:
                 # Default to 4096 bytes from a socket
                 buffer_read_size_bytes = 4096
+            read_bytes_from_source = binary_data.recv
+        elif isinstance(binary_data, io.TextIOWrapper):
+            raise IOError("Packet data file opened in TextIO mode. You must open packet data in binary mode.")
+        else:
+            raise IOError(f"Unrecognized data source: {binary_data}")
 
         # ========
         # Packet loop. Each iteration of this loop yields a CCSDSPacket object
@@ -602,7 +580,7 @@ class XtcePacketDefinition:
 
             # Fill buffer enough to parse a header
             while len(read_buffer) - current_pos < skip_header_bytes + CCSDS_HEADER_LENGTH_BYTES:
-                result = read_bytes_from_source(binary_data, read_size_bytes=buffer_read_size_bytes)
+                result = read_bytes_from_source(buffer_read_size_bytes)
                 if not result:  # If there is verifiably no more data to add, break
                     break
                 read_buffer += result
@@ -619,7 +597,7 @@ class XtcePacketDefinition:
 
             # Based on PKT_LEN fill buffer enough to read a full packet
             while len(read_buffer) - current_pos < n_bytes_packet:
-                result = read_bytes_from_source(binary_data, read_size_bytes=buffer_read_size_bytes)
+                result = read_bytes_from_source(buffer_read_size_bytes)
                 if not result:  # If there is verifiably no more data to add, break
                     break
                 read_buffer += result
