@@ -33,7 +33,7 @@ class ParsedDataItem:
 
 
 class RawPacketData(bytes):
-    """A class to represent raw packet data as bytes.
+    """A class to represent raw packet data as bytes but whose length is represented by bit length.
 
     This class is a subclass of bytes and is used to represent the raw packet data
     in a more readable way. It is used to store the raw packet data in the Packet
@@ -53,7 +53,7 @@ class RawPacketData(bytes):
         return self._nbits
 
     def __repr__(self):
-        return f"RawPacketData({self}, {len(self)}B, pos={self.pos})"
+        return f"RawPacketData({self}, {len(self)}b, pos={self.pos})"
 
     def read_as_bytes(self, nbits: int) -> bytes:
         """Read a number of bits from the packet data as bytes. Reads minimum number of complete bytes required to

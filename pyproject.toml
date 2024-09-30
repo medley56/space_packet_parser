@@ -50,7 +50,6 @@ myst-parser = "*"
 sphinx-autoapi = "*"
 sphinx-rtd-theme = "*"
 coverage = "*"
-numpy = "*"
 
 [tool.poetry.group.examples]
 optional = true

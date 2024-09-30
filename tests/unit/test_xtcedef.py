@@ -752,56 +752,97 @@ def test_polynomial_calibrator_calibrate(xq, expectation):
         ("""
 <xtce:StringDataEncoding encoding="UTF-16BE" xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:SizeInBits>
+        <xtce:Fixed>
+            <xtce:FixedValue>32</xtce:FixedValue>
+        </xtce:Fixed>
         <xtce:TerminationChar>0058</xtce:TerminationChar>
     </xtce:SizeInBits>
 </xtce:StringDataEncoding>
 """,
-         encodings.StringDataEncoding(termination_character='0058', encoding='UTF-16BE')),
+         encodings.StringDataEncoding(fixed_raw_length=32, termination_character='0058', encoding='UTF-16BE')),
         ("""
 <xtce:StringDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:SizeInBits>
         <xtce:Fixed>
             <xtce:FixedValue>17</xtce:FixedValue>
         </xtce:Fixed>
+        <xtce:LeadingSize sizeInBitsOfSizeTag="3"/>
     </xtce:SizeInBits>
 </xtce:StringDataEncoding>
 """,
-         encodings.StringDataEncoding(fixed_length=17)),
+         encodings.StringDataEncoding(fixed_raw_length=17, leading_length_size=3)),
         ("""
 <xtce:StringDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
-    <xtce:SizeInBits>
-        <xtce:Fixed>
-            <xtce:DynamicValue>
-                <xtce:ParameterInstanceRef parameterRef="SizeFromThisParameter"/>
-                <xtce:LinearAdjustment intercept="25" slope="8"/> 
-            </xtce:DynamicValue> 
-        </xtce:Fixed>
-    </xtce:SizeInBits>
+    <xtce:Variable maxSizeInBits="32">
+        <xtce:DynamicValue>
+            <xtce:ParameterInstanceRef parameterRef="SizeFromThisParameter"/>
+            <xtce:LinearAdjustment intercept="25" slope="8"/>
+        </xtce:DynamicValue>
+        <xtce:TerminationChar>58</xtce:TerminationChar>
+    </xtce:Variable>
 </xtce:StringDataEncoding>
 """,
          encodings.StringDataEncoding(dynamic_length_reference='SizeFromThisParameter',
-                                      length_linear_adjuster=object())),
+                                      length_linear_adjuster=object(),
+                                      termination_character='58')),
         ("""
 <xtce:StringDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
-    <xtce:SizeInBits>
-        <xtce:Fixed>
-            <xtce:DiscreteLookupList>
-                <xtce:DiscreteLookup value="10">
-                    <xtce:Comparison parameterRef="P1" value="1"/>
-                </xtce:DiscreteLookup>
-                <xtce:DiscreteLookup value="25">
-                    <xtce:Comparison parameterRef="P1" value="2"/>
-                </xtce:DiscreteLookup>
-            </xtce:DiscreteLookupList> 
-        </xtce:Fixed>
-    </xtce:SizeInBits>
+    <xtce:Variable maxSizeInBits="32">
+        <xtce:DynamicValue>
+            <xtce:ParameterInstanceRef parameterRef="SizeFromThisParameter"/>
+            <xtce:LinearAdjustment intercept="25" slope="8"/>
+        </xtce:DynamicValue>
+        <xtce:LeadingSize sizeInBitsOfSizeTag="3"/>
+    </xtce:Variable>
+</xtce:StringDataEncoding>
+""",
+         encodings.StringDataEncoding(dynamic_length_reference='SizeFromThisParameter',
+                                      length_linear_adjuster=object(),
+                                      leading_length_size=3)),
+        ("""
+<xtce:StringDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
+    <xtce:Variable maxSizeInBits="32">
+        <xtce:DiscreteLookupList>
+            <xtce:DiscreteLookup value="10">
+                <xtce:Comparison parameterRef="P1" value="1"/>
+            </xtce:DiscreteLookup>
+            <xtce:DiscreteLookup value="25">
+                <xtce:Comparison parameterRef="P1" value="2"/>
+            </xtce:DiscreteLookup>
+        </xtce:DiscreteLookupList>
+        <xtce:TerminationChar>58</xtce:TerminationChar>
+    </xtce:Variable>
 </xtce:StringDataEncoding>
 """,
          encodings.StringDataEncoding(
              discrete_lookup_length=[
                  comparisons.DiscreteLookup([comparisons.Comparison('1', 'P1')], 10),
                  comparisons.DiscreteLookup([comparisons.Comparison('2', 'P1')], 25)
-             ])),
+             ],
+             termination_character="58"
+         )),
+        ("""
+<xtce:StringDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
+    <xtce:Variable maxSizeInBits="32">
+        <xtce:DiscreteLookupList>
+            <xtce:DiscreteLookup value="10">
+                <xtce:Comparison parameterRef="P1" value="1"/>
+            </xtce:DiscreteLookup>
+            <xtce:DiscreteLookup value="25">
+                <xtce:Comparison parameterRef="P1" value="2"/>
+            </xtce:DiscreteLookup>
+        </xtce:DiscreteLookupList>
+        <xtce:LeadingSize sizeInBitsOfSizeTag="3"/>
+    </xtce:Variable>
+</xtce:StringDataEncoding>
+""",
+         encodings.StringDataEncoding(
+             discrete_lookup_length=[
+                 comparisons.DiscreteLookup([comparisons.Comparison('1', 'P1')], 10),
+                 comparisons.DiscreteLookup([comparisons.Comparison('2', 'P1')], 25)
+             ],
+             leading_length_size=3
+         )),
         ("""
 <xtce:StringDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:SizeInBits>
@@ -811,7 +852,7 @@ def test_polynomial_calibrator_calibrate(xq, expectation):
     </xtce:SizeInBits>
 </xtce:StringDataEncoding>
 """,
-         definitions.ElementNotFoundError())
+         AttributeError())
     ]
 )
 def test_string_data_encoding(xml_string: str, expectation):
@@ -1097,29 +1138,37 @@ def test_binary_data_encoding(xml_string: str, expectation):
 </xtce:StringParameterType> 
 """,
          parameters.StringParameterType(name='TEST_STRING_Type',
-                                        encoding=encodings.StringDataEncoding(fixed_length=40))),
+                                        encoding=encodings.StringDataEncoding(fixed_raw_length=40))),
         ("""
 <xtce:StringParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_STRING_Type">
     <xtce:StringDataEncoding>
         <xtce:SizeInBits>
+            <xtce:Fixed>
+                <xtce:FixedValue>40</xtce:FixedValue>
+            </xtce:Fixed>
             <xtce:LeadingSize sizeInBitsOfSizeTag="17"/>
         </xtce:SizeInBits>
     </xtce:StringDataEncoding>
 </xtce:StringParameterType> 
 """,
          parameters.StringParameterType(name='TEST_STRING_Type',
-                                        encoding=encodings.StringDataEncoding(leading_length_size=17))),
+                                        encoding=encodings.StringDataEncoding(fixed_raw_length=40,
+                                                                              leading_length_size=17))),
         ("""
 <xtce:StringParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_STRING_Type">
     <xtce:StringDataEncoding>
         <xtce:SizeInBits>
+            <xtce:Fixed>
+                <xtce:FixedValue>40</xtce:FixedValue>
+            </xtce:Fixed>
             <xtce:TerminationChar>00</xtce:TerminationChar>
         </xtce:SizeInBits>
     </xtce:StringDataEncoding>
 </xtce:StringParameterType> 
 """,
          parameters.StringParameterType(name='TEST_STRING_Type',
-                                        encoding=encodings.StringDataEncoding(termination_character='00'))),
+                                        encoding=encodings.StringDataEncoding(fixed_raw_length=40,
+                                                                              termination_character='00'))),
     ]
 )
 def test_string_parameter_type(xml_string: str, expectation):
@@ -1135,16 +1184,16 @@ def test_string_parameter_type(xml_string: str, expectation):
 
 
 @pytest.mark.parametrize(
-    ('parameter_type', 'raw_data', 'current_pos', 'expected'),
+    ('parameter_type', 'raw_data', 'current_pos', 'expected_raw', 'expected_derived'),
     [
         # Fixed length test
         (parameters.StringParameterType(
             'TEST_STRING',
-            encodings.StringDataEncoding(fixed_length=3,  # Giving length in bytes
-                                         length_linear_adjuster=lambda x: 8 * x)),
+            encodings.StringDataEncoding(fixed_raw_length=24)),
          # This still 123X456
          b'123X456',
          0,
+         b'123',
          '123'),
         # Dynamic reference length
         (parameters.StringParameterType(
@@ -1152,88 +1201,116 @@ def test_string_parameter_type(xml_string: str, expectation):
             encodings.StringDataEncoding(dynamic_length_reference='STR_LEN',
                                          use_calibrated_value=False,
                                          length_linear_adjuster=lambda x: 8 * x)),
-         b'BAD WOLF',
+         b'BAD WOLFABCD',
          0,
+         b'BAD WOLF',
          'BAD WOLF'),
         # Discrete lookup test
         (parameters.StringParameterType(
             'TEST_STRING',
-            encodings.StringDataEncoding(discrete_lookup_length=[
-                comparisons.DiscreteLookup([
-                    comparisons.Comparison(7, 'P1', '>'),
-                    comparisons.Comparison(99, 'P2', '==', use_calibrated_value=False)
-                ], lookup_value=8)
-            ], length_linear_adjuster=lambda x: 8 * x)),
+            encodings.StringDataEncoding(
+                discrete_lookup_length=[
+                    comparisons.DiscreteLookup([
+                        comparisons.Comparison(7, 'P1', '>'),
+                        comparisons.Comparison(99, 'P2', '==', use_calibrated_value=False)
+                    ], lookup_value=64)
+                ]
+            )),
          b'BAD WOLF',
          0,
+         b'BAD WOLF',
          'BAD WOLF'),
         # Termination character tests
         (parameters.StringParameterType(
             'TEST_STRING',
-            encodings.StringDataEncoding(encoding='UTF-8',
-                                         termination_character='58')),
+            encodings.StringDataEncoding(
+                fixed_raw_length=64,
+                encoding='UTF-8',
+                termination_character='58')),
          # 123X456 + extra characters, termination character is X
          b'123X456000000000000000000000000000000000000000000000',
          0,
+         b'123X4560',
          '123'),
         (parameters.StringParameterType(
             'TEST_STRING',
-            encodings.StringDataEncoding(encoding='UTF-8',
-                                         termination_character='58')),
+            encodings.StringDataEncoding(
+                fixed_raw_length=128,
+                encoding='UTF-8',
+                termination_character='58')),
          # 56bits + 123X456 + extra characters, termination character is X
          b'9090909123X456000000000000000000000000000000000000000000000',
          56,
+         b'123X456000000000',
          '123'),
         (parameters.StringParameterType(
             'TEST_STRING',
-            encodings.StringDataEncoding(encoding='UTF-8',
-                                         termination_character='58')),
+            encodings.StringDataEncoding(
+                fixed_raw_length=48,
+                encoding='UTF-8',
+                termination_character='58')),
          # 53bits + 123X456 + extra characters, termination character is X
          # This is the same string as above but bit-shifted left by 3 bits
          b'\x03K;s{\x93)\x89\x91\x9a\xc1\xa1\xa9\xb3K;s{\x93(',
          53,
+         b'123X45',
          '123'),
         (parameters.StringParameterType(
             "TEST_STRING",
-            encodings.StringDataEncoding(encoding="UTF-8",
-                                         termination_character='00')),
+            encodings.StringDataEncoding(
+                fixed_raw_length=160,
+                encoding="UTF-8",
+                termination_character='00')),
          "false_is_truthy".encode("UTF-8") + b'\x00ABCD',
          0,
+         b'false_is_truthy\x00ABCD',
          'false_is_truthy'),
         (parameters.StringParameterType(
             "TEST_STRING",
-            encodings.StringDataEncoding(encoding="UTF-16BE",
-                                         termination_character='0021')),
+            encodings.StringDataEncoding(
+                fixed_raw_length=19*16,
+                encoding="UTF-16BE",
+                termination_character='0021')),
          "false_is_truthy".encode("UTF-16BE") + b'\x00\x21ignoreme',
          0,
+         "false_is_truthy".encode("UTF-16BE") + b'\x00\x21ignore',
          'false_is_truthy'),
         (parameters.StringParameterType(
             'TEST_STRING',
-            encodings.StringDataEncoding(encoding='UTF-16LE',
-                                         termination_character='5800')),
+            encodings.StringDataEncoding(
+                fixed_raw_length=16*6,
+                encoding='UTF-16LE',
+                termination_character='5800')),
          # 123X456, termination character is X
          '123X456'.encode('UTF-16LE'),
          0,
+         '123X45'.encode('UTF-16LE'),
          '123'),
         (parameters.StringParameterType(
             'TEST_STRING',
-            encodings.StringDataEncoding(encoding='UTF-16BE',
-                                         termination_character='0058')),
+            encodings.StringDataEncoding(
+                fixed_raw_length=16*5,
+                encoding='UTF-16BE',
+                termination_character='0058')),
          '123X456'.encode('UTF-16BE'),
          0,
+         '123X4'.encode('UTF-16BE'),
          '123'),
         # Leading length test
         (parameters.StringParameterType(
             'TEST_STRING',
-            encodings.StringDataEncoding(leading_length_size=5)),
+            encodings.StringDataEncoding(
+                fixed_raw_length=29,
+                leading_length_size=5)),
          # This is still 123X456 but with 11000 prepended (a 5-bit representation of the number 24)
          # This represents a string length (in bits) of 24 bits.
          0b1100000110001001100100011001101011000001101000011010100110110000.to_bytes(8, byteorder="big"),
          0,
+         0b11000001100010011001000110011000.to_bytes(4, byteorder="big"),
          '123'),
     ]
 )
-def test_string_parameter_parsing(parameter_type, raw_data, current_pos, expected):
+def test_string_parameter_parsing(parameter_type, raw_data, current_pos, expected_raw, expected_derived):
     """Test parsing a string parameter"""
     # pre parsed data to reference for lookups
     packet = packets.CCSDSPacket(raw_data=raw_data, **{'P1': packets.ParsedDataItem('P1', 7, None, 7.55),
@@ -1241,8 +1318,9 @@ def test_string_parameter_parsing(parameter_type, raw_data, current_pos, expecte
                                                        'STR_LEN': packets.ParsedDataItem('STR_LEN', 8, None)})
     # Artificially set the current position of the packet data read so far
     packet.raw_data.pos = current_pos
-    raw, _ = parameter_type.parse_value(packet)
-    assert raw == expected
+    raw, derived = parameter_type.parse_value(packet)
+    assert raw == expected_raw
+    assert derived == expected_derived
 
 
 @pytest.mark.parametrize(
@@ -1842,13 +1920,17 @@ def test_binary_parameter_parsing(parameter_type, raw_data, expected):
     </xtce:UnitSet>
     <xtce:StringDataEncoding encoding="UTF-8">
         <xtce:SizeInBits>
+            <xtce:Fixed>
+                <xtce:FixedValue>40</xtce:FixedValue>
+            </xtce:Fixed>
             <xtce:TerminationChar>00</xtce:TerminationChar>
         </xtce:SizeInBits>
     </xtce:StringDataEncoding>
 </xtce:BooleanParameterType>
 """,
          parameters.BooleanParameterType(name='TEST_PARAM_Type', unit='smoot',
-                                         encoding=encodings.StringDataEncoding(termination_character='00'))),
+                                         encoding=encodings.StringDataEncoding(fixed_raw_length=40,
+                                                                               termination_character='00'))),
     ]
 )
 def test_boolean_parameter_type(xml_string, expectation):
@@ -1874,11 +1956,10 @@ def test_boolean_parameter_type(xml_string, expectation):
          b'\x00', True),
         (parameters.BooleanParameterType(
             'TEST_BOOL',
-            encodings.StringDataEncoding(encoding="UTF-8", termination_character='00')),
-         0b011001100110000101101100011100110110010101011111011010010111001101011111011101000111001001110101011101000110100001111001000000000010101101010111.to_bytes(
-             length=18, byteorder='big'),
+            encodings.StringDataEncoding(fixed_raw_length=120, encoding="UTF-8")),
+         b'false_is_truthyextradata',
          0,
-         'false_is_truthy', True),
+         b'false_is_truthy', True),
         (parameters.BooleanParameterType(
             'TEST_BOOL',
             encodings.IntegerDataEncoding(size_in_bits=2, encoding="unsigned")),
