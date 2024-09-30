@@ -1,31 +1,26 @@
 name: Run Style Checks and Test
 on: pull_request
 jobs:
+
   pycodestyle:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
-      - name: Build Docker image
-        run: docker build . --file Dockerfile --target style --tag space-packet-parser-style:latest
-      - name: Run PyCodeStyle in Docker
-        run: docker run -i space-packet-parser-style:latest
+      - name: Install pycodestyle
+        run: pip install . pycodestyle
+      - name: Run pycodestyle
+        run: pycodestyle --config=pycodestyle.ini space_packet_parser
+
   pylint:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
-      - name: Build Docker image
-        run: docker build . --file Dockerfile --target lint --tag space-packet-parser-lint:latest
-      - name: Run Pylint in Docker
-        run: docker run -i space-packet-parser-lint:latest
-  docker-tests:
-    strategy:
-      matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
-    uses: ./.github/workflows/test-python-version.yml
-    with:
-      python-version: ${{ matrix.python-version }}
+      - name: Install pylint
+        run: pip install . pylint
+      - name: Run pylint
+        run: pylint space_packet_parser
 
   ci-tests:
     runs-on: ${{ matrix.os }}
@@ -36,7 +31,6 @@ jobs:
     defaults:
       run:
         shell: bash
-
 
     steps:
       - uses: actions/checkout@v4
@@ -52,7 +46,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install . pytest
+          pip install . pytest pytest-randomly
       
       - name: Testing
         run: |
