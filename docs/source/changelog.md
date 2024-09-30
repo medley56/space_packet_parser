@@ -23,6 +23,8 @@ Release notes for the `space_packet_parser` library
 - BREAKING: Removed `word_size` kwarg from packet generator method. 
   We expect all binary data to be integer number of bytes.
 - BREAKING: Changed `packet_generator` kwarg `skip_header_bits` to `skip_header_bytes`.
+- Fixed incorrect parsing of StringDataEncoding elements. Raw string values are now returned as byte buffers. 
+  Derived string values contain python string objects.
 - The ``CCSDSPacket`` class is now a dictionary subclass, enabling direct lookup of items from the Packet itself.
 - A ``RawPacketData`` class has been added that is a subclass of bytes. It keeps track of the current
   parsing location and enables reading of bit lengths as integers or raw bytes.
