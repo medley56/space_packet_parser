@@ -1,4 +1,4 @@
-name: Build and upload to PyPI
+name: Build and upload to PyPI and create GitHub release
 # https://packaging.python.org/en/latest/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/
 
 concurrency:
@@ -47,7 +47,7 @@ jobs:
           path: dist/
           if-no-files-found: error
 
-  pypi-publish:
+  publish-to-pypi:
     name: Upload release to PyPI
     if: startsWith(github.ref, 'refs/tags/')  # Belt and suspenders, only ever publish based on a tag
     needs: build
