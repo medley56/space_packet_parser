@@ -101,9 +101,9 @@ jobs:
         # substring in the git tag
         run: |
           if [[ "${{ github.ref_name }}" == *rc* ]]; then
-          echo "PRE_RELEASE=true" >> $GITHUB_ENV
+          echo "PRE_RELEASE_OPTION=--prerelease" >> $GITHUB_ENV
           else
-          echo "PRE_RELEASE=false" >> $GITHUB_ENV
+          echo "PRE_RELEASE_OPTION=''" >> $GITHUB_ENV
           fi
 
       - name: Create GitHub Release
@@ -115,7 +115,7 @@ jobs:
           gh release create
           '${{ github.ref_name }}'
           --repo '${{ github.repository }}'
-          --prerelease '${{ env.PRE_RELEASE }}'
+          '${{ env.PRE_RELEASE_OPTION }}'
           --generate-notes
 
       - name: Upload artifact 📦 signatures to GitHub Release
