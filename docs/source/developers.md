@@ -18,7 +18,8 @@ docker-compose up --build && docker-compose down
 ```
 
 ## Building Documentation with Sphinx
-Documentation is automatically built on ReadTheDocs but you can also build it locally with:
+Documentation is automatically built on ReadTheDocs in response to every PR and release, 
+but you can also build it locally with:
 ```bash
 # From docs directory
 make html && open build/html/index.html
@@ -32,11 +33,12 @@ Feel free to fork this repo and submit a PR!
 - Please fill out the PR template that is populated when creating a PR in the GitHub interface.
 
 ## Release Process
-Reference: [https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow)
+Releases are automatically created using a GitHub Actions workflow that responds to pushes of annotated git tags.
 
+### Preparing for Release
 1. Create a release candidate branch named according to the version to be released. This branch is used to polish
    the release but is fundamentally not different from any other feature branch in trunk-based development. 
-   The naming convention is `release/X.Y.Z`. 
+   The naming convention is `release/X.Y.Z`.
 
 2. Bump the version of the package to the version you are about to release, either manually by editing `pyproject.toml`
    or by running `poetry version X.Y.Z` or bumping according to a valid bump rule like `poetry version minor`
@@ -45,7 +47,7 @@ Reference: [https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-
 3. Update the version identifier in `CITATION.cff`.
 
 4. Update `changelog.md` to reflect that the version is now "released" and revisit `README.md` to keep it up to date.
-   
+
 5. Open a PR to merge the release branch into main. This informs the rest of the team how the release 
    process is progressing as you polish the release branch. You may need to rebase the release branch onto 
    any recent changes to `main` and resolve any conflicts on a regular basis.
@@ -54,22 +56,26 @@ Reference: [https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-
 
 7. Check out the `main` branch, pull the merged changes, and tag the newly created merge commit with the 
    desired version `X.Y.Z` and push the tag upstream. 
-   
-   ```bash
-   git tag -a X.Y.Z -m "version release X.Y.Z"
-   git push origin X.Y.Z
-   ```
-   
-8. Ensure that you have `main` checked out and build the package (see below).
-   Check that the version of the built artifacts is as you expect (should match the version git tag and the 
-   output from `poetry version --short`).
-   
-9. Optionally distribute the artifacts to PyPI/Nexus if desired (see below).
 
+### Automatic Release Process
+GitHub Actions has an automatic release process that responds to pushes of annotated git tags. When a tag matching 
+a semantic version (`[0-9]*.[0-9]*.[0-9]*` or `[0-9]*.[0-9]*.[0-9]*rc[0-9]*`) is pushed, a workflow runs that builds
+the package, pushes the artifacts to PyPI, and creates a GitHub Release from the distributed artifacts. Release notes 
+are automatically generated from commit history and the Release name is taken from the annotation on the tag.
 
-## Building and Distribution
-1. Ensure that `poetry` is installed by running `poetry --version`.
-   
-2. To build the distribution archives, run `poetry build`.
-   
-3. To upload the wheel to Nexus, run `poetry publish`. You will need credentials to sign in to PyPI.
+To trigger a release, push a tag reference to the commit you want to release, like so:
+
+```bash
+git tag -a X.Y.Z -m "Version X.Y.Z"
+git push origin X.Y.Z
+```
+
+To tag and publish a Release Candidate, your tag should look like the following:
+
+```bash
+git tag -a X.Y.Zrc1 -m "Release Candidate X.Y.Zrc1"
+git push origin X.Y.Zrc1
+```
+
+**For production releases, tags should always reference commits in the `main` branch. Release candidates are less 
+important and tags can reference any commit.**

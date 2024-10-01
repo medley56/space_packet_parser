@@ -6,19 +6,26 @@ concurrency:
   cancel-in-progress: true
 
 on:
-  release:
-    types:
-      - published
+  push:
+    tags:
+      - '[0-9]*.[0-9]*.[0-9]*'  # Push events to every tag that looks like a semver
+      - '[0-9]*.[0-9]*.[0-9]*rc[0-9]*'  # Push events to every tag that looks like a release candidate
 
 jobs:
   build:
+    # This job uses vanilla Python tools rather than Poetry, so we don't have to use third party GitHub actions
+    # e.g. pip, build, twine
+    # If we even want to, we could switch to using something like actions/setup-poetry (but do a search for current
+    # best implementations)
     name: Build distribution 📦
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        name: Install Python
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install Python 🐍
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
@@ -32,7 +39,8 @@ jobs:
       - name: Check README rendering for PyPI
         run: twine check dist/*
 
-      - name: Upload sdist result
+      # Save ("upload") the distribution artifacts for use by downstream Actions jobs
+      - name: Upload sdist artifacts 📦
         uses: actions/upload-artifact@v4  # This allows us to persist the dist directory after the job has completed
         with:
           name: python-package-distributions
@@ -51,10 +59,61 @@ jobs:
       id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
 
     steps:
-      - name: Download all the dists
+      # This downloads the build artifacts from the build job
+      - name: Download all the dists 📦
         uses: actions/download-artifact@v4
         with:
           name: python-package-distributions
           path: dist/
+
       - name: Publish distribution 📦 to PyPI
         uses: pypa/gh-action-pypi-publish@v1.8.10
+
+  create-github-release:
+    name: >-
+      Sign the Python 🐍 distribution 📦 with Sigstore
+      and upload them to GitHub Release
+    needs:
+      - publish-to-pypi
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi-publish
+    permissions:
+      contents: write  # IMPORTANT: mandatory for making GitHub Releases
+      id-token: write  # IMPORTANT: mandatory for sigstore
+
+    steps:
+      - name: Download all the dists 📦
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+
+      - name: Sign the dists 📦 with Sigstore 🔑
+        uses: sigstore/gh-action-sigstore-python@v2.1.1
+        with:
+          inputs: >-
+            ./dist/*.tar.gz
+            ./dist/*.whl
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        # Uses the GitHub CLI to generate the Release and auto-generate the release notes. Also generates
+        # the Release title based on the annotation on the git tag.
+        run: >-
+          gh release create
+          '${{ github.ref_name }}'
+          --repo '${{ github.repository }}'
+          --generate-notes
+
+      - name: Upload artifact 📦 signatures to GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        # Upload to GitHub Release using the `gh` CLI.
+        # `dist/` contains the built packages, and the
+        # sigstore-produced signatures and certificates.
+        run: >-
+          gh release upload
+          '${{ github.ref_name }}' dist/**
+          --repo '${{ github.repository }}'
