@@ -97,8 +97,8 @@ jobs:
             ./dist/*.whl
 
       - name: Determine if it's a pre-release
-        # Dynamically sets the prerelease status passed to the release create CLI based on matching the *rc*
-        # substring in the git tag
+        # Dynamically sets the --prerelease option passed to the release create CLI based on matching the *rc*
+        # substring in the git tag. If rc not present, does not pass --prerelease to the CLI.
         run: |
           if [[ "${{ github.ref_name }}" == *rc* ]]; then
           echo "PRE_RELEASE_OPTION=--prerelease" >> $GITHUB_ENV
@@ -115,7 +115,7 @@ jobs:
           gh release create
           '${{ github.ref_name }}'
           --repo '${{ github.repository }}'
-          '${{ env.PRE_RELEASE_OPTION }}'
+          ${{ env.PRE_RELEASE_OPTION }}
           --generate-notes
 
       - name: Upload artifact 📦 signatures to GitHub Release
