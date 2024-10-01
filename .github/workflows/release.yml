@@ -33,7 +33,7 @@ jobs:
         run: twine check dist/*
 
       - name: Upload sdist result
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4  # This allows us to persist the dist directory after the job has completed
         with:
           name: python-package-distributions
           path: dist/
@@ -41,10 +41,11 @@ jobs:
 
   pypi-publish:
     name: Upload release to PyPI
+    if: startsWith(github.ref, 'refs/tags/')  # Belt and suspenders, only ever publish based on a tag
     needs: build
     runs-on: ubuntu-latest
     environment:
-      name: pypi
+      name: pypi-publish
       url: https://pypi.org/p/space_packet_parser
     permissions:
       id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
