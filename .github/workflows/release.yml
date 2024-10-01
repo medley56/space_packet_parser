@@ -96,6 +96,16 @@ jobs:
             ./dist/*.tar.gz
             ./dist/*.whl
 
+      - name: Determine if it's a pre-release
+        # Dynamically sets the prerelease status passed to the release create CLI based on matching the *rc*
+        # substring in the git tag
+        run: |
+          if [[ "${{ github.ref_name }}" == *rc* ]]; then
+          echo "PRE_RELEASE=true" >> $GITHUB_ENV
+          else
+          echo "PRE_RELEASE=false" >> $GITHUB_ENV
+          fi
+
       - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -105,6 +115,7 @@ jobs:
           gh release create
           '${{ github.ref_name }}'
           --repo '${{ github.repository }}'
+          --prerelease '${{ env.PRE_RELEASE }}'
           --generate-notes
 
       - name: Upload artifact 📦 signatures to GitHub Release
