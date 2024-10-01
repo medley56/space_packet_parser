@@ -109,6 +109,8 @@ jobs:
       - name: Get latest non-prerelease release
         # This fetches the "latest" (non-prerelease) release ref,
         # so we can generate release notes from that point instead of the most recent prerelease.
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           latest_release=$(gh release list --repo "${{ github.repository }}" --limit 100 --json tagName,isPrerelease --jq '.[] | select(.isPrerelease == false) | .tagName' | head -n 1)
           if [ -z "$latest_release" ]; then

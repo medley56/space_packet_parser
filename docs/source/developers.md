@@ -77,5 +77,8 @@ git tag -a X.Y.Zrc1 -m "Release Candidate X.Y.Zrc1"
 git push origin X.Y.Zrc1
 ```
 
+Release candidate tags are always marked as Prereleases in GitHub and release notes are generated from the latest
+non-prerelease Release.
+
 **For production releases, tags should always reference commits in the `main` branch. Release candidates are less 
 important and tags can reference any commit.**
