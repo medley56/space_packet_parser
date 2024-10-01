@@ -106,6 +106,17 @@ jobs:
           echo "PRE_RELEASE_OPTION=''" >> $GITHUB_ENV
           fi
 
+      - name: Get latest non-prerelease release
+        # This fetches the "latest" (non-prerelease) release ref,
+        # so we can generate release notes from that point instead of the most recent prerelease.
+        run: |
+          latest_release=$(gh release list --repo "${{ github.repository }}" --limit 100 --json tagName,isPrerelease --jq '.[] | select(.isPrerelease == false) | .tagName' | head -n 1)
+          if [ -z "$latest_release" ]; then
+            echo "No non-prerelease release found."
+            exit 1
+          fi
+          echo "LATEST_RELEASE_TAG=$latest_release" >> $GITHUB_ENV
+
       - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -117,6 +128,7 @@ jobs:
           --repo '${{ github.repository }}'
           ${{ env.PRE_RELEASE_OPTION }}
           --generate-notes
+          --notes-start-tag '${{ env.LATEST_RELEASE_TAG }}'
 
       - name: Upload artifact 📦 signatures to GitHub Release
         env:
