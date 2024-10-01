@@ -1,19 +1,20 @@
 cff-version: 1.2.0
 title: 'space_packet_parser'
 type: software
-version: '4.2.0'
+version: '5.0.0rc1'
 description: A CCSDS telemetry packet decoding library based on the XTCE packet format description standard.
 license: BSD-3-Clause
-abstract: The space_packet_parser Python library is a generalized, configurable packet decoding library for CCSDS telemetry
-    packets based on the XTCE standard for packet structure definitions. The core functionality of the library is the
-    configuration of a Parser object by a static XTCE XML document. The configured Parser can then iterate through binary
-    data, parsing and returning ParsedPacket objects containing the decoded packet field values in a memory efficient
-    generator pattern. The binary string may originate from an in-memory bit stream, a buffered file reader opened in
-    binary mode, or a python socket object; in every case, a small buffer is used to read chunks of data to ensure that
-    memory usage is minimal. The space_packet_parser library supports robust error handling and is capable of skipping malformed
-    packet structures and unidentified packet structures and can dynamically parse mixed APID packet streams. The
-    `Parser.generator` object supports keyword arguments for debugging such as the ability to return unraised parsing
-    errors, which contain partial instances of parsed packet data to aid in debugging.
+abstract: The Space Packet Parser Python library is a generalized, configurable packet decoding library for CCSDS telemetry
+    packets based on the XTCE standard for packet structure definitions. It supports complex and polymorphic
+    packet structures, using the XTCE UML model to represent dynamic inheritance structures and conditionals
+    based on previously parsed data fields. The core functionality of the library is the
+    configuration of an XtcePacketDefinition object from a static XTCE XML document. The configured definition
+    object can then iterate over binary data, parsing and yielding parsed Packet objects containing the decoded
+    packet field values in a generator pattern. The binary data may originate from an in-memory binary object,
+    a buffered file reader opened in binary mode, or a python socket object; in every case, a small buffer is
+    used to read chunks of data to reduce memory footprint.
+    The space_packet_parser library supports robust error handling, is capable of handling malformed
+    packet structures, and can dynamically parse muxed APID packet streams.
 authors:
 - email: gavin.medley@lasp.colorado.edu
   name: Gavin Medley
