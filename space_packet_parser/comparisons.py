@@ -178,7 +178,7 @@ class Comparison(MatchCriteria):
         """
         if self.referenced_parameter in packet:
             if self.use_calibrated_value:
-                parsed_value = packet[self.referenced_parameter].derived_value
+                parsed_value = packet[self.referenced_parameter]
                 if not parsed_value:
                     raise ComparisonError(f"Comparison {self} was instructed to useCalibratedValue (the default)"
                                           f"but {self.referenced_parameter} does not appear to have a derived value.")
@@ -341,7 +341,7 @@ class Condition(MatchCriteria):
         def _get_parsed_value(parameter_name: str, use_calibrated: bool):
             """Retrieves the previously parsed value from the passed in packet"""
             try:
-                return packet[parameter_name].derived_value if use_calibrated \
+                return packet[parameter_name] if use_calibrated \
                     else packet[parameter_name].raw_value
             except KeyError as e:
                 raise ComparisonError(f"Attempting to perform a Condition evaluation on {self.left_param} but "

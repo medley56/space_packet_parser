@@ -2,34 +2,58 @@
 """Packet containers and parsing utilities for space packets."""
 
 from dataclasses import dataclass, field
-from typing import Union, Optional, Protocol, List
+from typing import List, Optional, Protocol, Union
+
+BuiltinDataTypes = Union[bytes, float, int, str]
 
 
-@dataclass
-class ParsedDataItem:
-    """Representation of a parsed parameter
+class _Parameter:
+    """Mixin class for storing access to the raw value of a parsed data item.
 
-    Parameters
-    ----------
-    name : str
-        Parameter name
-    unit : str
-        Parameter units
-    raw_value : any
-        Raw representation of the parsed value. May be lots of different types but most often an integer
-    derived_value : float or str
-        May be a calibrated value or an enum lookup
-    short_description : str
-        Parameter short description
-    long_description : str
-        Parameter long description
+    The raw value is the closest representation of the data item as it appears in the packet.
+    e.g. bytes for binary data, int for integer data, etc. It has not been calibrated or
+    adjusted in any way and is an easy way for user's to debug the transformations that
+    happened after the fact.
+
+    Notes
+    -----
+    We need to override the __new__ method to store the raw value of the data item
+    on immutable built-in types. So this is just a way of allowing us to inject our
+    own attribute into the built-in types.
     """
-    name: str
-    raw_value: Union[bytes, float, int, str]
-    unit: Optional[str] = None
-    derived_value: Optional[Union[float, str]] = None
-    short_description: Optional[str] = None
-    long_description: Optional[str] = None
+    def __new__(cls, value: BuiltinDataTypes, raw_value: BuiltinDataTypes = None) -> BuiltinDataTypes:
+        obj = super().__new__(cls, value)
+        # Default to the same value as the parsed value if it isn't provided
+        obj.raw_value = raw_value or value
+        return obj
+
+
+class BinaryParameter(_Parameter, bytes):
+    """A class to represent a binary data item."""
+
+
+class BoolParameter(_Parameter, int):
+    """A class to represent a parsed boolean data item."""
+    # A bool is a subclass of int, so all we are really doing here
+    # is making a nice representation using the bool type because
+    # bool can't be subclassed directly.
+    def __repr__(self) -> str:
+        return bool.__repr__(bool(self))
+
+
+class FloatParameter(_Parameter, float):
+    """A class to represent a float data item."""
+
+
+class IntParameter(_Parameter, int):
+    """A class to represent a integer data item."""
+
+
+class StrParameter(_Parameter, str):
+    """A class to represent a string data item."""
+
+
+ParameterDataTypes = Union[BinaryParameter, BoolParameter, FloatParameter, IntParameter, StrParameter]
 
 
 class RawPacketData(bytes):

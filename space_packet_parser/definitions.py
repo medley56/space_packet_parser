@@ -370,10 +370,8 @@ class XtcePacketDefinition:
         header = {}
         current_bit = 0
         for item in CCSDS_HEADER_DEFINITION:
-            header[item.name] = packets.ParsedDataItem(
-                name=item.name,
-                # pylint: disable=protected-access
-                raw_value=packets._extract_bits(packet_data, current_bit, item.nbits))
+            # pylint: disable=protected-access
+            header[item.name] = packets._extract_bits(packet_data, current_bit, item.nbits)
             current_bit += item.nbits
         return header
 
@@ -417,7 +415,7 @@ class XtcePacketDefinition:
                     raise UnrecognizedPacketTypeError(
                         f"Detected an abstract container with no valid inheritors by restriction criteria. This might "
                         f"mean this packet type is not accounted for in the provided packet definition. "
-                        f"APID={packet['PKT_APID'].raw_value}.",
+                        f"APID={packet['PKT_APID']}.",
                         partial_data=packet)
                 break
 
@@ -593,7 +591,7 @@ class XtcePacketDefinition:
             # per the CCSDS spec
             # 4.1.3.5.3 The length count C shall be expressed as:
             #   C = (Total Number of Octets in the Packet Data Field) – 1
-            n_bytes_data = header['PKT_LEN'].raw_value + 1
+            n_bytes_data = header['PKT_LEN'] + 1
             n_bytes_packet = CCSDS_HEADER_LENGTH_BYTES + n_bytes_data
 
             # Based on PKT_LEN fill buffer enough to read a full packet
@@ -623,17 +621,17 @@ class XtcePacketDefinition:
                 packet = self.parse_ccsds_packet(packet,
                                                  root_container_name=root_container_name)
             except UnrecognizedPacketTypeError as e:
-                logger.debug(f"Unrecognized error on packet with APID {header['PKT_APID'].raw_value}'")
+                logger.debug(f"Unrecognized error on packet with APID {header['PKT_APID']}'")
                 if yield_unrecognized_packet_errors:
                     # Yield the caught exception without raising it (raising ends generator)
                     yield e
                 # Continue to next packet
                 continue
 
-            if packet.header['PKT_LEN'].raw_value != header['PKT_LEN'].raw_value:
+            if packet.header['PKT_LEN'] != header['PKT_LEN']:
                 raise ValueError(f"Hardcoded header parsing found a different packet length "
-                                 f"{header['PKT_LEN'].raw_value} than the definition-based parsing found "
-                                 f"{packet.header['PKT_LEN'].raw_value}. This might be because the CCSDS header is "
+                                 f"{header['PKT_LEN']} than the definition-based parsing found "
+                                 f"{packet.header['PKT_LEN']}. This might be because the CCSDS header is "
                                  f"incorrectly represented in your packet definition document.")
 
             actual_length_parsed = packet.raw_data.pos // 8
@@ -644,7 +642,7 @@ class XtcePacketDefinition:
                                f"Updating the position to the correct position "
                                "indicated by CCSDS header.")
                 if not parse_bad_pkts:
-                    logger.warning(f"Skipping (not yielding) bad packet with apid {header['PKT_APID'].raw_value}.")
+                    logger.warning(f"Skipping (not yielding) bad packet with apid {header['PKT_APID']}.")
                     continue
 
             yield packet

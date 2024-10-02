@@ -122,82 +122,82 @@ def test_attr_comparable():
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="==" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': packets.ParsedDataItem('MSN__PARAM', 3, None, 678)}, None, True),
+         {'MSN__PARAM': packets.FloatParameter(678, 3)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="eq" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': packets.ParsedDataItem('MSN__PARAM', 3, None, 668)}, None, False),
+         {'MSN__PARAM': packets.FloatParameter(668, 3)}, None, False),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="!=" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': packets.ParsedDataItem('MSN__PARAM', 3, None, 678)}, None, False),
+         {'MSN__PARAM': packets.FloatParameter(678, 3)}, None, False),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="neq" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': packets.ParsedDataItem('MSN__PARAM', 3, None, 658)}, None, True),
+         {'MSN__PARAM': packets.FloatParameter(658, 3)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="&lt;" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': packets.ParsedDataItem('MSN__PARAM', 3, None, 679)}, None, False),
+         {'MSN__PARAM': packets.FloatParameter(679, 3)}, None, False),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="lt" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': packets.ParsedDataItem('MSN__PARAM', 3, None, 670)}, None, True),
+         {'MSN__PARAM': packets.FloatParameter(670, 3)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="&gt;" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': packets.ParsedDataItem('MSN__PARAM', 3, None, 678)}, None, False),
+         {'MSN__PARAM': packets.FloatParameter(678, 3)}, None, False),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="gt" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': packets.ParsedDataItem('MSN__PARAM', 3, None, 679)}, None, True),
+         {'MSN__PARAM': packets.FloatParameter(679, 3)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="&lt;=" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': packets.ParsedDataItem('MSN__PARAM', 3, None, 660)}, None, True),
+         {'MSN__PARAM': packets.FloatParameter(660, 3)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="leq" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': packets.ParsedDataItem('MSN__PARAM', 3, None, 690)}, None, False),
+         {'MSN__PARAM': packets.FloatParameter(690, 3)}, None, False),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="&gt;=" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': packets.ParsedDataItem('MSN__PARAM', 3, None, 660)}, None, False),
+         {'MSN__PARAM': packets.FloatParameter(660, 3)}, None, False),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="geq" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': packets.ParsedDataItem('MSN__PARAM', 3, None, 690)}, None, True),
+         {'MSN__PARAM': packets.FloatParameter(690, 3)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="==" value="678" parameterRef="MSN__PARAM" useCalibratedValue="false"/>
 """,
-         {'MSN__PARAM': packets.ParsedDataItem('MSN__PARAM', 678, None, 690)}, None, True),
+         {'MSN__PARAM': packets.FloatParameter(690, 678)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="==" value="678" parameterRef="MSN__PARAM" useCalibratedValue="true"/>
 """,
-         {'MSN__PARAM': packets.ParsedDataItem('MSN__PARAM', 3, None, 678)}, None, True),
+         {'MSN__PARAM': packets.FloatParameter(678, 3)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="==" value="foostring" parameterRef="MSN__PARAM" useCalibratedValue="false"/>
 """,
-         {'MSN__PARAM': packets.ParsedDataItem('MSN__PARAM', 'foostring', None, 'calibratedfoostring')}, None, True),
+         {'MSN__PARAM': packets.StrParameter('calibratedfoostring', 'foostring')}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="==" value="3.14" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': packets.ParsedDataItem('MSN__PARAM', 1, None, 3.14)}, None, True),
+         {'MSN__PARAM': packets.FloatParameter(3.14, 1)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="==" value="3.0" parameterRef="REFERENCE_TO_OWN_RAW_VAL"/>
@@ -242,8 +242,8 @@ def test_comparison(xml_string, test_parsed_data, current_parsed_value, expected
     <xtce:ParameterInstanceRef parameterRef="P2"/>
 </xtce:Condition>
 """,
-         {'P1': packets.ParsedDataItem('P1', 4, None, 700),
-          'P2': packets.ParsedDataItem('P2', 3, None, 678)}, True),
+         {'P1': packets.IntParameter(700, 4),
+          'P2': packets.IntParameter(678, 3)}, True),
         ("""
 <xtce:Condition xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:ParameterInstanceRef parameterRef="P1"/>
@@ -251,7 +251,7 @@ def test_comparison(xml_string, test_parsed_data, current_parsed_value, expected
     <xtce:Value>4</xtce:Value>
 </xtce:Condition>
 """,
-         {'P1': packets.ParsedDataItem('P1', 4, None, 700)}, True),
+         {'P1': packets.IntParameter(700, 4)}, True),
         ("""
 <xtce:Condition xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:ParameterInstanceRef parameterRef="P1"/>
@@ -259,8 +259,8 @@ def test_comparison(xml_string, test_parsed_data, current_parsed_value, expected
     <xtce:ParameterInstanceRef parameterRef="P2"/>
 </xtce:Condition>
 """,
-         {'P1': packets.ParsedDataItem('P1', 4, None, 700),
-          'P2': packets.ParsedDataItem('P2', 3, None, 678)}, False),
+         {'P1': packets.IntParameter(700, 4),
+          'P2': packets.IntParameter(678, 3)}, False),
         ("""
 <xtce:Condition xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:ParameterInstanceRef parameterRef="P1" useCalibratedValue="false"/>
@@ -268,8 +268,8 @@ def test_comparison(xml_string, test_parsed_data, current_parsed_value, expected
     <xtce:ParameterInstanceRef parameterRef="P2" useCalibratedValue="false"/>
 </xtce:Condition>
 """,
-         {'P1': packets.ParsedDataItem('P1', 'abcd', None),
-          'P2': packets.ParsedDataItem('P2', 'abcd', None)}, True),
+         {'P1': packets.StrParameter('abcd'),
+          'P2': packets.StrParameter('abcd')}, True),
         ("""
 <xtce:Condition xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:ParameterInstanceRef parameterRef="P1"/>
@@ -277,8 +277,8 @@ def test_comparison(xml_string, test_parsed_data, current_parsed_value, expected
     <xtce:ParameterInstanceRef parameterRef="P2"/>
 </xtce:Condition>
 """,
-         {'P1': packets.ParsedDataItem('P1', 1, None, 3.14),
-          'P2': packets.ParsedDataItem('P2', 180, None, 3.14)}, True),
+         {'P1': packets.FloatParameter(3.14, 1),
+          'P2': packets.FloatParameter(3.14, 180)}, True),
     ]
 )
 def test_condition(xml_string, test_parsed_data, expected_condition_result):
@@ -314,10 +314,10 @@ def test_condition(xml_string, test_parsed_data, expected_condition_result):
     </xtce:ORedConditions>
 </xtce:BooleanExpression>
 """,
-         {'P': packets.ParsedDataItem('P', 4, None, 0),
-          'P2': packets.ParsedDataItem('P2', 4, None, 700),
-          'P3': packets.ParsedDataItem('P3', 4, None, 701),
-          'P4': packets.ParsedDataItem('P4', 4, None, 98)}, True),
+         {'P': packets.IntParameter(0, 4),
+          'P2': packets.IntParameter(700, 4),
+          'P3': packets.IntParameter(701, 4),
+          'P4': packets.IntParameter(98, 4)}, True),
         ("""
 <xtce:BooleanExpression xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:ANDedConditions>
@@ -346,12 +346,12 @@ def test_condition(xml_string, test_parsed_data, expected_condition_result):
     </xtce:ANDedConditions>
 </xtce:BooleanExpression>
 """,
-         {'P': packets.ParsedDataItem('P', 4, None, 100),
-          'P0': packets.ParsedDataItem('P0', 4, None, 678),
-          'P1': packets.ParsedDataItem('P1', 4, None, 500),
-          'P2': packets.ParsedDataItem('P2', 4, None, 700),
-          'P3': packets.ParsedDataItem('P3', 4, None, 701),
-          'P4': packets.ParsedDataItem('P4', 4, None, 99)}, True),
+         {'P': packets.IntParameter(100, 4),
+          'P0': packets.IntParameter(678, 4),
+          'P1': packets.IntParameter(500, 4),
+          'P2': packets.IntParameter(700, 4),
+          'P3': packets.IntParameter(701, 4),
+          'P4': packets.IntParameter(99, 4)}, True),
     ]
 )
 def test_boolean_expression(xml_string, test_parsed_data, expected_result):
@@ -373,13 +373,13 @@ def test_boolean_expression(xml_string, test_parsed_data, expected_result):
     <xtce:Comparison useCalibratedValue="false" parameterRef="P1" value="1"/>
 </xtce:DiscreteLookup>
 """,
-         {'P1': packets.ParsedDataItem('P1', 1, None, 678)}, 10),
+         {'P1': packets.IntParameter(678, 1)}, 10),
         ("""
 <xtce:DiscreteLookup value="10" xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:Comparison useCalibratedValue="false" parameterRef="P1" value="1"/>
 </xtce:DiscreteLookup>
 """,
-         {'P1': packets.ParsedDataItem('P1', 0, None, 678)}, None),
+         {'P1': packets.IntParameter(678, 0)}, None),
         ("""
 <xtce:DiscreteLookup value="11" xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:ComparisonList>
@@ -389,8 +389,8 @@ def test_boolean_expression(xml_string, test_parsed_data, expected_result):
 </xtce:DiscreteLookup>
 """,
          {
-             'MSN__PARAM1': packets.ParsedDataItem('MSN__PARAM1', 3, None, 680),
-             'MSN__PARAM2': packets.ParsedDataItem('MSN__PARAM2', 3, None, 3000)
+             'MSN__PARAM1': packets.IntParameter(680, 3),
+             'MSN__PARAM2': packets.IntParameter(3000, 3),
          }, 11),
     ]
 )
@@ -536,7 +536,7 @@ def test_context_calibrator(xml_string, expectation):
                 calibrators.PolynomialCoefficient(coefficient=0.5, exponent=0),
                 calibrators.PolynomialCoefficient(coefficient=1.5, exponent=1)
             ])),
-         {"EXI__FPGAT": packets.ParsedDataItem("EXI__FPGAT", 600, derived_value=700)},
+         {"EXI__FPGAT": packets.IntParameter(700, 600)},
          42, True, 63.5),
         (calibrators.ContextCalibrator(
             match_criteria=[
@@ -547,7 +547,7 @@ def test_context_calibrator(xml_string, expectation):
                 calibrators.PolynomialCoefficient(coefficient=0.5, exponent=0),
                 calibrators.PolynomialCoefficient(coefficient=1.5, exponent=1),
             ])),
-         {"EXI__FPGAT": packets.ParsedDataItem("EXI__FPGAT", 3.14, derived_value=700.0)},
+         {"EXI__FPGAT": packets.FloatParameter(700.0, 3.14)},
          42, True, 63.5),
         (calibrators.ContextCalibrator(
             match_criteria=[
@@ -567,8 +567,8 @@ def test_context_calibrator(xml_string, expectation):
                 calibrators.PolynomialCoefficient(coefficient=0.5, exponent=0),
                 calibrators.PolynomialCoefficient(coefficient=1.5, exponent=1),
             ])),
-         {"P1": packets.ParsedDataItem("P1", 100.0, derived_value=700.0),
-          "P2": packets.ParsedDataItem("P2", 99, derived_value=700.0)},
+         {"P1": packets.FloatParameter(700.0, 100.0),
+          "P2": packets.FloatParameter(700.0, 99)},
          42, True, 63.5),
         (calibrators.ContextCalibrator(
             match_criteria=[
@@ -589,8 +589,8 @@ def test_context_calibrator(xml_string, expectation):
                 calibrators.PolynomialCoefficient(coefficient=0.5, exponent=0),
                 calibrators.PolynomialCoefficient(coefficient=1.5, exponent=1),
             ])),
-         {"P1": packets.ParsedDataItem("P1", 100.0, derived_value=700.0),
-          "P2": packets.ParsedDataItem("P2", 99, derived_value=700.0)},
+         {"P1": packets.FloatParameter(700.0, 100.0),
+          "P2": packets.FloatParameter(700.0, 99)},
          42, False, 63.5),
     ]
 )
@@ -1313,14 +1313,14 @@ def test_string_parameter_type(xml_string: str, expectation):
 def test_string_parameter_parsing(parameter_type, raw_data, current_pos, expected_raw, expected_derived):
     """Test parsing a string parameter"""
     # pre parsed data to reference for lookups
-    packet = packets.CCSDSPacket(raw_data=raw_data, **{'P1': packets.ParsedDataItem('P1', 7, None, 7.55),
-                                                       'P2': packets.ParsedDataItem('P2', 99, None, 100),
-                                                       'STR_LEN': packets.ParsedDataItem('STR_LEN', 8, None)})
+    packet = packets.CCSDSPacket(raw_data=raw_data, **{'P1': packets.FloatParameter(7.55, 7),
+                                                       'P2': packets.IntParameter(100, 99),
+                                                       'STR_LEN': packets.IntParameter(8)})
     # Artificially set the current position of the packet data read so far
     packet.raw_data.pos = current_pos
-    raw, derived = parameter_type.parse_value(packet)
-    assert raw == expected_raw
-    assert derived == expected_derived
+    value = parameter_type.parse_value(packet)
+    assert value == expected_derived
+    assert value.raw_value == expected_raw
 
 
 @pytest.mark.parametrize(
@@ -1504,13 +1504,10 @@ def test_integer_parameter_type(xml_string: str, expectation):
 def test_integer_parameter_parsing(parameter_type, raw_data, current_pos, expected):
     """Testing parsing an integer parameters"""
     # pre parsed data to reference for lookups
-    packet = packets.CCSDSPacket(raw_data=raw_data, PKT_APID=packets.ParsedDataItem('PKT_APID', 1101))
+    packet = packets.CCSDSPacket(raw_data=raw_data, PKT_APID=packets.IntParameter(1101))
     packet.raw_data.pos = current_pos
-    raw, derived = parameter_type.parse_value(packet)
-    if derived:
-        assert derived == expected
-    else:
-        assert raw == expected
+    value = parameter_type.parse_value(packet)
+    assert value == expected
 
 
 @pytest.mark.parametrize(
@@ -1702,13 +1699,10 @@ def test_float_parameter_type(xml_string: str, expectation):
 def test_float_parameter_parsing(parameter_type, raw_data, expected):
     """Test parsing float parameters"""
     # pre parsed data to reference for lookups
-    packet = packets.CCSDSPacket(raw_data=raw_data, **{'PKT_APID': packets.ParsedDataItem('PKT_APID', 1101)})
-    raw, derived = parameter_type.parse_value(packet)
+    packet = packets.CCSDSPacket(raw_data=raw_data, **{'PKT_APID': packets.IntParameter(1101)})
+    value = parameter_type.parse_value(packet)
     # NOTE: These results are compared with a relative tolerance due to the imprecise storage of floats
-    if derived:
-        assert derived == pytest.approx(expected, rel=1E-7)
-    else:
-        assert raw == pytest.approx(expected, rel=1E-7)
+    assert value == pytest.approx(expected, rel=1E-7)
 
 
 @pytest.mark.parametrize(
@@ -1764,11 +1758,8 @@ def test_enumerated_parameter_type(xml_string: str, expectation):
 def test_enumerated_parameter_parsing(parameter_type, raw_data, expected):
     """"Test parsing enumerated parameters"""
     packet = packets.CCSDSPacket(raw_data=raw_data)
-    raw, derived = parameter_type.parse_value(packet)
-    if derived:
-        assert derived == expected
-    else:
-        assert raw == expected
+    value = parameter_type.parse_value(packet)
+    assert value == expected
 
 
 @pytest.mark.parametrize(
@@ -1880,10 +1871,10 @@ def test_binary_parameter_parsing(parameter_type, raw_data, expected):
     """Test parsing binary parameters"""
     # pre parsed data to reference for lookups
     packet = packets.CCSDSPacket(raw_data=raw_data, **{
-        'P1': packets.ParsedDataItem('P1', 1, None, 7.4),
-        'BIN_LEN': packets.ParsedDataItem('BIN_LEN', 2, None)})
-    raw, _ = parameter_type.parse_value(packet)
-    assert raw == expected
+        'P1': packets.FloatParameter(7.4, 1),
+        'BIN_LEN': packets.IntParameter(2)})
+    value = parameter_type.parse_value(packet)
+    assert value == expected
 
 
 @pytest.mark.parametrize(
@@ -1990,9 +1981,9 @@ def test_boolean_parameter_parsing(parameter_type, raw_data, current_pos, expect
     """Test parsing boolean parameters"""
     packet = packets.CCSDSPacket(raw_data=raw_data)
     packet.raw_data.pos = current_pos
-    raw, derived = parameter_type.parse_value(packet)
-    assert raw == expected_raw
-    assert derived == expected_derived
+    value = parameter_type.parse_value(packet)
+    assert value.raw_value == expected_raw
+    assert value == expected_derived
 
 
 @pytest.mark.parametrize(
@@ -2142,10 +2133,10 @@ def test_absolute_time_parameter_type(xml_string, expectation):
 def test_absolute_time_parameter_parsing(parameter_type, raw_data, current_pos, expected_raw, expected_derived):
     packet = packets.CCSDSPacket(raw_data=raw_data)
     packet.raw_data.pos = current_pos
-    raw, derived = parameter_type.parse_value(packet)
-    assert raw == pytest.approx(expected_raw, rel=1E-6)
+    value = parameter_type.parse_value(packet)
+    assert value.raw_value == pytest.approx(expected_raw, rel=1E-6)
     # NOTE: derived values are rounded for comparison due to imprecise storage of floats
-    assert derived == pytest.approx(expected_derived, rel=1E-6)
+    assert value == pytest.approx(expected_derived, rel=1E-6)
 
 
 # ---------------
