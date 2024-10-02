@@ -17,6 +17,9 @@ Release notes for the `space_packet_parser` library
   - Much faster parsing speed
   - Users that are passing `bitstring.ConstBitStream` objects to `generator` will need to pass a 
     binary filelike object instead
+- BREAKING: The ``ParsedDataItem`` class has been removed and the derived values are being returned now.
+  The ``raw_value`` is stored as an attribute on the returned object. The other items can be accessed
+  through the packet definition object ``my_packet_definition.named_parameters["my_item"].short_description``
 - BREAKING: The return type of BinaryDataEncoding is now the raw bytes.
   To get the previous behavior you can convert the data to an integer and then format it as a binary string.
   ``f"{int.from_bytes(data, byteorder='big'):0{len(data)*8}b}"``

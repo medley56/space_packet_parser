@@ -3,8 +3,8 @@
 from abc import ABCMeta, abstractmethod
 import logging
 import struct
-from typing import Any, List, Optional, Tuple, Union
-# Installed
+from typing import List, Optional, Union
+
 import lxml.etree as ElementTree
 # Local
 from space_packet_parser import calibrators, comparisons, packets
@@ -145,7 +145,7 @@ class DataEncoding(comparisons.AttrComparable, metaclass=ABCMeta):
         """
         raise NotImplementedError()
 
-    def parse_value(self, packet: packets.CCSDSPacket, **kwargs) -> Tuple[Any, Any]:
+    def parse_value(self, packet: packets.CCSDSPacket, **kwargs) -> packets.ParameterDataTypes:
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
@@ -155,10 +155,8 @@ class DataEncoding(comparisons.AttrComparable, metaclass=ABCMeta):
             previously parsed data items to infer field lengths.
         Returns
         -------
-        : any
-            Raw value
-        : any
-            Calibrated value
+        : packets.ParameterDataTypes
+            Derived value with a `raw_value` attribute that can be used to get the original packet data.
         """
         raise NotImplementedError()
 
@@ -294,8 +292,8 @@ class StringDataEncoding(DataEncoding):
                 raise ValueError('List of discrete lookup values being used for determining length of '
                                  f'string {self} found no matches based on {packet}.')
         elif self.dynamic_length_reference:
-            if self.use_calibrated_value is True:
-                buflen_bits = packet[self.dynamic_length_reference].derived_value
+            if self.use_calibrated_value:
+                buflen_bits = packet[self.dynamic_length_reference]
             else:
                 buflen_bits = packet[self.dynamic_length_reference].raw_value
 
@@ -336,7 +334,7 @@ class StringDataEncoding(DataEncoding):
         ).to_bytes(buflen_bytes, "big")
         return raw_string_buffer
 
-    def parse_value(self, packet: packets.CCSDSPacket, **kwargs) -> Tuple[bytes, str]:
+    def parse_value(self, packet: packets.CCSDSPacket, **kwargs) -> packets.StrParameter:
         """Parse a string value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
@@ -347,11 +345,11 @@ class StringDataEncoding(DataEncoding):
 
         Returns
         -------
-        : bytes
-            Raw string bytes buffer. This includes any leading size or termination character and may be a non-integer
+        : StrParameter
+            Parsed string value.
+            The `raw_value` attribute contains the raw string bytes buffer.
+            This includes any leading size or termination character and may be a non-integer
             number of bytes, padded on the RHS.
-        : str
-            Parsed string value, as a python string object.
         """
         raw_string_buffer = packets.RawPacketData(self._get_raw_buffer(packet))
         if self.leading_length_size:
@@ -371,7 +369,7 @@ class StringDataEncoding(DataEncoding):
             # Indicates there is no further parsing. The raw string value is the whole string value.
             parsed_string = raw_string_buffer.decode(self.encoding)
 
-        return bytes(raw_string_buffer), parsed_string
+        return packets.StrParameter(parsed_string, bytes(raw_string_buffer))
 
     @classmethod
     def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'StringDataEncoding':
@@ -465,6 +463,7 @@ class StringDataEncoding(DataEncoding):
 
 class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
     """Abstract class that is inherited by IntegerDataEncoding and FloatDataEncoding"""
+    _data_return_class = packets.FloatParameter
 
     def __init__(self,
                  size_in_bits: int,
@@ -530,7 +529,7 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
 
     def parse_value(self,
                     packet: packets.CCSDSPacket,
-                    **kwargs) -> Tuple[Union[int, float], Union[int, float]]:
+                    **kwargs) -> Union[packets.FloatParameter, packets.IntParameter]:
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
@@ -540,29 +539,28 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
             previously parsed data items to infer field lengths.
         Returns
         -------
-        : any
-            Parsed value
-        : any
-            Calibrated value
+        : packets.FloatParameter or packets.IntParameter
+            Parsed data item as either a float or integer depending on the type of encoding.
         """
         parsed_value = self._get_raw_value(packet)
-        # Attempt to calibrate
-        calibrated_value = parsed_value  # Provides a fall through in case we have no calibrators
+        # Attempt to calibrate (any calibrated values are returned as FloatParameters)
         if self.context_calibrators:
             for calibrator in self.context_calibrators:
                 match_criteria = calibrator.match_criteria
                 if all(criterion.evaluate(packet, parsed_value) for criterion in match_criteria):
                     # If the parsed data so far satisfy all the match criteria
                     calibrated_value = calibrator.calibrate(parsed_value)
-                    return parsed_value, calibrated_value
+                    return packets.FloatParameter(calibrated_value, parsed_value)
         if self.default_calibrator:  # If no context calibrators or if none apply and there is a default
             calibrated_value = self.default_calibrator.calibrate(parsed_value)
-        # Ultimate fallthrough
-        return parsed_value, calibrated_value
+            return packets.FloatParameter(calibrated_value, parsed_value)
+        # No calibrations applied, we need to determine if it's an int or a float encoding calling this routine
+        return self._data_return_class(parsed_value)
 
 
 class IntegerDataEncoding(NumericDataEncoding):
     """<xtce:IntegerDataEncoding>"""
+    _data_return_class = packets.IntParameter
 
     def _get_raw_value(self, packet: packets.CCSDSPacket) -> int:
         # Extract the bits from the data in big-endian order from the packet
@@ -608,6 +606,7 @@ class IntegerDataEncoding(NumericDataEncoding):
 class FloatDataEncoding(NumericDataEncoding):
     """<xtce:FloatDataEncoding>"""
     _supported_encodings = ['IEEE-754', 'MIL-1750A']
+    _data_return_class = packets.FloatParameter
 
     def __init__(
             self,
@@ -775,7 +774,7 @@ class BinaryDataEncoding(DataEncoding):
         elif self.size_reference_parameter is not None:
             field_length_reference = self.size_reference_parameter
             if self.use_calibrated_value:
-                len_bits = packet[field_length_reference].derived_value
+                len_bits = packet[field_length_reference]
             else:
                 len_bits = packet[field_length_reference].raw_value
         elif self.size_discrete_lookup_list is not None:
@@ -794,7 +793,7 @@ class BinaryDataEncoding(DataEncoding):
             len_bits = self.linear_adjuster(len_bits)
         return len_bits
 
-    def parse_value(self, packet: packets.CCSDSPacket, **kwargs):
+    def parse_value(self, packet: packets.CCSDSPacket, **kwargs) -> packets.BinaryParameter:
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
@@ -805,14 +804,12 @@ class BinaryDataEncoding(DataEncoding):
 
         Returns
         -------
-        : any
-            Parsed value
-        : any
-            Calibrated value
+        : packets.BinaryParameter
+            Parsed binary data item.
         """
         nbits = self._calculate_size(packet)
         parsed_value = packet.raw_data.read_as_bytes(nbits)
-        return parsed_value, None
+        return packets.BinaryParameter(parsed_value)
 
     @classmethod
     def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'BinaryDataEncoding':

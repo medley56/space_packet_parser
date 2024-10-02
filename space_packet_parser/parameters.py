@@ -252,19 +252,17 @@ class EnumeratedParameterType(ParameterType):
 
         Returns
         -------
-        parsed_value : int
-            Raw encoded value
-        derived_value : str
+        derived_value : StrParameter
             Resulting enum label associated with the (usually integer-)encoded data value.
         """
-        raw, _ = super().parse_value(packet, **kwargs)
+        raw = super().parse_value(packet, **kwargs)
         # Note: The enum lookup only operates on raw values. This is specified in 4.3.2.4.3.6 of the XTCE spec "
         # CCSDS 660.1-G-2
         try:
             label = self.enumeration[raw]
         except KeyError as exc:
             raise ValueError(f"Failed to find raw value {raw} in enum lookup list {self.enumeration}.") from exc
-        return raw, label
+        return packets.StrParameter(label, raw)
 
 
 class BinaryParameterType(ParameterType):
@@ -312,15 +310,15 @@ class BooleanParameterType(ParameterType):
 
         Returns
         -------
-        parsed_value : int
-            Raw encoded value
-        derived_value : str
+        derived_value : BoolParameter
             Resulting boolean representation of the encoded raw value
         """
-        raw, _ = super().parse_value(packet, **kwargs)
-        # Note: This behaves very strangely for String and Binary data encodings.
+        # NOTE: There is an intermediate value here that we are not representing in the final object return
+        #       raw data -> parsed/processed (calibrated) value -> boolean
+        parsed_value = super().parse_value(packet, **kwargs)
+        # NOTE: This behaves very strangely for String and Binary data encodings.
         # Don't use those for Boolean parameters. The behavior isn't specified well in XTCE.
-        return raw, bool(raw)
+        return packets.BoolParameter(bool(parsed_value), parsed_value.raw_value)
 
 
 class TimeParameterType(ParameterType, metaclass=ABCMeta):
@@ -532,16 +530,7 @@ class Parameter(packets.Parseable):
     def parse(self, packet: packets.CCSDSPacket, **parse_value_kwargs) -> None:
         """Parse this parameter from the packet data.
 
-        Create a ``ParsedDataItem`` and add it to the packet dictionary.
+        Parse the parameter and add it to the packet dictionary.
         """
-        parsed_value, derived_value = self.parameter_type.parse_value(
+        packet[self.name] = self.parameter_type.parse_value(
             packet, **parse_value_kwargs)
-
-        packet[self.name] = packets.ParsedDataItem(
-            name=self.name,
-            unit=self.parameter_type.unit,
-            raw_value=parsed_value,
-            derived_value=derived_value,
-            short_description=self.short_description,
-            long_description=self.long_description
-        )
