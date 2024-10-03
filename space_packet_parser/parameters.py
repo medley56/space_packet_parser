@@ -255,14 +255,14 @@ class EnumeratedParameterType(ParameterType):
         derived_value : StrParameter
             Resulting enum label associated with the (usually integer-)encoded data value.
         """
-        raw = super().parse_value(packet, **kwargs)
+        value = super().parse_value(packet, **kwargs)
         # Note: The enum lookup only operates on raw values. This is specified in 4.3.2.4.3.6 of the XTCE spec "
         # CCSDS 660.1-G-2
         try:
-            label = self.enumeration[raw]
+            label = self.enumeration[value]
         except KeyError as exc:
-            raise ValueError(f"Failed to find raw value {raw} in enum lookup list {self.enumeration}.") from exc
-        return packets.StrParameter(label, raw)
+            raise ValueError(f"Failed to find the value {value} in enum lookup list {self.enumeration}.") from exc
+        return packets.StrParameter(label, value)
 
 
 class BinaryParameterType(ParameterType):
@@ -313,12 +313,12 @@ class BooleanParameterType(ParameterType):
         derived_value : BoolParameter
             Resulting boolean representation of the encoded raw value
         """
-        # NOTE: There is an intermediate value here that we are not representing in the final object return
+        # NOTE: There is an intermediate value here that we are potentially using. The flow is:
         #       raw data -> parsed/processed (calibrated) value -> boolean
         parsed_value = super().parse_value(packet, **kwargs)
         # NOTE: This behaves very strangely for String and Binary data encodings.
         # Don't use those for Boolean parameters. The behavior isn't specified well in XTCE.
-        return packets.BoolParameter(bool(parsed_value), parsed_value.raw_value)
+        return packets.BoolParameter(bool(parsed_value), parsed_value)
 
 
 class TimeParameterType(ParameterType, metaclass=ABCMeta):
