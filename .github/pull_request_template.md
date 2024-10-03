@@ -1,8 +1,3 @@
-# Title of PR
-
-Brief description of changes. If you write good commit messages, put the concatenated list of messages here.
-
-
 ## Checklist
 - [ ] Changes are fully implemented without dangling issues or TODO items
 - [ ] Deprecated/superseded code is removed or marked with deprecation warning
