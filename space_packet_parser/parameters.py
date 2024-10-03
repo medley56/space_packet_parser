@@ -40,7 +40,7 @@ class ParameterType(comparisons.AttrComparable, metaclass=ABCMeta):
 
     @classmethod
     def from_parameter_type_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'ParameterType':
-        """Create a *ParameterType from an <xtce:*ParameterType> XML element.
+        """Create a *ParameterType* from an <xtce:ParameterType> XML element.
 
         Parameters
         ----------
@@ -362,7 +362,7 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
 
     @classmethod
     def from_parameter_type_xml_element(cls, element: ElementTree.Element, ns: dict):
-        """Create a *TimeParameterType from an <xtce:*TimeParameterType> XML element.
+        """Create a *TimeParameterType* from an <xtce:TimeParameterType> XML element.
 
         Parameters
         ----------
