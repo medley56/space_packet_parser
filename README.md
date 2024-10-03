@@ -1,13 +1,12 @@
 # Space Packet Parser
 
-----------
 [![Test Status](https://github.com/medley56/space_packet_parser/actions/workflows/pr_tests.yml/badge.svg)](https://github.com/medley56/space_packet_parser/actions/workflows/pr_tests.yml)
 [![Doc Status](https://readthedocs.org/projects/space-packet-parser/badge/?version=latest)](https://readthedocs.org/projects/space-packet-parser/)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7735001.svg)](https://doi.org/10.5281/zenodo.7735001)
 
 Documentation: [https://space-packet-parser.readthedocs.io/en/latest/](https://space-packet-parser.readthedocs.io/en/latest/)
 
-Space Packet Parser is a package for decoding CCSDS telemetry packets according to an XTCE or CSV packet structure definition. 
+Space Packet Parser is a package for decoding CCSDS telemetry packets according to an XTCE packet structure definition. 
 It is based on the UML model of the XTCE spec and aims to support all but the most esoteric elements of the 
 XTCE telemetry packet specification.
 
