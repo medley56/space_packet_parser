@@ -1950,7 +1950,7 @@ def test_boolean_parameter_type(xml_string, expectation):
             encodings.StringDataEncoding(fixed_raw_length=120, encoding="UTF-8")),
          b'false_is_truthyextradata',
          0,
-         b'false_is_truthy', True),
+         'false_is_truthy', True),
         (parameters.BooleanParameterType(
             'TEST_BOOL',
             encodings.IntegerDataEncoding(size_in_bits=2, encoding="unsigned")),
