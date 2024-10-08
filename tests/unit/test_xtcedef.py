@@ -1741,25 +1741,47 @@ def test_enumerated_parameter_type(xml_string: str, expectation):
 
 
 @pytest.mark.parametrize(
-    ('parameter_type', 'raw_data', 'expected'),
+    ('parameter_type', 'raw_data', 'expected_raw', 'expected'),
     [
         (parameters.EnumeratedParameterType(
             'TEST_ENUM',
             encodings.IntegerDataEncoding(16, 'unsigned'), {32768: 'NOMINAL'}),
          0b1000000000000000.to_bytes(length=2, byteorder='big'),
+         32768,
          'NOMINAL'),
         (parameters.EnumeratedParameterType(
-            'TEST_FLOAT',
+            'TEST_FALSY_RAW_ENUM',
+            encodings.IntegerDataEncoding(16, 'unsigned'), {0: 'FALSY_LABEL'}),
+         0b0000000000000000.to_bytes(length=2, byteorder='big'),
+         0,
+         'FALSY_LABEL'),
+        # Test to prove that enums are never using calibrated values
+        (parameters.EnumeratedParameterType(
+            'TEST_CALIBRATED_ENCODING_ENUM',
+            encodings.IntegerDataEncoding(
+                16, 'unsigned',
+                default_calibrator=calibrators.PolynomialCalibrator([
+                    calibrators.PolynomialCoefficient(5, 0),  # 5
+                    calibrators.PolynomialCoefficient(2, 1)  # 2x
+                ])
+            ), {0: 'USES_UNCALIBRATED_VALUE'},),
+         0b0000000000000000.to_bytes(length=2, byteorder='big'),
+         0,
+         'USES_UNCALIBRATED_VALUE'),
+        (parameters.EnumeratedParameterType(
+            'TEST_FLOAT_ENUM',
             encodings.IntegerDataEncoding(16, 'signed'), {-42: 'VAL_LOW'}),
          0b1111111111010110.to_bytes(length=2, byteorder='big'),
+         -42,
          'VAL_LOW'),
     ]
 )
-def test_enumerated_parameter_parsing(parameter_type, raw_data, expected):
+def test_enumerated_parameter_parsing(parameter_type, raw_data, expected_raw, expected):
     """"Test parsing enumerated parameters"""
     packet = packets.CCSDSPacket(raw_data=raw_data)
     value = parameter_type.parse_value(packet)
     assert value == expected
+    assert value.raw_value == expected_raw
 
 
 @pytest.mark.parametrize(
@@ -1950,7 +1972,7 @@ def test_boolean_parameter_type(xml_string, expectation):
             encodings.StringDataEncoding(fixed_raw_length=120, encoding="UTF-8")),
          b'false_is_truthyextradata',
          0,
-         'false_is_truthy', True),
+         b'false_is_truthy', True),
         (parameters.BooleanParameterType(
             'TEST_BOOL',
             encodings.IntegerDataEncoding(size_in_bits=2, encoding="unsigned")),

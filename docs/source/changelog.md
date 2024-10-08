@@ -5,6 +5,9 @@ list and release milestones.
 ## Version Release Notes
 Release notes for the `space_packet_parser` library
 
+### v5.0.1 (released)
+- BUGFIX: Allow raw_value representation for enums with falsy raw values. Previously these defaulted to the enum label.
+
 ### v5.0.0 (released)
 - *BREAKING*: Main API changed. No need to create separate definition and parser objects any more. Create only a 
   definition from your XTCE document and instead of `my_parser.generator`, use `my_packet_definition.packet_generator`.

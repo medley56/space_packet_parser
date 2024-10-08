@@ -24,7 +24,7 @@ class _Parameter:
     def __new__(cls, value: BuiltinDataTypes, raw_value: BuiltinDataTypes = None) -> BuiltinDataTypes:
         obj = super().__new__(cls, value)
         # Default to the same value as the parsed value if it isn't provided
-        obj.raw_value = raw_value or value
+        obj.raw_value = raw_value if raw_value is not None else value
         return obj
 
 
