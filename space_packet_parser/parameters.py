@@ -1,12 +1,12 @@
-
 """ParameterType definitions"""
+# Standard
 from abc import ABCMeta
 from dataclasses import dataclass
 from typing import Optional, Union
 import warnings
-
+# Installed
 import lxml.etree as ElementTree
-
+# Local
 from space_packet_parser import calibrators, comparisons, encodings, packets
 
 
@@ -119,7 +119,7 @@ class ParameterType(comparisons.AttrComparable, metaclass=ABCMeta):
         raise ValueError(f"No Data Encoding element found for Parameter Type "
                          f"{parameter_type_element.tag}: {parameter_type_element.attrib}")
 
-    def parse_value(self, packet: packets.CCSDSPacket, **kwargs):
+    def parse_value(self, packet: packets.CCSDSPacket, **kwargs) -> packets.ParameterDataTypes:
         """Using the parameter type definition and associated data encoding, parse a value from a bit stream starting
         at the current cursor position.
 
@@ -131,8 +131,8 @@ class ParameterType(comparisons.AttrComparable, metaclass=ABCMeta):
 
         Returns
         -------
-        parsed_value : any
-            Resulting parsed data value.
+        parsed_value : packets.ParameterDataTypes
+            Resulting parsed parameter value
         """
         return self.encoding.parse_value(packet, **kwargs)
 
@@ -240,7 +240,7 @@ class EnumeratedParameterType(ParameterType):
             for el in enumeration_list.iterfind('xtce:Enumeration', ns)
         }
 
-    def parse_value(self, packet: packets.CCSDSPacket, **kwargs):
+    def parse_value(self, packet: packets.CCSDSPacket, **kwargs) -> packets.StrParameter:
         """Using the parameter type definition and associated data encoding, parse a value from a bit stream starting
         at the current cursor position.
 
@@ -252,17 +252,21 @@ class EnumeratedParameterType(ParameterType):
 
         Returns
         -------
-        derived_value : StrParameter
+        derived_value : packets.StrParameter
             Resulting enum label associated with the (usually integer-)encoded data value.
         """
-        value = super().parse_value(packet, **kwargs)
+        raw_enum_value = super().parse_value(packet, **kwargs).raw_value
         # Note: The enum lookup only operates on raw values. This is specified in 4.3.2.4.3.6 of the XTCE spec "
         # CCSDS 660.1-G-2
+        # Note, this doesn't prohibit a user from defining a calibrator on an encoding that is used for an enum lookup.
+        # It just means that the calibrated derived value doesn't get used for the lookup, nor will the calibrated
+        # value be represented in the returned as part of the returned enum (string) parameter
         try:
-            label = self.enumeration[value]
+            label = self.enumeration[raw_enum_value]
         except KeyError as exc:
-            raise ValueError(f"Failed to find the value {value} in enum lookup list {self.enumeration}.") from exc
-        return packets.StrParameter(label, value)
+            raise ValueError(f"Failed to find the value {raw_enum_value} in "
+                             f"enum lookup list {self.enumeration}.") from exc
+        return packets.StrParameter(label, raw_enum_value)
 
 
 class BinaryParameterType(ParameterType):
@@ -307,17 +311,20 @@ class BooleanParameterType(ParameterType):
             Binary representation of the packet used to get the coming bits and any
             previously parsed data items to infer field lengths.
 
-
         Returns
         -------
         derived_value : BoolParameter
             Resulting boolean representation of the encoded raw value
         """
-        # NOTE: There is an intermediate value here that we are potentially using. The flow is:
-        #       raw data -> parsed/processed (calibrated) value -> boolean
-        parsed_value = super().parse_value(packet, **kwargs)
-        # NOTE: This behaves very strangely for String and Binary data encodings.
-        # Don't use those for Boolean parameters. The behavior isn't specified well in XTCE.
+        # NOTE: The XTCE spec states that Booleans are "a restricted form of
+        # enumeration." Enumerated parameters are only permitted to perform lookups based on raw encoded values
+        # (not calibrated ones). We force this by taking the bool of the raw form of the parsed parameter.
+        parsed_value = super().parse_value(packet, **kwargs).raw_value
+        # NOTE: Boolean parameters may behave unexpectedly when encoded as String and Binary values.
+        # This is because it's not obvious nor specified in XTCE which values of
+        # binary encoded or string encoded data should be truthy/falsy.
+        # This implementation defaults to Python's interpretation of True/False for the (raw) parsed value,
+        # so non-empty byte strings (the representation for binary and string encoded data) will always be True.
         return packets.BoolParameter(bool(parsed_value), parsed_value)
 
 

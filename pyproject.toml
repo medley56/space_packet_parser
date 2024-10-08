@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "space_packet_parser"
-version = "5.0.0"
+version = "5.0.1"
 description = "A CCSDS telemetry packet decoding library based on the XTCE packet format description standard."
 license = "BSD-3-Clause"
 readme = "README.md"
