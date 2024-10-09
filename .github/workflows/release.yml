@@ -132,10 +132,10 @@ jobs:
         # Marks final releases only for tags matching the regex (no version suffixes)
         # All other releases are marked as prereleases
         run: |
-          if [[ "${{ github.ref_name }}" =~ '^.*[0-9]*\.[0-9]*\.[0-9]*$' ]]; then
+          if [[ ${{ github.ref_name }} =~ '^.*[0-9]*\.[0-9]*\.[0-9]*$' ]]; then
           echo "PRE_RELEASE_OPTION=''" >> $GITHUB_ENV  # Not a prerelease
           else
-          echo "PRE_RELEASE_OPTION='--prerelease'" >> $GITHUB_ENV  # Is a prerelease
+          echo "PRE_RELEASE_OPTION=--prerelease" >> $GITHUB_ENV  # Is a prerelease
           fi
 
       - name: Get latest non-prerelease release
