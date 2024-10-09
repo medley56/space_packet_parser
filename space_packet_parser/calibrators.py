@@ -32,7 +32,7 @@ class Calibrator(comparisons.AttrComparable, metaclass=ABCMeta):
         return NotImplemented
 
     @abstractmethod
-    def calibrate(self, uncalibrated_value: Union[int, float]) -> Union[int, float]:
+    def calibrate(self, uncalibrated_value: Union[int, float]) -> float:
         """Takes an integer-encoded or float-encoded value and returns a calibrated version.
 
         Parameters
@@ -42,7 +42,7 @@ class Calibrator(comparisons.AttrComparable, metaclass=ABCMeta):
 
         Returns
         -------
-        : Union[int, float]
+        : float
             Calibrated value
         """
         raise NotImplementedError
@@ -345,7 +345,7 @@ class ContextCalibrator(comparisons.AttrComparable):
 
         return cls(match_criteria=match_criteria, calibrator=calibrator)
 
-    def calibrate(self, parsed_value: Union[int, float]) -> Union[int, float]:
+    def calibrate(self, parsed_value: Union[int, float]) -> float:
         """Wrapper method for the internal `Calibrator.calibrate`
 
         Parameters
@@ -355,7 +355,7 @@ class ContextCalibrator(comparisons.AttrComparable):
 
         Returns
         -------
-        : Union[int, float]
+        : float
             Calibrated value
         """
         return self.calibrator.calibrate(parsed_value)

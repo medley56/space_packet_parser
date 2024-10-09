@@ -1726,6 +1726,51 @@ def test_float_parameter_parsing(parameter_type, raw_data, expected):
                                             # NOTE: Duplicate final value is on purpose to make sure we handle that case
                                             enumeration={0: 'BOOT_POR', 1: 'BOOT_RETURN', 2: 'OP_LOW', 3: 'OP_HIGH',
                                                          4: 'OP_HIGH'})),
+        ("""
+<xtce:EnumeratedParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_ENUM_Type">
+    <xtce:UnitSet/>
+    <xtce:FloatDataEncoding sizeInBits="32" encoding="IEEE-754"/>
+    <xtce:EnumerationList>
+        <xtce:Enumeration label="BOOT_POR" value="0.0"/>
+        <xtce:Enumeration label="BOOT_RETURN" value="1.1"/>
+        <xtce:Enumeration label="OP_LOW" value="2.2"/>
+        <xtce:Enumeration label="OP_HIGH" value="3.3"/>
+        <xtce:Enumeration label="OP_HIGH" value="4.4"/>
+    </xtce:EnumerationList>
+</xtce:EnumeratedParameterType>
+""",
+         parameters.EnumeratedParameterType(name='TEST_ENUM_Type',
+                                            encoding=encodings.FloatDataEncoding(size_in_bits=32, encoding='IEEE-754'),
+                                            # NOTE: Duplicate final value is on purpose to make sure we handle that case
+                                            enumeration={0.0: 'BOOT_POR', 1.1: 'BOOT_RETURN', 2.2: 'OP_LOW', 3.3: 'OP_HIGH',
+                                                         4.4: 'OP_HIGH'})),
+        ("""
+<xtce:EnumeratedParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_ENUM_Type">
+    <xtce:UnitSet/>
+    <xtce:StringDataEncoding>
+        <xtce:SizeInBits>
+            <xtce:Fixed>
+                <xtce:FixedValue>16</xtce:FixedValue>
+            </xtce:Fixed>
+        </xtce:SizeInBits>
+    </xtce:StringDataEncoding>
+    <xtce:EnumerationList>
+        <xtce:Enumeration label="BOOT_POR" value="AA"/>
+        <xtce:Enumeration label="BOOT_RETURN" value="BB"/>
+        <xtce:Enumeration label="OP_LOW" value="CC"/>
+        <xtce:Enumeration label="OP_HIGH" value="DD"/>
+        <xtce:Enumeration label="OP_HIGH" value="EE"/>
+    </xtce:EnumerationList>
+</xtce:EnumeratedParameterType>
+""",
+         parameters.EnumeratedParameterType(name='TEST_ENUM_Type',
+                                            encoding=encodings.StringDataEncoding(fixed_raw_length=16),
+                                            # NOTE: Duplicate final value is on purpose to make sure we handle that case
+                                            enumeration={b"AA": 'BOOT_POR',
+                                                         b"BB": 'BOOT_RETURN',
+                                                         b"CC": 'OP_LOW',
+                                                         b"DD": 'OP_HIGH',
+                                                         b"EE": 'OP_HIGH'})),
     ]
 )
 def test_enumerated_parameter_type(xml_string: str, expectation):
@@ -1769,15 +1814,39 @@ def test_enumerated_parameter_type(xml_string: str, expectation):
          0,
          'USES_UNCALIBRATED_VALUE'),
         (parameters.EnumeratedParameterType(
-            'TEST_FLOAT_ENUM',
+            'TEST_NEGATIVE_ENUM',
             encodings.IntegerDataEncoding(16, 'signed'), {-42: 'VAL_LOW'}),
          0b1111111111010110.to_bytes(length=2, byteorder='big'),
          -42,
          'VAL_LOW'),
+        (parameters.EnumeratedParameterType(name='TEST_FLOAT_ENUM',
+                                            encoding=encodings.FloatDataEncoding(
+                                                size_in_bits=32,
+                                                encoding='IEEE-754',
+                                                byte_order="mostSignificantByteFirst"),
+                                            # NOTE: Duplicate final value is on purpose to make sure we handle that case
+                                            enumeration={0.0: 'BOOT_POR', 3.5: 'BOOT_RETURN', 2.2: 'OP_LOW',
+                                                         3.3: 'OP_HIGH',
+                                                         4.4: 'OP_HIGH'}),
+         0b01000000011000000000000000000000.to_bytes(length=4, byteorder='big'),
+         3.5,
+         "BOOT_RETURN"
+         ),
+        (parameters.EnumeratedParameterType(name='TEST_ENUM_Type',
+                                            encoding=encodings.StringDataEncoding(fixed_raw_length=16),
+                                            # NOTE: Duplicate final value is on purpose to make sure we handle that case
+                                            enumeration={b"AA": 'BOOT_POR',
+                                                         b"BB": 'BOOT_RETURN',
+                                                         b"CC": 'OP_LOW',
+                                                         b"DD": 'OP_HIGH',
+                                                         b"EE": 'OP_HIGH'}),
+         b'CCXXXX',
+         b'CC',
+         "OP_LOW")
     ]
 )
 def test_enumerated_parameter_parsing(parameter_type, raw_data, expected_raw, expected):
-    """"Test parsing enumerated parameters"""
+    """Test parsing enumerated parameters"""
     packet = packets.CCSDSPacket(raw_data=raw_data)
     value = parameter_type.parse_value(packet)
     assert value == expected
