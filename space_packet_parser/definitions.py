@@ -464,7 +464,7 @@ class XtcePacketDefinition:
         # Fast calls initially on Windows can result in a zero elapsed time
         elapsed_ns = max(time.time_ns() - start_time_ns, 1)
         delta = dt.timedelta(microseconds=elapsed_ns / 1E3)
-        kbps = int(current_bytes // 8 * 1E6 / elapsed_ns)
+        kbps = int(current_bytes * 8E6 / elapsed_ns)  # 8 bits per byte, 1E9 s per ns, 1E3 bits per kb
         pps = int(current_packets * 1E9 / elapsed_ns)
         info_str = f"[Elapsed: {delta}, " \
                    f"Parsed {current_bytes} bytes ({current_packets} packets) " \
