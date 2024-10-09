@@ -210,11 +210,11 @@ class EnumeratedParameterType(ParameterType):
         name = element.attrib['name']
         unit = cls.get_units(element, ns)
         encoding = cls.get_data_encoding(element, ns)
-        enumeration = cls.get_enumeration_list_contents(element, ns)
+        enumeration = cls.get_enumeration_list_contents(element, encoding, ns)
         return cls(name, encoding, enumeration=enumeration, unit=unit)
 
     @staticmethod
-    def get_enumeration_list_contents(element: ElementTree.Element, ns: dict) -> dict:
+    def get_enumeration_list_contents(element: ElementTree.Element, encoding: encodings.DataEncoding, ns: dict) -> dict:
         """Finds the <xtce:EnumerationList> element child of an <xtce:EnumeratedParameterType> and parses it,
         returning a dict. This method is confusingly named as if it might return a list. Sorry, XML and python
         semantics are not always compatible. It's called an enumeration list because the XML element is called
@@ -224,6 +224,8 @@ class EnumeratedParameterType(ParameterType):
         ----------
         element : ElementTree.Element
             The XML element from which to search for EnumerationList tags
+        encoding: encodings.DataEncoding
+            The data encoding informs how to interpret the keys in the enumeration list (int, float, or str).
         ns : dict
             XML namespace dict
 
@@ -235,10 +237,27 @@ class EnumeratedParameterType(ParameterType):
         if enumeration_list is None:
             raise ValueError("An EnumeratedParameterType must contain an EnumerationList.")
 
-        return {
-            int(el.attrib['value']): el.attrib['label']
-            for el in enumeration_list.iterfind('xtce:Enumeration', ns)
-        }
+        if isinstance(encoding, encodings.IntegerDataEncoding):
+            return {
+                int(el.attrib['value']): el.attrib['label']
+                for el in enumeration_list.iterfind('xtce:Enumeration', ns)
+            }
+
+        if isinstance(encoding, encodings.FloatDataEncoding):
+            return {
+                float(el.attrib['value']): el.attrib['label']
+                for el in enumeration_list.iterfind('xtce:Enumeration', ns)
+            }
+
+        if isinstance(encoding, encodings.StringDataEncoding):
+            return {
+                bytes(el.attrib['value'], encoding=encoding.encoding): el.attrib['label']
+                for el in enumeration_list.iterfind('xtce:Enumeration', ns)
+            }
+
+        raise ValueError(f"Detected unsupported encoding type {encoding} for an EnumeratedParameterType."
+                         "Supported encodings for enums are FloatDataEncoding, IntegerDataEncoding, "
+                         "and StringDataEncoding.")
 
     def parse_value(self, packet: packets.CCSDSPacket, **kwargs) -> packets.StrParameter:
         """Using the parameter type definition and associated data encoding, parse a value from a bit stream starting
@@ -256,8 +275,8 @@ class EnumeratedParameterType(ParameterType):
             Resulting enum label associated with the (usually integer-)encoded data value.
         """
         raw_enum_value = super().parse_value(packet, **kwargs).raw_value
-        # Note: The enum lookup only operates on raw values. This is specified in 4.3.2.4.3.6 of the XTCE spec "
-        # CCSDS 660.1-G-2
+        # Note: The enum lookup only operates on raw values. This is specified in Fig 4-43 in
+        # section 4.3.2.4.3.6 of the XTCE spec CCSDS 660.1-G-2
         # Note, this doesn't prohibit a user from defining a calibrator on an encoding that is used for an enum lookup.
         # It just means that the calibrated derived value doesn't get used for the lookup, nor will the calibrated
         # value be represented in the returned as part of the returned enum (string) parameter
