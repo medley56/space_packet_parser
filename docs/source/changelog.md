@@ -8,6 +8,9 @@ Release notes for the `space_packet_parser` library
 ### v5.1.0 (unreleased)
 - BUGFIX: Fix kbps calculation in packet generator for showing progress.
 - Add support for string and float encoded enumerated lookup parameters.
+- The global CCSDS_HEADER constants in packets.py are moved onto the CCSDSPacket
+  class itself accessible as `CCSDSPacket.HEADER_LENGTH` and `CCSDSPacket.HEADER_DEFINITION`
+  to more closely align with where these constants are useful.
 
 ### v5.0.1 (released)
 - BUGFIX: Allow raw_value representation for enums with falsy raw values. Previously these defaulted to the enum label.
