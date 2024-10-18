@@ -1,8 +1,23 @@
 
 """Packet containers and parsing utilities for space packets."""
 
+from collections import defaultdict, Counter
 from dataclasses import dataclass, field
-from typing import List, Optional, Protocol, Union
+from pathlib import Path
+from typing import Iterable, List, Optional, Protocol, Union
+
+# Check if extra libraries are available
+try:
+    import numpy as np
+    _NP_AVAILABLE = True
+except ImportError:
+    _NP_AVAILABLE = False
+
+try:
+    import xarray as xr
+    _XR_AVAILABLE = True
+except ImportError:
+    _XR_AVAILABLE = False
 
 BuiltinDataTypes = Union[bytes, float, int, str]
 
@@ -155,6 +170,165 @@ class CCSDSPacket(dict):
     def user_data(self) -> dict:
         """The user data content of the packet."""
         return dict(list(self.items())[7:])
+
+
+class PacketCollection(list):
+    """Stores a list of packets."""
+    def __init__(
+        self,
+        packets: Iterable[CCSDSPacket],
+        *,
+        # TODO: Figure out typing with imports from definitions causing circular imports
+        # definitions.XtcePacketDefinition | None
+        packet_definition=None,
+    ):
+        """
+        Create a PacketCollection.
+
+        Parameters
+        ----------
+        apid_dict : dict
+            Mapping of APID to a list of packets with that apid.
+        packet_definition : XtcePacketDefinition
+            The packet definition to use for this collection.
+        """
+        super().__init__(packets)
+        self.packet_definition = packet_definition
+
+    def __str__(self):
+        apids = Counter(packet["PKT_APID"] for packet in self)
+        return (f"<PacketCollection>: {len(self)} packets\n"
+                + "Packets per apid (apid: npackets)\n"
+                + "\n".join(f"  {apid}: {count}" for apid, count in apids.items()))
+
+    @classmethod
+    def from_packet_file(
+        cls,
+        packet_file: str | Path,
+        # TODO: Figure out typing with imports from definitions causing circular imports
+        # str | Path | definitions.XtcePacketDefinition | None
+        packet_definition=None,
+    ) -> "PacketCollection":
+        """
+        Create a PacketCollection from a packet file.
+
+        Parameters
+        ----------
+        packet_file : str
+            Path to a file containing CCSDS packets.
+        packet_definition : str or Path or XtcePacketDefinition, optional
+            XTCE packet definition, or the path to the XTCE packet definition file.
+
+        Returns
+        -------
+        packet_collection : PacketCollection
+            A list of packets grouped together.
+        """
+        # TODO: Bring this import to the top of the file once circular dependencies are resolved
+        from space_packet_parser import definitions
+        if packet_definition is not None and not isinstance(packet_definition, definitions.XtcePacketDefinition):
+            # We got the path to a packet definition, so read it in
+            packet_definition = definitions.XtcePacketDefinition(packet_definition)
+
+        with open(packet_file, "rb") as binary_data:
+            # packet_generator = packets.packet_generator(binary_data, definition=packet_definition)
+            packet_generator = packet_definition.packet_generator(binary_data)
+            return cls(packet_generator, packet_definition=packet_definition)
+
+    def to_numpy(self, variable, raw_value=False):
+        """Turn the requested variable into a numpy array.
+
+        Parameters
+        ----------
+        raw_value : bool, default False
+            Whether or not to use the raw value from the packet.
+
+        Returns
+        -------
+        data : numpy.ndarray
+            A numpy array of values for the requested variable.
+        """
+        if not _NP_AVAILABLE:
+            raise ImportError("Numpy is required to use this function, you can install it with `pip install numpy`.")
+        data = [packet[variable].raw_value if raw_value else packet[variable]
+                for packet in self
+                if variable in packet]
+        if self.packet_definition is not None:
+            min_dtype = self.packet_definition._get_minimum_numpy_datatype(variable, raw_value=raw_value)
+        else:
+            min_dtype = None
+        return np.array(data, dtype=min_dtype)
+
+    def to_xarray(self, *, apid=None, raw_value=False, ignore_header=False):
+        """Turn this collection into an xarray dataset.
+
+        The collection must have a single apid to be turned into a dataset, or
+        the desired apid must be specified. The collection must have a consistent
+        structure across all packets with that apid (i.e. it cannot be a nested
+        packet structure).
+
+        Parameters
+        ----------
+        apid : int, optional
+            Turn this specific apid into a dataset, by default None
+        raw_value : bool, optional
+            _description_, by default False
+        ignore_header : bool, optional
+            _description_, by default False
+        """
+        if not _XR_AVAILABLE:
+            raise ImportError("Xarray is required to use this function, you can install it with `pip install xarray`.")
+        if len(self) == 0:
+            return xr.Dataset()
+
+        # Create a mapping of {variables: [values]}}
+        variable_dict = defaultdict(list)
+        # Keep track of the packet number for the coordinate
+        # useful if we have interspersed packets with different APIDs
+        packet_number = []
+
+        if apid is None:
+            apid = self[0]["PKT_APID"]
+            if any(packet["PKT_APID"] != apid for packet in self):
+                raise ValueError("All packets must have the same APID to convert to an xarray dataset.")
+
+        for i, packet in enumerate(self):
+            if packet["PKT_APID"] != apid:
+                continue
+            packet_number.append(i)
+
+            if ignore_header:
+                packet_content = packet.user_data
+            else:
+                packet_content = packet
+
+            if len(variable_dict):
+                # TODO: Can we relax this requirement and combine the variables together somehow?
+                if variable_dict.keys() != packet_content.keys():
+                    raise ValueError("All packets must have the same variables to convert to an xarray dataset. "
+                                     "This likely means that the packet definition has a nested packet structure "
+                                     "with variables spread across multiple packets.")
+
+            for key, value in packet_content.items():
+                if raw_value:
+                    value = value.raw_value
+                variable_dict[key].append(value)
+
+        ds = xr.Dataset(
+            {
+                variable: (
+                    "packet",
+                    np.asarray(list_of_values, dtype=self.packet_definition._get_minimum_numpy_datatype(
+                        variable, raw_value=raw_value)),
+                )
+                for variable, list_of_values in variable_dict.items()
+            },
+            # Default to packet number as the coordinate
+            # TODO: Allow a user to specify this as a keyword argument?
+            #       Or give an example of how to change this after the fact
+            coords={"packet": packet_number},
+        )
+        return ds
 
 
 class Parseable(Protocol):
