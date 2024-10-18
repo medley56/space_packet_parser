@@ -12,7 +12,7 @@ from typing import Tuple, Optional, List, TextIO, Dict, Union, BinaryIO, Iterato
 import lxml.etree as ElementTree
 # Local
 from space_packet_parser.exceptions import ElementNotFoundError, InvalidParameterTypeError
-from space_packet_parser import comparisons, parameters, packets
+from space_packet_parser import comparisons, encodings, parameters, packets
 
 logger = logging.getLogger(__name__)
 
@@ -352,6 +352,63 @@ class XtcePacketDefinition:
         else:
             restrictions = []
         return self._find_container(base_container_element.attrib['containerRef']), restrictions
+
+    def _get_minimum_numpy_datatype(self, name: str, *, raw_value: bool = False) -> str | None:
+        # too-many-branches
+        """
+        Get the minimum datatype for a given variable.
+
+        Parameters
+        ----------
+        name : str
+            The variable name.
+        raw_value : bool, default False
+            Whether or not the raw value from the XTCE definition should be used.
+
+        Returns
+        -------
+        datatype : str
+            The minimum datatype.
+        """
+        data_encoding = self.named_parameters[name].parameter_type.encoding
+
+        if isinstance(data_encoding, encodings.NumericDataEncoding):
+            if not raw_value and (
+                data_encoding.context_calibrators is not None
+                or data_encoding.default_calibrator is not None
+            ):
+                # If there are calibrators, we need to default to None and
+                # let numpy infer the datatype
+                return None
+
+            if isinstance(data_encoding, encodings.IntegerDataEncoding):
+                if data_encoding.encoding == "unsigned":
+                    datatype = "uint"
+                else:
+                    datatype = "int"
+            else:  # FloatDataEncoding
+                datatype = "float"
+
+            nbits = data_encoding.size_in_bits
+            if nbits <= 8:
+                datatype += "8"
+            elif nbits <= 16:
+                datatype += "16"
+            elif nbits <= 32:
+                datatype += "32"
+            else:
+                datatype += "64"
+        elif isinstance(data_encoding, encodings.BinaryDataEncoding):
+            # TODO: Use the new StringDType instead
+            #       or try to use frombuffer and create an array of uint8 values for each byte
+            datatype = "object"
+        elif isinstance(data_encoding, encodings.StringDataEncoding):
+            # TODO: Use the new StringDType instead?
+            datatype = "str"
+        else:
+            raise ValueError(f"Unsupported data encoding: {data_encoding}")
+
+        return datatype
 
     @staticmethod
     def _parse_header(packet_data: bytes) -> dict:
