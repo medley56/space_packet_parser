@@ -1,0 +1,171 @@
+<?xml version='1.0' encoding='utf-8'?>
+<xtce:SpaceSystem xmlns:xtce="http://www.omg.org/space/xtce" name="Test Instrument">
+	<xtce:Header date="2024-07-26 00:00:00" version="v1.2" author="Space Packet Parser" />
+	<xtce:TelemetryMetaData>
+		<xtce:ParameterTypeSet>
+			<xtce:IntegerParameterType name="VERSION" signed="false">
+				<xtce:IntegerDataEncoding sizeInBits="3" encoding="unsigned" />
+			</xtce:IntegerParameterType>
+			<xtce:IntegerParameterType name="TYPE" signed="false">
+				<xtce:IntegerDataEncoding sizeInBits="1" encoding="unsigned" />
+			</xtce:IntegerParameterType>
+			<xtce:IntegerParameterType name="SEC_HDR_FLG" signed="false">
+				<xtce:IntegerDataEncoding sizeInBits="1" encoding="unsigned" />
+			</xtce:IntegerParameterType>
+			<xtce:IntegerParameterType name="PKT_APID" signed="false">
+				<xtce:IntegerDataEncoding sizeInBits="11" encoding="unsigned" />
+			</xtce:IntegerParameterType>
+			<xtce:IntegerParameterType name="SEQ_FLGS" signed="false">
+				<xtce:IntegerDataEncoding sizeInBits="2" encoding="unsigned" />
+			</xtce:IntegerParameterType>
+			<xtce:IntegerParameterType name="SRC_SEQ_CTR" signed="false">
+				<xtce:IntegerDataEncoding sizeInBits="14" encoding="unsigned" />
+			</xtce:IntegerParameterType>
+			<xtce:IntegerParameterType name="PKT_LEN" signed="false">
+				<xtce:IntegerDataEncoding sizeInBits="16" encoding="unsigned" />
+			</xtce:IntegerParameterType>
+			<xtce:IntegerParameterType name="TEST_PACKET.SHCOARSE" signed="false">
+				<xtce:IntegerDataEncoding sizeInBits="32" encoding="unsigned" />
+			</xtce:IntegerParameterType>
+			<xtce:IntegerParameterType name="TEST_PACKET.VAR_UINT" signed="false">
+				<xtce:IntegerDataEncoding sizeInBits="2" encoding="unsigned">
+					<xtce:DefaultCalibrator>
+						<xtce:PolynomialCalibrator>
+							<xtce:Term coefficient="1.5" exponent="0" />
+							<xtce:Term coefficient="2.5" exponent="1" />
+						</xtce:PolynomialCalibrator>
+					</xtce:DefaultCalibrator>
+				</xtce:IntegerDataEncoding>
+			</xtce:IntegerParameterType>
+			<xtce:IntegerParameterType name="TEST_PACKET.VAR_INT" signed="true">
+				<xtce:IntegerDataEncoding sizeInBits="4" encoding="signed" />
+			</xtce:IntegerParameterType>
+			<xtce:IntegerParameterType name="TEST_PACKET.VAR_SINT" signed="true">
+				<xtce:IntegerDataEncoding sizeInBits="5" encoding="signed" />
+			</xtce:IntegerParameterType>
+			<xtce:BinaryParameterType name="TEST_PACKET.VAR_BYTE">
+				<xtce:BinaryDataEncoding bitOrder="mostSignificantBitFirst">
+					<xtce:SizeInBits>
+						<xtce:DynamicValue>
+							<xtce:ParameterInstanceRef parameterRef="PKT_LEN" />
+							<xtce:LinearAdjustment slope="8" intercept="-71" />
+						</xtce:DynamicValue>
+					</xtce:SizeInBits>
+				</xtce:BinaryDataEncoding>
+			</xtce:BinaryParameterType>
+			<xtce:IntegerParameterType name="TEST_PACKET.VAR_FILL" signed="false">
+				<xtce:IntegerDataEncoding sizeInBits="3" encoding="unsigned" />
+			</xtce:IntegerParameterType>
+			<xtce:FloatParameterType name="TEST_PACKET.VAR_FLOAT">
+				<xtce:FloatDataEncoding sizeInBits="32" encoding="IEEE-754" />
+			</xtce:FloatParameterType>
+			<xtce:EnumeratedParameterType name="TEST_PACKET.VAR_STATE" signed="false">
+				<xtce:IntegerDataEncoding sizeInBits="1" encoding="unsigned" />
+				<xtce:EnumerationList>
+					<xtce:Enumeration value="0" label="OFF" />
+					<xtce:Enumeration value="1" label="ON" />
+				</xtce:EnumerationList>
+			</xtce:EnumeratedParameterType>
+			<xtce:IntegerParameterType name="TEST_PACKET2.SHCOARSE" signed="false">
+				<xtce:IntegerDataEncoding sizeInBits="32" encoding="unsigned" />
+			</xtce:IntegerParameterType>
+			<xtce:IntegerParameterType name="TEST_PACKET2.VAR1" signed="false">
+				<xtce:IntegerDataEncoding sizeInBits="2" encoding="unsigned" />
+			</xtce:IntegerParameterType>
+		</xtce:ParameterTypeSet>
+		<xtce:ParameterSet>
+			<xtce:Parameter name="VERSION" parameterTypeRef="VERSION">
+				<xtce:LongDescription>CCSDS Packet Version Number (always 0)</xtce:LongDescription>
+			</xtce:Parameter>
+			<xtce:Parameter name="TYPE" parameterTypeRef="TYPE">
+				<xtce:LongDescription>CCSDS Packet Type Indicator (0=telemetry)</xtce:LongDescription>
+			</xtce:Parameter>
+			<xtce:Parameter name="SEC_HDR_FLG" parameterTypeRef="SEC_HDR_FLG">
+				<xtce:LongDescription>CCSDS Packet Secondary Header Flag (always 1)</xtce:LongDescription>
+			</xtce:Parameter>
+			<xtce:Parameter name="PKT_APID" parameterTypeRef="PKT_APID">
+				<xtce:LongDescription>CCSDS Packet Application Process ID</xtce:LongDescription>
+			</xtce:Parameter>
+			<xtce:Parameter name="SEQ_FLGS" parameterTypeRef="SEQ_FLGS">
+				<xtce:LongDescription>CCSDS Packet Grouping Flags (3=not part of group)</xtce:LongDescription>
+			</xtce:Parameter>
+			<xtce:Parameter name="SRC_SEQ_CTR" parameterTypeRef="SRC_SEQ_CTR">
+				<xtce:LongDescription>CCSDS Packet Sequence Count (increments with each new packet)</xtce:LongDescription>
+			</xtce:Parameter>
+			<xtce:Parameter name="PKT_LEN" parameterTypeRef="PKT_LEN">
+				<xtce:LongDescription>CCSDS Packet Length (number of bytes after Packet length minus 1)</xtce:LongDescription>
+			</xtce:Parameter>
+			<xtce:Parameter name="TEST_PACKET.SHCOARSE" parameterTypeRef="TEST_PACKET.SHCOARSE">
+				<xtce:LongDescription>Mission elapsed time</xtce:LongDescription>
+			</xtce:Parameter>
+			<xtce:Parameter name="TEST_PACKET.VAR_UINT" parameterTypeRef="TEST_PACKET.VAR_UINT">
+				<xtce:LongDescription>Unsgned integer data with conversion</xtce:LongDescription>
+			</xtce:Parameter>
+			<xtce:Parameter name="TEST_PACKET.VAR_INT" parameterTypeRef="TEST_PACKET.VAR_INT">
+				<xtce:LongDescription>Integer data</xtce:LongDescription>
+			</xtce:Parameter>
+			<xtce:Parameter name="TEST_PACKET.VAR_SINT" parameterTypeRef="TEST_PACKET.VAR_SINT">
+				<xtce:LongDescription>Signed integer data</xtce:LongDescription>
+			</xtce:Parameter>
+			<xtce:Parameter name="TEST_PACKET.VAR_BYTE" parameterTypeRef="TEST_PACKET.VAR_BYTE">
+				<xtce:LongDescription>Binary data - variable length</xtce:LongDescription>
+			</xtce:Parameter>
+			<xtce:Parameter name="TEST_PACKET.VAR_FILL" parameterTypeRef="TEST_PACKET.VAR_FILL">
+				<xtce:LongDescription>Fill data</xtce:LongDescription>
+			</xtce:Parameter>
+			<xtce:Parameter name="TEST_PACKET.VAR_FLOAT" parameterTypeRef="TEST_PACKET.VAR_FLOAT">
+				<xtce:LongDescription>Float data</xtce:LongDescription>
+			</xtce:Parameter>
+			<xtce:Parameter name="TEST_PACKET.VAR_STATE" parameterTypeRef="TEST_PACKET.VAR_STATE">
+				<xtce:LongDescription>State data</xtce:LongDescription>
+			</xtce:Parameter>
+			<xtce:Parameter name="TEST_PACKET2.SHCOARSE" parameterTypeRef="TEST_PACKET2.SHCOARSE">
+				<xtce:LongDescription>Mission elapsed time</xtce:LongDescription>
+			</xtce:Parameter>
+			<xtce:Parameter name="TEST_PACKET2.VAR1" parameterTypeRef="TEST_PACKET2.VAR1" shortDescription="Variable 1 short description">
+				<xtce:LongDescription>Variable 1 long description</xtce:LongDescription>
+			</xtce:Parameter>
+		</xtce:ParameterSet>
+		<xtce:ContainerSet>
+			<xtce:SequenceContainer name="CCSDSPacket" abstract="true">
+				<xtce:EntryList>
+					<xtce:ParameterRefEntry parameterRef="VERSION" />
+					<xtce:ParameterRefEntry parameterRef="TYPE" />
+					<xtce:ParameterRefEntry parameterRef="SEC_HDR_FLG" />
+					<xtce:ParameterRefEntry parameterRef="PKT_APID" />
+					<xtce:ParameterRefEntry parameterRef="SEQ_FLGS" />
+					<xtce:ParameterRefEntry parameterRef="SRC_SEQ_CTR" />
+					<xtce:ParameterRefEntry parameterRef="PKT_LEN" />
+				</xtce:EntryList>
+			</xtce:SequenceContainer>
+			<xtce:SequenceContainer name="TEST_PACKET">
+				<xtce:BaseContainer containerRef="CCSDSPacket">
+					<xtce:RestrictionCriteria>
+						<xtce:Comparison parameterRef="PKT_APID" value="1" useCalibratedValue="false" />
+					</xtce:RestrictionCriteria>
+				</xtce:BaseContainer>
+				<xtce:EntryList>
+					<xtce:ParameterRefEntry parameterRef="TEST_PACKET.SHCOARSE" />
+					<xtce:ParameterRefEntry parameterRef="TEST_PACKET.VAR_UINT" />
+					<xtce:ParameterRefEntry parameterRef="TEST_PACKET.VAR_INT" />
+					<xtce:ParameterRefEntry parameterRef="TEST_PACKET.VAR_SINT" />
+					<xtce:ParameterRefEntry parameterRef="TEST_PACKET.VAR_BYTE" />
+					<xtce:ParameterRefEntry parameterRef="TEST_PACKET.VAR_FILL" />
+					<xtce:ParameterRefEntry parameterRef="TEST_PACKET.VAR_FLOAT" />
+					<xtce:ParameterRefEntry parameterRef="TEST_PACKET.VAR_STATE" />
+				</xtce:EntryList>
+			</xtce:SequenceContainer>
+			<xtce:SequenceContainer name="TEST_PACKET2">
+				<xtce:BaseContainer containerRef="CCSDSPacket">
+					<xtce:RestrictionCriteria>
+						<xtce:Comparison parameterRef="PKT_APID" value="15" useCalibratedValue="false" />
+					</xtce:RestrictionCriteria>
+				</xtce:BaseContainer>
+				<xtce:EntryList>
+					<xtce:ParameterRefEntry parameterRef="TEST_PACKET2.SHCOARSE" />
+					<xtce:ParameterRefEntry parameterRef="TEST_PACKET2.VAR1" />
+				</xtce:EntryList>
+			</xtce:SequenceContainer>
+		</xtce:ContainerSet>
+	</xtce:TelemetryMetaData>
+</xtce:SpaceSystem>
