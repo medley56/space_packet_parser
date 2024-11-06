@@ -13,13 +13,16 @@ Use
 
 import logging
 from pathlib import Path
+from typing import Union
 
 import click
 from rich.console import Console
 from rich.table import Table
 from rich.logging import RichHandler
+from rich import pretty
 
 from space_packet_parser.packets import packet_generator
+from space_packet_parser.definitions import XtcePacketDefinition
 
 # Initialize a console instance for rich output
 console = Console()
@@ -29,7 +32,7 @@ MAX_ROWS = 10
 HEAD_ROWS = 5
 
 
-@click.group()
+@click.group(context_settings={'show_default': True})
 @click.version_option()
 @click.option(
     "--debug",
@@ -99,3 +102,26 @@ def describe(packet_file: Path) -> None:
 
     # Print the table
     console.print(table, overflow="ellipsis")
+
+@cli.command()
+@click.argument("packet_file", type=click.Path(exists=True, path_type=Path))
+@click.argument("definition_file", type=click.Path(exists=True, path_type=Path))
+@click.option("--packet", type=int, default=None, help="Display the packet at the given index (0-indexed)")
+@click.option("--max-items", type=int, default=20, help="Maximum number of items to display")
+@click.option("--max-string", type=int, default=40, help="Maximum length of string data")
+def parse(packet_file: Path, definition_file: Path, packet: Union[int, None], max_items: int, max_string: int) -> None:
+    """Parse a packet file using the provided XTCE definition."""
+    logging.debug(f"Parsing packet file: {packet_file}")
+    logging.debug(f"Using packet definition file: {definition_file}")
+
+    with open(packet_file, "rb") as f:
+        packets = list(packet_generator(f, definition=XtcePacketDefinition(definition_file)))
+    
+    if packet is not None:
+        if packet > len(packets):
+            console.print(f"Packet index {packet} out of range with only {len(packets)} packets in the file")
+            return
+        packets = packets[packet]
+    # Limit the number of packets and variables printed
+    # also limit the length of strings (binary data can be long)
+    pretty.pprint(packets, indent_guides=False, max_length=max_items, max_string=max_string)
