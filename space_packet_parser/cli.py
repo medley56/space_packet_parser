@@ -11,84 +11,91 @@ Use
     spp --describe <packet_file>
 """
 
-import argparse
-import importlib.metadata
 import logging
 from pathlib import Path
 
+import click
+from rich.console import Console
+from rich.table import Table
+from rich.logging import RichHandler
+
 from space_packet_parser.packets import packet_generator
 
+# Initialize a console instance for rich output
+console = Console()
 
-def _describe_packet_file(packet_file: Path) -> None:
-    """Describe the contents of a packet file.
+# Maximum number of rows to display
+MAX_ROWS = 10
+HEAD_ROWS = 5
 
-    Parameters
-    ----------
-    packet_file : Path
-        Path to a packet file.
-    """
+
+@click.group()
+@click.version_option()
+@click.option(
+    "--debug",
+    is_flag=True,
+    help="Enable debug output"
+)
+@click.option(
+    "-v", "--verbose", is_flag=True, help="Enable verbose output"
+)
+def cli(debug, verbose):
+    """Command line utility for working with CCSDS packets."""
+    # Set logging level
+    loglevel = logging.WARNING
+    if debug:
+        loglevel = logging.DEBUG
+    elif verbose:
+        loglevel = logging.INFO
+
+    # Configure logging with RichHandler for colorized output
+    logging.basicConfig(
+        level=loglevel,
+        format="%(message)s",
+        datefmt="[%X]",
+        handlers=[RichHandler(console=console, rich_tracebacks=True)]
+    )
+    logging.getLogger("rich").setLevel(loglevel)
+
+
+@cli.command()
+@click.argument("packet_file", type=click.Path(exists=True, path_type=Path))
+def describe(packet_file: Path) -> None:
+    """Describe the contents of a packet file."""
+    logging.debug(f"Describing packet file: {packet_file}")
     with open(packet_file, "rb") as f:
         packets = list(packet_generator(f))
+
     npackets = len(packets)
-    print(f"Packet file: {packet_file}")
-    print(f"Number of packets: {npackets}")
     if npackets == 0:
+        console.print(f"No packets found in {packet_file}")
         return
 
+    # Create table for packet data display
+    table = Table(title=f"[bold magenta]{packet_file}: {npackets} packets[/bold magenta]",
+                  show_header=True,
+                  header_style="bold magenta")
+
+    # Add columns dynamically based on the first packet's keys
     for key in packets[0]:
-        print(f"{key:12s}", end="| ")
-    print()
-    if npackets > 10:
-        first_packets = 5
+        table.add_column(key)
+
+    # Determine rows to display (head and tail with ellipsis if necessary)
+    if npackets > MAX_ROWS:
+        packets_to_show = packets[:HEAD_ROWS] + packets[-HEAD_ROWS:]
     else:
-        first_packets = npackets
-    for packet in packets[:first_packets]:
-        for value in packet.values():
-            print(f"{value:12d}", end="| ")
-        print()
+        packets_to_show = packets
 
-    if npackets > 10:
-        print("...")
-        for packet in packets[-5:]:
-            for value in packet.values():
-                print(f"{value:12d}", end="| ")
-            print()
+    # Add rows to the table
+    for packet in packets_to_show[:HEAD_ROWS]:
+        table.add_row(*[str(value) for value in packet.values()])
 
+    # Add ellipsis if there are more packets
+    if npackets > MAX_ROWS:
+        table.add_row(*["..." for _ in packets[0]])
 
-def main():
-    """Entrypoint for the command line program."""
-    parser = argparse.ArgumentParser(prog="spp", description="command line utility for working with CCSDS packets")
-    parser.add_argument("packet_file", type=Path, help="Path to a packet file")
-    parser.add_argument("--describe", action="store_true", required=False, help="Describe a packet file")
-    parser.add_argument(
-        "--version",
-        action="version",
-        version=f"%(prog)s {importlib.metadata.version('space_packet_parser')}",
-        help="Show programs version number and exit. No other parameters needed.",
-    )
-    # Logging level
-    parser.add_argument(
-        "--debug",
-        help="Print lots of debugging statements.",
-        action="store_const",
-        dest="loglevel",
-        const=logging.DEBUG,
-        default=logging.WARNING,
-    )
-    parser.add_argument(
-        "-v",
-        "--verbose",
-        help="Add verbose output",
-        action="store_const",
-        dest="loglevel",
-        const=logging.INFO,
-    )
+    for packet in packets_to_show[-HEAD_ROWS:]:
+        table.add_row(*[str(value) for value in packet.values()])
 
-    args = parser.parse_args()
-
-    if args.describe:
-        _describe_packet_file(args.packet_file)
-
-
-if __name__ == "__main__":
-    main()
+    # Print the table
+    console.print(table, overflow="ellipsis")
