@@ -19,6 +19,8 @@ import click
 from rich.console import Console
 from rich.table import Table
 from rich.logging import RichHandler
+from rich.panel import Panel
+from rich.tree import Tree
 from rich import pretty
 
 from space_packet_parser.packets import packet_generator
@@ -62,20 +64,58 @@ def cli(debug, verbose):
 
 
 @cli.command()
-@click.argument("packet_file", type=click.Path(exists=True, path_type=Path))
-def describe(packet_file: Path) -> None:
+@click.argument("file_path", type=click.Path(exists=True, path_type=Path))
+@click.option("--sequence-containers", is_flag=True, help="Display sequence containers")
+@click.option("--parameters", is_flag=True, help="Display parameters")
+@click.option("--parameter-types", is_flag=True, help="Display parameter types")
+def describe_xtce(file_path: Path, sequence_containers: bool, parameters: bool, parameter_types: bool) -> None:
+    """Describe the contents of an XTCE file."""
+    # pylint: disable=protected-access
+    logging.debug(f"Describing XTCE file: {file_path}")
+    definition = XtcePacketDefinition(file_path)
+    tree = Tree(definition.root_container_name)
+
+    # Recursively add nodes based on the inheritors of each container
+    def add_nodes(tree_node, parent_key):
+        children = definition._sequence_container_cache[parent_key].inheritors
+        for child_key in children:
+            # Create a new child node (name + comparisons used to distinguish between containers)
+            child_node = tree_node.add(
+                f"{child_key} {definition._sequence_container_cache[child_key].restriction_criteria}")
+            # Recursively add any children of this child
+            add_nodes(child_node, child_key)
+    add_nodes(tree, definition.root_container_name)
+
+    console.print(Panel(tree, title="XTCE Container Layout", border_style="cyan", expand=False))
+    if sequence_containers:
+        console.print(Panel(pretty.Pretty(definition._sequence_container_cache),
+                            title=f"Sequence Containers ({len(definition._sequence_container_cache)})",
+                            border_style="blue", expand=False))
+    if parameters:
+        console.print(Panel(pretty.Pretty(definition._parameter_cache),
+                            title=f"Parameters ({len(definition._parameter_cache)})",
+                            border_style="green", expand=False))
+    if parameter_types:
+        console.print(Panel(pretty.Pretty(definition._parameter_type_cache),
+                            title=f"Parameter Types ({len(definition._parameter_type_cache)})",
+                            border_style="magenta", expand=False))
+
+
+@cli.command()
+@click.argument("file_path", type=click.Path(exists=True, path_type=Path))
+def describe_packets(file_path: Path) -> None:
     """Describe the contents of a packet file."""
-    logging.debug(f"Describing packet file: {packet_file}")
-    with open(packet_file, "rb") as f:
+    logging.debug(f"Describing packet file: {file_path}")
+    with open(file_path, "rb") as f:
         packets = list(packet_generator(f))
 
     npackets = len(packets)
     if npackets == 0:
-        console.print(f"No packets found in {packet_file}")
+        console.print(f"No packets found in {file_path}")
         return
 
     # Create table for packet data display
-    table = Table(title=f"[bold magenta]{packet_file}: {npackets} packets[/bold magenta]",
+    table = Table(title=f"[bold magenta]{file_path}: {npackets} packets[/bold magenta]",
                   show_header=True,
                   header_style="bold magenta")
 
@@ -103,6 +143,7 @@ def describe(packet_file: Path) -> None:
     # Print the table
     console.print(table, overflow="ellipsis")
 
+
 @cli.command()
 @click.argument("packet_file", type=click.Path(exists=True, path_type=Path))
 @click.argument("definition_file", type=click.Path(exists=True, path_type=Path))
@@ -116,7 +157,7 @@ def parse(packet_file: Path, definition_file: Path, packet: Union[int, None], ma
 
     with open(packet_file, "rb") as f:
         packets = list(packet_generator(f, definition=XtcePacketDefinition(definition_file)))
-    
+
     if packet is not None:
         if packet > len(packets):
             console.print(f"Packet index {packet} out of range with only {len(packets)} packets in the file")
