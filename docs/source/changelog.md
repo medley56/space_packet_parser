@@ -14,6 +14,8 @@ Release notes for the `space_packet_parser` library
   with the given header items and data. This is useful for creating
   mock packets in testing and experimentation for creating debugging
   streams as needed.
+- Add a ``ccsds_packet_generator()`` function that iterates through raw
+  bytes and yields individual CCSDS packets.
 
 ### v5.0.1 (released)
 - BUGFIX: Allow raw_value representation for enums with falsy raw values. Previously these defaulted to the enum label.

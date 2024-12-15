@@ -1,12 +1,27 @@
 
-"""Packet containers and parsing utilities for space packets."""
+"""Packet containers and parsing utilities for space packets.
+
+The parsing begins with binary data representing CCSDS Packets. A user can then create a generator
+from the binary data reading from a filelike object or a socket. The ``ccsds_generator`` function yields
+``RawPacketData`` objects that are the raw bytes of a single CCSDS packet. The ``RawPacketData``
+class can be used to inspect the CCSDS header fields of the packet, but it does not have any
+parsed content from the data field. This generator is useful for debugging and passing off
+to other parsing functions.
+"""
 
 from dataclasses import dataclass, field
-from enum import IntEnum
+import datetime as dt
 from functools import cached_property
-from typing import List, Optional, Protocol, Union
+from enum import IntEnum
+import io
+import logging
+import socket
+import time
+from typing import BinaryIO, Iterator, List, Optional, Protocol, Union
+
 
 BuiltinDataTypes = Union[bytes, float, int, str]
+logger = logging.getLogger(__name__)
 
 
 class _Parameter:
@@ -328,6 +343,180 @@ class SequenceContainer(Parseable):
         """
         for entry in self.entry_list:
             entry.parse(packet=packet, **parse_value_kwargs)
+
+
+def ccsds_generator(  # pylint: disable=too-many-branches,too-many-statements
+            binary_data: Union[BinaryIO, socket.socket, bytes],
+            *,
+            buffer_read_size_bytes: Optional[int] = None,
+            show_progress: bool = False,
+            skip_header_bytes: int = 0,
+) -> Iterator[RawPacketData]:
+    """A generator that reads raw packet data from a filelike object or a socket.
+
+    Each iteration of the generator yields a ``RawPacketData`` object that makes up
+    a single CCSDS packet.
+
+    Parameters
+    ----------
+    binary_data : Union[BinaryIO, socket.socket, bytes]
+        Binary data source containing CCSDSPackets.
+    buffer_read_size_bytes : int, optional
+        Number of bytes to read from e.g. a BufferedReader or socket binary data source on each read attempt.
+        If None, defaults to 4096 bytes from a socket, -1 (full read) from a file.
+    show_progress : bool
+        Default False.
+        If True, prints a status bar. Note that for socket sources, the percentage will be zero until the generator
+        ends.
+    skip_header_bytes : int
+        Default 0. The parser skips this many bytes at the beginning of every packet. This allows dynamic stripping
+        of additional header data that may be prepended to packets in "raw record" file formats.
+
+    Yields
+    -------
+    RawPacketData
+        Generator yields a RawPacketData object containing the raw packet data.
+    """
+    n_bytes_parsed = 0  # Keep track of how many bytes we have parsed
+    n_packets_parsed = 0  # Keep track of how many packets we have parsed
+    read_buffer = b""  # Empty bytes object to start
+    current_pos = 0  # Keep track of where we are in the buffer
+
+    # ========
+    # Set up the reader based on the type of binary_data
+    # ========
+    if isinstance(binary_data, io.BufferedIOBase):
+        if buffer_read_size_bytes is None:
+            # Default to a full read of the file
+            buffer_read_size_bytes = -1
+        total_length_bytes = binary_data.seek(0, io.SEEK_END)  # This is probably preferable to len
+        binary_data.seek(0, 0)
+        logger.info(f"Creating packet generator from a filelike object, {binary_data}. "
+                    f"Total length is {total_length_bytes} bytes")
+        read_bytes_from_source = binary_data.read
+    elif isinstance(binary_data, socket.socket):  # It's a socket and we don't know how much data we will get
+        logger.info("Creating packet generator to read from a socket. Total length to parse is unknown.")
+        total_length_bytes = None  # We don't know how long it is
+        if buffer_read_size_bytes is None:
+            # Default to 4096 bytes from a socket
+            buffer_read_size_bytes = 4096
+        read_bytes_from_source = binary_data.recv
+    elif isinstance(binary_data, bytes):
+        read_buffer = binary_data
+        total_length_bytes = len(read_buffer)
+        read_bytes_from_source = None  # No data to read, we've filled the read_buffer already
+        logger.info(f"Creating packet generator from a bytes object. Total length is {total_length_bytes} bytes")
+    elif isinstance(binary_data, io.TextIOWrapper):
+        raise IOError("Packet data file opened in TextIO mode. You must open packet data in binary mode.")
+    else:
+        raise IOError(f"Unrecognized data source: {binary_data}")
+
+    # ========
+    # Packet loop. Each iteration of this loop yields a RawPacketData object
+    # ========
+    start_time = time.time_ns()
+    while True:
+        if total_length_bytes and n_bytes_parsed == total_length_bytes:
+            break  # Exit if we know the length and we've reached it
+
+        if show_progress:
+            _print_progress(current_bytes=n_bytes_parsed, total_bytes=total_length_bytes,
+                            start_time_ns=start_time, current_packets=n_packets_parsed)
+
+        if current_pos > 20_000_000:
+            # Only trim the buffer after 20 MB read to prevent modifying
+            # the bitstream and trimming after every packet
+            read_buffer = read_buffer[current_pos:]
+            current_pos = 0
+
+        # Fill buffer enough to parse a header
+        while len(read_buffer) - current_pos < skip_header_bytes + RawPacketData.HEADER_LENGTH_BYTES:
+            result = read_bytes_from_source(buffer_read_size_bytes)
+            if not result:  # If there is verifiably no more data to add, break
+                break
+            read_buffer += result
+        # Skip the header bytes
+        current_pos += skip_header_bytes
+        header_bytes = read_buffer[current_pos:current_pos + RawPacketData.HEADER_LENGTH_BYTES]
+
+        # per the CCSDS spec
+        # 4.1.3.5.3 The length count C shall be expressed as:
+        #   C = (Total Number of Octets in the Packet Data Field) – 1
+        n_bytes_data = _extract_bits(header_bytes, 32, 16) + 1
+        n_bytes_packet = RawPacketData.HEADER_LENGTH_BYTES + n_bytes_data
+
+        # Fill the buffer enough to read a full packet, taking into account the user data length
+        while len(read_buffer) - current_pos < n_bytes_packet:
+            result = read_bytes_from_source(buffer_read_size_bytes)
+            if not result:  # If there is verifiably no more data to add, break
+                break
+            read_buffer += result
+
+        # Consider it a counted packet once we've verified that we have read the full packet and parsed the header
+        # Update the number of packets and bytes parsed
+        n_packets_parsed += 1
+        n_bytes_parsed += skip_header_bytes + n_bytes_packet
+
+        # current_pos is still before the header, so we are reading the entire packet here
+        packet_bytes = read_buffer[current_pos:current_pos + n_bytes_packet]
+        current_pos += n_bytes_packet
+        # Wrap the bytes in a RawPacketData object that adds convenience methods for parsing the header
+        yield RawPacketData(packet_bytes)
+
+    if show_progress:
+        _print_progress(current_bytes=n_bytes_parsed, total_bytes=total_length_bytes,
+                        start_time_ns=start_time, current_packets=n_packets_parsed,
+                        end="\n", log=True)
+
+
+def _print_progress(
+            *,
+            current_bytes: int,
+            total_bytes: Optional[int],
+            start_time_ns: int,
+            current_packets: int,
+            end: str = '\r',
+            log: bool = False
+        ):
+    """Prints a progress bar, including statistics on parsing rate.
+
+    Parameters
+    ----------
+    current_bytes : int
+        Number of bytes parsed so far.
+    total_bytes : Optional[int]
+        Number of total bytes to parse, if known. None otherwise.
+    current_packets : int
+        Number of packets parsed so far.
+    start_time_ns : int
+        Start time on system clock, in nanoseconds.
+    end : str
+        Print function end string. Default is `\\r` to create a dynamically updating loading bar.
+    log : bool
+        If True, log the progress bar at INFO level.
+    """
+    progress_char = "="
+    bar_length = 20
+
+    if total_bytes is not None:  # If we actually have an endpoint (i.e. not using a socket)
+        percentage = int((current_bytes / total_bytes) * 100)  # Percent Completed Calculation
+        progress = int((bar_length * current_bytes) / total_bytes)  # Progress Done Calculation
+    else:
+        percentage = "???"
+        progress = 0
+
+    # Fast calls initially on Windows can result in a zero elapsed time
+    elapsed_ns = max(time.time_ns() - start_time_ns, 1)
+    delta = dt.timedelta(microseconds=elapsed_ns / 1E3)
+    kbps = int(current_bytes * 8E6 / elapsed_ns)  # 8 bits per byte, 1E9 s per ns, 1E3 bits per kb
+    pps = int(current_packets * 1E9 / elapsed_ns)
+    info_str = f"[Elapsed: {delta}, " \
+               f"Parsed {current_bytes} bytes ({current_packets} packets) " \
+               f"at {kbps}kb/s ({pps}pkts/s)]"
+    loadbar = f"Progress: [{progress * progress_char:{bar_length}}]{percentage}% {info_str}"
+    print(loadbar, end=end)
+    if log:
+        logger.info(loadbar)
 
 
 def _extract_bits(data: bytes, start_bit: int, nbits: int):
