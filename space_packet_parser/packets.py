@@ -295,7 +295,7 @@ class CCSDSPacket(dict):
 
 class Parseable(Protocol):
     """Defines an object that can be parsed from packet data."""
-    def parse(self, packet: CCSDSPacket, **parse_value_kwargs) -> None:
+    def parse(self, packet: CCSDSPacket) -> None:
         """Parse this entry from the packet data and add the necessary items to the packet."""
 
 
@@ -336,13 +336,13 @@ class SequenceContainer(Parseable):
         self.restriction_criteria = self.restriction_criteria or []
         self.inheritors = self.inheritors or []
 
-    def parse(self, packet: CCSDSPacket, **parse_value_kwargs) -> None:
+    def parse(self, packet: CCSDSPacket) -> None:
         """Parse the entry list of parameters/containers in the order they are expected in the packet.
 
         This could be recursive if the entry list contains SequenceContainers.
         """
         for entry in self.entry_list:
-            entry.parse(packet=packet, **parse_value_kwargs)
+            entry.parse(packet=packet)
 
 
 def ccsds_generator(  # pylint: disable=too-many-branches,too-many-statements

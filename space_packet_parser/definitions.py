@@ -324,8 +324,7 @@ class XtcePacketDefinition:
     def parse_ccsds_packet(self,
                            packet: packets.CCSDSPacket,
                            *,
-                           root_container_name: str = "CCSDSPacket",
-                           **parse_value_kwargs) -> packets.CCSDSPacket:
+                           root_container_name: str = "CCSDSPacket") -> packets.CCSDSPacket:
         """Parse binary packet data according to the self.packet_definition object
 
         Parameters
@@ -343,7 +342,7 @@ class XtcePacketDefinition:
         """
         current_container: packets.SequenceContainer = self._sequence_container_cache[root_container_name]
         while True:
-            current_container.parse(packet, **parse_value_kwargs)
+            current_container.parse(packet)
 
             valid_inheritors = []
             for inheritor_name in current_container.inheritors:
