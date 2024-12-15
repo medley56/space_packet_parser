@@ -16,6 +16,13 @@ Release notes for the `space_packet_parser` library
   streams as needed.
 - Add a ``ccsds_packet_generator()`` function that iterates through raw
   bytes and yields individual CCSDS packets.
+- Add continuation packet support to the XTCE parsing and packet generation.
+  This adds logic to concatenate packet data fields together across successive
+  packets (if there was too much data to fit in a single CCSDS packet or it
+  was logically better to split by other teams).
+  - Add warnings if packets are out of sequence within a given apid.
+  - Add ability to remove secondary header bytes from subsequent packets.
+    ``definition.packet_generator(data, combine_segmented_packets=True, secondary_header_bytes=4)``
 
 ### v5.0.1 (released)
 - BUGFIX: Allow raw_value representation for enums with falsy raw values. Previously these defaulted to the enum label.

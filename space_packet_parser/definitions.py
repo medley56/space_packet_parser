@@ -353,6 +353,8 @@ class XtcePacketDefinition:
             parse_bad_pkts: bool = True,
             root_container_name="CCSDSPacket",
             ccsds_headers_only: bool = False,
+            combine_segmented_packets: bool = False,
+            secondary_header_bytes: int = 0,
             yield_unrecognized_packet_errors: bool = False,
             show_progress: bool = False,
             buffer_read_size_bytes: Optional[int] = None,
@@ -380,6 +382,15 @@ class XtcePacketDefinition:
             Default False. If True, only parses the packet headers (does not use the provided packet definition).
             ``space_packet_parser.packets.ccsds_packet_generator`` can be used directly to parse only the CCSDS headers
             without needing a packet definition.
+        combine_segmented_packets : bool
+            Default False. If True, combines segmented packets into a single packet for parsing. This is useful for
+            parsing packets that are split into multiple packets due to size constraints. The packet data is combined
+            by concatenating the data from each packet together. The combined packet is then parsed as a single packet.
+        secondary_header_bytes : int
+            Default 0. The length of the secondary header in bytes.
+            This is used to skip the secondary header of segmented packets.
+            The byte layout within the returned packet has all data concatenated together as follows:
+            [packet0header, packet0secondaryheader, packet0data, packet1data, packet2data, ...].
         yield_unrecognized_packet_errors : bool
             Default False.
             If False, UnrecognizedPacketTypeErrors are caught silently and parsing continues to the next packet.
@@ -405,6 +416,11 @@ class XtcePacketDefinition:
             If yield_unrecognized_packet_errors is True, it will yield an unraised exception object,
             which can be raised or used for debugging purposes.
         """
+        # Used to keep track of any continuation packets that we encounter
+        # gathering them all up before combining them into a single packet
+        # for the XTCE to parse, lookup is by APID.
+        # _segmented_packets[APID] = [RawPacketData, ...]
+        _segmented_packets = {}
 
         # Iterate over individual packets in the binary data
         for raw_packet_data in packets.ccsds_generator(binary_data,
@@ -415,7 +431,34 @@ class XtcePacketDefinition:
                 yield raw_packet_data
                 continue
 
-            packet = packets.CCSDSPacket(raw_data=raw_packet_data)
+            if not combine_segmented_packets or raw_packet_data.sequence_flags == packets.SequenceFlags.UNSEGMENTED:
+                packet = packets.CCSDSPacket(raw_data=raw_packet_data)
+            elif raw_packet_data.sequence_flags == packets.SequenceFlags.FIRST:
+                _segmented_packets[raw_packet_data.apid] = [raw_packet_data]
+                continue
+            elif not _segmented_packets.get(raw_packet_data.apid, []):
+                warnings.warn("Continuation packet found without declaring the start, skipping this packet.")
+                continue
+            elif raw_packet_data.sequence_flags == packets.SequenceFlags.CONTINUATION:
+                _segmented_packets[raw_packet_data.apid].append(raw_packet_data)
+                continue
+            else:  # raw_packet_data.sequence_flags == packets.SequenceFlags.LAST:
+                _segmented_packets[raw_packet_data.apid].append(raw_packet_data)
+                # We have received the final packet, close it up and combine all of
+                # the segmented packets into a single "packet" for XTCE parsing
+                sequence_counts = [p.sequence_count for p in _segmented_packets[raw_packet_data.apid]]
+                if not all((sequence_counts[i + 1] - sequence_counts[i]) % 16384 == 1
+                           for i in range(len(sequence_counts) - 1)):
+                    warnings.warn(f"Continuation packets for apid {raw_packet_data.apid} "
+                                  f"are not in sequence {sequence_counts}, skipping these packets.")
+                    continue
+                # Add all content (including header) from the first packet
+                raw_data = _segmented_packets[raw_packet_data.apid][0]
+                # Add the continuation packets to the first packet, skipping the headers
+                for p in _segmented_packets[raw_packet_data.apid][1:]:
+                    raw_data += p[raw_packet_data.HEADER_LENGTH_BYTES + secondary_header_bytes:]
+                packet = packets.CCSDSPacket(raw_data=raw_data)
+
             # Now do the actual parsing of the packet data
             try:
                 packet = self.parse_ccsds_packet(packet, root_container_name=root_container_name)

@@ -2,7 +2,7 @@
 # Standard
 import pytest
 # Local
-from space_packet_parser import packets
+from space_packet_parser import definitions, packets
 
 
 @pytest.mark.parametrize(("input_var", "input_value"),
@@ -101,3 +101,68 @@ def test_ccsds_packet_data_lookups():
 
     with pytest.raises(KeyError):
         packet[10]
+
+
+def test_continuation_packets(test_data_dir):
+    # This definition has 65 bytes worth of data
+    d = definitions.XtcePacketDefinition(test_data_dir / "test_xtce.xml")
+    # We can put that all in one unsegmented packet, just to verify this is working as expected
+    raw_bytes = packets.create_ccsds_packet(data=b"0"*65, apid=11, sequence_flags=packets.SequenceFlags.UNSEGMENTED)
+    orig_packets = list(d.packet_generator(raw_bytes))
+    assert len(orig_packets) == 1
+    # Remove the sequence flags, counter, and packet length, as they are expected to vary across tests
+    def remove_keys(d):
+        d.pop("SEQ_FLGS")
+        d.pop("PKT_LEN")
+        d.pop("SRC_SEQ_CTR")
+    remove_keys(orig_packets[0])
+
+    # Now we will split the data across 2 CCSDS packets, but expect them to be combined into one for parsing purposes
+    p0 = packets.create_ccsds_packet(data=b"0"*64, apid=11, sequence_flags=packets.SequenceFlags.FIRST, sequence_count=0)
+    p1 = packets.create_ccsds_packet(data=b"0"*1, apid=11, sequence_flags=packets.SequenceFlags.LAST, sequence_count=1)
+    raw_bytes = p0 + p1
+    result_packets = list(d.packet_generator(raw_bytes, combine_segmented_packets=True))
+    remove_keys(result_packets[0])
+    assert result_packets == orig_packets
+
+    # Now we will split the data across 3 CCSDS packets and test the sequence_count wrap-around
+    p0 = packets.create_ccsds_packet(data=b"0"*63, apid=11, sequence_flags=packets.SequenceFlags.FIRST, sequence_count=16382)
+    p1 = packets.create_ccsds_packet(data=b"0"*1, apid=11, sequence_flags=packets.SequenceFlags.CONTINUATION, sequence_count=16383)
+    p2 = packets.create_ccsds_packet(data=b"0"*1, apid=11, sequence_flags=packets.SequenceFlags.LAST, sequence_count=0)
+    raw_bytes = p0 + p1 + p2
+    result_packets = list(d.packet_generator(raw_bytes, combine_segmented_packets=True))
+    remove_keys(result_packets[0])
+    assert result_packets == orig_packets
+
+    # Test stripping secondary headers (4 bytes per packet), should keep the first packet's header, but skip the following
+    # Add in 4 1s to the 2nd and 3rd packet that should be removed
+    p0 = packets.create_ccsds_packet(data=b"0"*63, apid=11, sequence_flags=packets.SequenceFlags.FIRST, sequence_count=16382)
+    p1 = packets.create_ccsds_packet(data=b"1"*4 + b"0"*1, apid=11, sequence_flags=packets.SequenceFlags.CONTINUATION, sequence_count=16383)
+    p2 = packets.create_ccsds_packet(data=b"1"*4 + b"0"*1, apid=11, sequence_flags=packets.SequenceFlags.LAST, sequence_count=0)
+    raw_bytes = p0 + p1 + p2
+    result_packets = list(d.packet_generator(raw_bytes, combine_segmented_packets=True, secondary_header_bytes=4))
+    remove_keys(result_packets[0])
+    assert result_packets == orig_packets
+
+
+def test_continuation_packet_warnings(test_data_dir):
+    # This definition has 65 bytes worth of data
+    d = definitions.XtcePacketDefinition(test_data_dir / "test_xtce.xml")
+
+    # CONTINUATION / LAST without FIRST
+    p0 = packets.create_ccsds_packet(data=b"0"*65, apid=11, sequence_flags=packets.SequenceFlags.CONTINUATION)
+    p1 = packets.create_ccsds_packet(data=b"0"*65, apid=11, sequence_flags=packets.SequenceFlags.LAST)
+    raw_bytes = p0 + p1
+    with pytest.warns(match="Continuation packet found without declaring the start"):
+        list(d.packet_generator(raw_bytes, combine_segmented_packets=True))
+        # Nothing expected to be returned
+        assert len(list(d.packet_generator(raw_bytes, combine_segmented_packets=True))) == 0
+
+    # Out of sequence packets
+    p0 = packets.create_ccsds_packet(data=b"0"*65, apid=11, sequence_flags=packets.SequenceFlags.FIRST, sequence_count=1)
+    p1 = packets.create_ccsds_packet(data=b"0"*65, apid=11, sequence_flags=packets.SequenceFlags.LAST, sequence_count=0)
+    raw_bytes = p0 + p1
+
+    with pytest.warns(match="not in sequence"):
+        # Nothing expected to be returned
+        assert len(list(d.packet_generator(raw_bytes, combine_segmented_packets=True))) == 0
