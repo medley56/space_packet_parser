@@ -8,6 +8,12 @@ Release notes for the `space_packet_parser` library
 ### v5.1.0 (unreleased)
 - BUGFIX: Fix kbps calculation in packet generator for showing progress.
 - Add support for string and float encoded enumerated lookup parameters.
+- Add properties to extract the CCSDS Header items from the ``RawPacketData`` object directly.
+  e.g. ``RawPacketData.apid``
+- Add a ``create_ccsds_packet`` function that can create a CCSDS Packet
+  with the given header items and data. This is useful for creating
+  mock packets in testing and experimentation for creating debugging
+  streams as needed.
 
 ### v5.0.1 (released)
 - BUGFIX: Allow raw_value representation for enums with falsy raw values. Previously these defaulted to the enum label.

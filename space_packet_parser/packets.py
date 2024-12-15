@@ -2,6 +2,8 @@
 """Packet containers and parsing utilities for space packets."""
 
 from dataclasses import dataclass, field
+from enum import IntEnum
+from functools import cached_property
 from typing import List, Optional, Protocol, Union
 
 BuiltinDataTypes = Union[bytes, float, int, str]
@@ -56,28 +58,87 @@ class StrParameter(_Parameter, str):
 ParameterDataTypes = Union[BinaryParameter, BoolParameter, FloatParameter, IntParameter, StrParameter]
 
 
+class SequenceFlags(IntEnum):
+    """Enumeration of the possible sequence flags in a CCSDS packet."""
+    CONTINUATION = 0
+    FIRST = 1
+    LAST = 2
+    UNSEGMENTED = 3
+
+
 class RawPacketData(bytes):
     """A class to represent raw packet data as bytes but whose length is represented by bit length.
 
     This class is a subclass of bytes and is used to represent the raw packet data
     in a more readable way. It is used to store the raw packet data in the Packet
-    class and used to keep track of the current parsing position.
+    class and used to keep track of the current parsing position (accessible through the `pos` attribute).
 
-    Parameters
-    ----------
-    data : bytes
-        Raw packet data. Full CCSDS packets are always an integer number of bytes.
+    There are also a few convenience methods to extract the CCSDS header fields from the packet data.
     """
-    def __init__(self, data: bytes, *, pos: int = 0):
-        self.pos = pos
-        self._nbits = len(data) * 8
-        super().__init__()
+    HEADER_LENGTH_BYTES = 6
+    pos = 0  # in bits
 
-    def __len__(self):
-        return self._nbits
+    def __str__(self) -> str:
+        return (f"RawPacketData Header: ({self.version_number=}, {self.type=}, "
+                f"{self.secondary_header_flag=}, {self.apid=}, {self.sequence_flags=}, "
+                f"{self.sequence_count=}, {self.data_length=})").replace("self.", "")
 
-    def __repr__(self):
-        return f"RawPacketData({self}, {len(self)}b, pos={self.pos})"
+    @cached_property
+    def version_number(self) -> int:
+        """CCSDS Packet Version Number"""
+        return _extract_bits(self, 0, 3)
+
+    @cached_property
+    def type(self) -> int:
+        """CCSDS Packet Type
+
+        0 = Telemetry Packet
+        1 = Telecommand Packet
+        """
+        return _extract_bits(self, 3, 1)
+
+    @cached_property
+    def secondary_header_flag(self) -> int:
+        """CCSDS Secondary Header Flag
+
+        0 = No secondary header
+        1 = Secondary header present
+        """
+
+        return _extract_bits(self, 4, 1)
+
+    @cached_property
+    def apid(self) -> int:
+        """CCSDS Application Process Identifier (APID)"""
+        return _extract_bits(self, 5, 11)
+
+    @cached_property
+    def sequence_flags(self) -> int:
+        """CCSDS Packet Sequence Flags
+
+        00 = Continuation packet
+        01 = First packet
+        10 = Last packet
+        11 = Unsegmented packet (standalone)
+        """
+        return _extract_bits(self, 16, 2)
+
+    @cached_property
+    def sequence_count(self) -> int:
+        """CCSDS Packet Sequence Count"""
+        return _extract_bits(self, 18, 14)
+
+    @cached_property
+    def data_length(self) -> int:
+        """CCSDS Packet Data Length
+
+        Section 4.1.3.5.3 The length count C shall be expressed as:
+        C = (Total Number of Octets in the Packet Data Field) – 1
+        """
+        # This has already been parsed previously to give us the length of the packet
+        # so avoid the extract_bits call again and calculate it based on the length of the data
+        # Subtract 6 bytes for the header and 1 for the length count
+        return len(self) - RawPacketData.HEADER_LENGTH_BYTES - 1
 
     def read_as_bytes(self, nbits: int) -> bytes:
         """Read a number of bits from the packet data as bytes. Reads minimum number of complete bytes required to
@@ -93,7 +154,7 @@ class RawPacketData(bytes):
         : bytes
             Raw bytes from the packet data
         """
-        if self.pos + nbits > len(self):
+        if self.pos + nbits > len(self) * 8:
             raise ValueError("End of packet reached")
         if self.pos % 8 == 0 and nbits % 8 == 0:
             # If the read is byte-aligned, we can just return the bytes directly
@@ -123,11 +184,71 @@ class RawPacketData(bytes):
         return int_data
 
 
+def create_ccsds_packet(data=b"\x00",
+                        *,
+                        version_number=0,
+                        type=0,  # pylint: disable=redefined-builtin
+                        secondary_header_flag=0,
+                        apid=2047,  # 2047 is defined as a fill packet in the CCSDS spec
+                        sequence_flags=SequenceFlags.UNSEGMENTED,
+                        sequence_count=0):
+    """Create a binary CCSDS packet.
+
+    Pack the header fields into the proper bit locations and append the data bytes.
+
+    Parameters
+    ----------
+    data : bytes
+        User data bytes (up to 65536 bytes)
+    version_number : int
+        CCSDS Packet Version Number (3 bits)
+    type : int
+        CCSDS Packet Type (1 bit)
+    secondary_header_flag : int
+        CCSDS Secondary Header Flag (1 bit)
+    apid : int
+        CCSDS Application Process Identifier (APID) (11 bits)
+    sequence_flags : int
+        CCSDS Packet Sequence Flags (2 bits)
+    sequence_count : int
+        CCSDS Packet Sequence Count (14 bits)
+    """
+    if version_number < 0 or version_number > 7:  # 3 bits
+        raise ValueError("version_number must be between 0 and 7")
+    if type < 0 or type > 1:  # 1 bit
+        raise ValueError("type_ must be 0 or 1")
+    if secondary_header_flag < 0 or secondary_header_flag > 1:  # 1 bit
+        raise ValueError("secondary_header_flag must be 0 or 1")
+    if apid < 0 or apid > 2047:  # 11 bits
+        raise ValueError("apid must be between 0 and 2047")
+    if sequence_flags < 0 or sequence_flags > 3:  # 2 bits
+        raise ValueError("sequence_flags must be between 0 and 3")
+    if sequence_count < 0 or sequence_count > 16383:  # 14 bits
+        raise ValueError("sequence_count must be between 0 and 16383")
+    if len(data) < 1 or len(data) > 65536:  # 16 bits
+        raise ValueError("length of data (in bytes) must be between 1 and 65536")
+
+    # CCSDS primary header
+    # bitshift left to the correct position for that field (48 - start_bit - nbits)
+    try:
+        header = (version_number << 48 - 3
+                  | type << 48 - 4
+                  | secondary_header_flag << 48 - 5
+                  | apid << 48 - 16
+                  | sequence_flags << 48 - 18
+                  | sequence_count << 48 - 32
+                  | len(data) - 1)
+        packet = header.to_bytes(RawPacketData.HEADER_LENGTH_BYTES, "big") + data
+    except TypeError as e:
+        raise TypeError("CCSDS Header items must be integers and the input data bytes.") from e
+    return RawPacketData(packet)
+
+
 class CCSDSPacket(dict):
-    """CCSDS Packet
+    """Packet representing parsed data items from CCSDS packet(s).
 
     Container that stores the raw packet data (bytes) as an instance attribute and the parsed
-    data items in a dict interface. A ``CCSDSPacket`` generally begins as an empty dictionary that gets
+    data items in a dictionary interface. A ``CCSDSPacket`` generally begins as an empty dictionary that gets
     filled as the packet is parsed. The first 7 items in the dictionary make up the
     packet header (accessed with ``CCSDSPacket.header``), and the rest of the items
     make up the user data (accessed with ``CCSDSPacket.user_data``). To access the
