@@ -8,6 +8,7 @@ from pathlib import Path
 import socket
 import time
 from typing import Tuple, Optional, List, TextIO, Dict, Union, BinaryIO, Iterator
+import warnings
 # Installed
 import lxml.etree as ElementTree
 # Local
@@ -612,11 +613,11 @@ class XtcePacketDefinition:
 
             actual_length_parsed = packet.raw_data.pos // 8
             if actual_length_parsed != n_bytes_packet:
-                logger.warning(f"Parsed packet length "
-                               f"({actual_length_parsed}B) did not match "
-                               f"length specified in header ({n_bytes_packet}B). "
-                               f"Updating the position to the correct position "
-                               "indicated by CCSDS header.")
+                warnings.warn(f"Parsed packet length "
+                              f"({actual_length_parsed}B) did not match "
+                              f"length specified in header ({n_bytes_packet}B). "
+                              f"Updating the position to the correct position "
+                              f"indicated by CCSDS header.")
                 if not parse_bad_pkts:
                     logger.warning(f"Skipping (not yielding) bad packet with apid {header['PKT_APID']}.")
                     continue
