@@ -61,3 +61,8 @@ memory-profiler = "^0.61.0"
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore:You are encoding a BooleanParameterType:UserWarning",
+]

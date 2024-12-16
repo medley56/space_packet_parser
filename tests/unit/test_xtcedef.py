@@ -220,6 +220,7 @@ def test_attr_comparable():
          {}, 3, ComparisonError("Fails to parse a float string 3.0 into an int")),
     ]
 )
+@pytest.mark.filterwarnings("ignore:Performing a comparison against a current value")
 def test_comparison(xml_string, test_parsed_data, current_parsed_value, expected_comparison_result):
     """Test Comparison object"""
     element = ElementTree.fromstring(xml_string)

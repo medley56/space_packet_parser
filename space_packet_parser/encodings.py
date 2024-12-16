@@ -75,9 +75,7 @@ class DataEncoding(comparisons.AttrComparable, metaclass=ABCMeta):
         : Union[List[ContextCalibrator], None]
             List of ContextCalibrator objects or None if there are no context calibrators
         """
-        if data_encoding_element.find('xtce:ContextCalibratorList', ns):
-            context_calibrators_elements = data_encoding_element.findall(
-                'xtce:ContextCalibratorList/xtce:ContextCalibrator', ns)
+        if (context_calibrators_elements := data_encoding_element.find('xtce:ContextCalibratorList', ns)) is not None:
             return [calibrators.ContextCalibrator.from_context_calibrator_xml_element(el, ns)
                     for el in context_calibrators_elements]
         return None

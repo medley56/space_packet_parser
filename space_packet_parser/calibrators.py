@@ -332,12 +332,10 @@ class ContextCalibrator(comparisons.AttrComparable):
         """
         match_criteria = cls.get_context_match_criteria(element, ns)
 
-        if element.find('xtce:Calibrator/xtce:SplineCalibrator', ns) is not None:
-            calibrator = SplineCalibrator.from_calibrator_xml_element(
-                element.find('xtce:Calibrator/xtce:SplineCalibrator', ns), ns)
-        elif element.find('xtce:Calibrator/xtce:PolynomialCalibrator', ns):
-            calibrator = PolynomialCalibrator.from_calibrator_xml_element(
-                element.find('xtce:Calibrator/xtce:PolynomialCalibrator', ns), ns)
+        if (cal_element := element.find('xtce:Calibrator/xtce:SplineCalibrator', ns)) is not None:
+            calibrator = SplineCalibrator.from_calibrator_xml_element(cal_element, ns)
+        elif (cal_element := element.find('xtce:Calibrator/xtce:PolynomialCalibrator', ns)) is not None:
+            calibrator = PolynomialCalibrator.from_calibrator_xml_element(cal_element, ns)
         else:
             raise NotImplementedError(
                 "Unsupported default_calibrator type. space_packet_parser only supports Polynomial and Spline"
