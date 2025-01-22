@@ -1,8 +1,10 @@
 """Test parsing of CTIM instrument data"""
+import pytest
 # Local
 from space_packet_parser import definitions
 
 
+@pytest.mark.filterwarnings("ignore:Parsed packet length")
 def test_ctim_parsing(ctim_test_data_dir):
     """Test parsing CTIM data"""
     print("Loading and parsing packet definition")

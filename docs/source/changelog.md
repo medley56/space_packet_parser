@@ -19,6 +19,7 @@ Release notes for the `space_packet_parser` library
 
 ### v5.0.1 (released)
 - BUGFIX: Allow raw_value representation for enums with falsy raw values. Previously these defaulted to the enum label.
+- If a packet definition parses too few bits, a UserWarning is now emitted instead of a logger warning.
 
 ### v5.0.0 (released)
 - *BREAKING*: Main API changed. No need to create separate definition and parser objects any more. Create only a 

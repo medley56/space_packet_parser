@@ -429,10 +429,8 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
         : Union[str, None]
             Unit string or None if no units are defined
         """
-        encoding_element = parameter_type_element.find('xtce:Encoding', ns)
-        if encoding_element and "units" in encoding_element.attrib:
-            units = encoding_element.attrib["units"]
-            return units
+        if (encoding_element := parameter_type_element.find('xtce:Encoding', ns)) is not None:
+            return encoding_element.attrib.get('units')
         # Units are optional so return None if they aren't specified
         return None
 

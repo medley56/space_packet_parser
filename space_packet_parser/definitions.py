@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 import socket
 from typing import Tuple, Optional, List, TextIO, Dict, Union, BinaryIO, Iterator
+import warnings
 # Installed
 import lxml.etree as ElementTree
 # Local
@@ -427,8 +428,9 @@ class XtcePacketDefinition:
                 continue
 
             if packet.raw_data.pos != len(packet.raw_data) * 8:
-                logger.warning(f"Number of bits parsed ({packet.raw_data.pos}b) did not match "
-                               f"the length of data available ({len(packet.raw_data) * 8}b).")
+                warnings.warn(f"Number of bits parsed ({packet.raw_data.pos}b) did not match "
+                              f"the length of data available ({len(packet.raw_data) * 8}b).")
+
                 if not parse_bad_pkts:
                     logger.warning(f"Skipping (not yielding) bad packet with apid {raw_packet_data.apid}.")
                     continue
