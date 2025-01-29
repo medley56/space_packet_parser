@@ -23,6 +23,8 @@ Release notes for the `space_packet_parser` library
   - Add warnings if packets are out of sequence within a given apid.
   - Add ability to remove secondary header bytes from subsequent packets.
     ``definition.packet_generator(data, combine_segmented_packets=True, secondary_header_bytes=4)``
+- Add a command line interface (spp) to enable quick and easy access to
+  some common tasks and utilities.
 
 ### v5.0.1 (released)
 - BUGFIX: Allow raw_value representation for enums with falsy raw values. Previously these defaulted to the enum label.
