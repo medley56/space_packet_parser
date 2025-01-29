@@ -17,7 +17,7 @@ import io
 import logging
 import socket
 import time
-from typing import BinaryIO, Iterator, List, Optional, Protocol, Union
+from typing import BinaryIO, Iterator, List, Optional, Protocol, Union, Tuple
 
 
 BuiltinDataTypes = Union[bytes, float, int, str]
@@ -154,6 +154,17 @@ class RawPacketData(bytes):
         # so avoid the extract_bits call again and calculate it based on the length of the data
         # Subtract 6 bytes for the header and 1 for the length count
         return len(self) - RawPacketData.HEADER_LENGTH_BYTES - 1
+
+    @cached_property
+    def header_values(self) -> Tuple[int, ...]:
+        """Convenience property for tuple of header values"""
+        return (self.version_number,
+                self.type,
+                self.secondary_header_flag,
+                self.apid,
+                self.sequence_flags,
+                self.sequence_count,
+                self.data_length)
 
     def read_as_bytes(self, nbits: int) -> bytes:
         """Read a number of bits from the packet data as bytes. Reads minimum number of complete bytes required to

@@ -114,7 +114,7 @@ class Comparison(MatchCriteria):
         self._validate()
 
     def __repr__(self):
-        return f"<{self.__class__.__name__} {self.referenced_parameter}{self.operator}{self.required_value}>"
+        return f"{self.__class__.__name__}({self.referenced_parameter} {self.operator} {self.required_value})"
 
     def _validate(self):
         """Validate state as logically consistent.
@@ -250,6 +250,9 @@ class Condition(MatchCriteria):
         self.left_use_calibrated_value = left_use_calibrated_value
         self._validate()
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.left_param} {self.operator} {self.right_param or self.right_value})"
+
     def _validate(self):
         """Check that the instantiated object actually makes logical sense.
 
@@ -373,8 +376,16 @@ class Condition(MatchCriteria):
         return getattr(left_value, operator)(right_value)
 
 
-Anded = namedtuple('Anded', ['conditions', 'ors'])
-Ored = namedtuple('Ored', ['conditions', 'ands'])
+class Anded(namedtuple('Anded', ['conditions', 'ors'])):
+    """Tuple object for AND operations in BooleanExpression"""
+    def __repr__(self):
+        return " && ".join((str(c) for c in self.conditions))
+
+
+class Ored(namedtuple('Ored', ['conditions', 'ands'])):
+    """Tuple object for OR operations in BooleanExpression"""
+    def __repr__(self):
+        return " || ".join((str(c) for c in self.conditions))
 
 
 class BooleanExpression(MatchCriteria):
@@ -382,6 +393,9 @@ class BooleanExpression(MatchCriteria):
 
     def __init__(self, expression: Union[Condition, Anded, Ored]):
         self.expression = expression
+
+    def __repr__(self):
+        return f"BooleanExpression({self.expression})"
 
     @classmethod
     def from_match_criteria_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'BooleanExpression':

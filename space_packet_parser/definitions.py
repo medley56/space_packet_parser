@@ -13,6 +13,8 @@ from space_packet_parser import comparisons, parameters, packets
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_ROOT_CONTAINER = "CCSDSPacket"
+
 
 class XtcePacketDefinition:
     """Object representation of the XTCE definition of a CCSDS packet object"""
@@ -33,7 +35,7 @@ class XtcePacketDefinition:
             xtce_document: Union[str, Path, TextIO],
             *,
             ns: Optional[dict] = None,
-            root_container_name: Optional[str] = "CCSDSPacket"
+            root_container_name: Optional[str] = DEFAULT_ROOT_CONTAINER
     ) -> None:
         """Instantiate an object representation of a CCSDS packet definition, according to a format specified in an XTCE
         XML document. The parser iteratively builds sequences of parameters according to the

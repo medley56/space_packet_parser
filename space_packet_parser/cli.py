@@ -10,11 +10,11 @@ Use
     spp --help
     spp --describe <packet_file>
 """
-
+# Standard
 import logging
 from pathlib import Path
-from typing import Union
-
+from typing import Optional
+# Installed
 import click
 from rich.console import Console
 from rich.table import Table
@@ -22,9 +22,9 @@ from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.tree import Tree
 from rich import pretty
-
-from space_packet_parser.packets import packet_generator
-from space_packet_parser.definitions import XtcePacketDefinition
+# Local
+from space_packet_parser.packets import ccsds_generator
+from space_packet_parser.definitions import XtcePacketDefinition, DEFAULT_ROOT_CONTAINER
 
 # Initialize a console instance for rich output
 console = Console()
@@ -32,26 +32,23 @@ console = Console()
 # Maximum number of rows to display
 MAX_ROWS = 10
 HEAD_ROWS = 5
+# Standard names for header field values when inspecting packets without an XTCE definition
+DISPLAY_HEADER_FIELDS = ("VER", "TYPE", "SHFLG", "APID", "SEQFLG", "SEQCNT", "PKTLEN")
 
 
 @click.group(context_settings={'show_default': True})
-@click.version_option()
-@click.option(
-    "--debug",
-    is_flag=True,
-    help="Enable debug output"
-)
-@click.option(
-    "-v", "--verbose", is_flag=True, help="Enable verbose output"
-)
-def cli(debug, verbose):
+@click.version_option(message="Space Packet Parser CLI (%(prog)s) v%(version)s")
+@click.option("-v", "--verbose", is_flag=True, help="Enable verbose output (DEBUG logging)")
+@click.option("-q", "--quiet", is_flag=True, help="Disable logging output entirely")
+@click.option("--log-level", default="INFO", help="Log level, e.g. WARNING, INFO, DEBUG. Ignored if -q or -v is set.")
+def spp(verbose, quiet, log_level):
     """Command line utility for working with CCSDS packets."""
     # Set logging level
-    loglevel = logging.WARNING
-    if debug:
+    loglevel = logging.getLevelNamesMapping()[log_level]
+    if verbose:
         loglevel = logging.DEBUG
-    elif verbose:
-        loglevel = logging.INFO
+    elif quiet:
+        loglevel = logging.CRITICAL
 
     # Configure logging with RichHandler for colorized output
     logging.basicConfig(
@@ -63,16 +60,24 @@ def cli(debug, verbose):
     logging.getLogger("rich").setLevel(loglevel)
 
 
-@cli.command()
+@spp.command()
 @click.argument("file_path", type=click.Path(exists=True, path_type=Path))
 @click.option("--sequence-containers", is_flag=True, help="Display sequence containers")
 @click.option("--parameters", is_flag=True, help="Display parameters")
 @click.option("--parameter-types", is_flag=True, help="Display parameter types")
-def describe_xtce(file_path: Path, sequence_containers: bool, parameters: bool, parameter_types: bool) -> None:
-    """Describe the contents of an XTCE file."""
+@click.option("--root-container", default=DEFAULT_ROOT_CONTAINER,
+              help=f"Name of root SequenceContainer element. Default is {DEFAULT_ROOT_CONTAINER}.")
+def describe_xtce(
+        file_path: Path,
+        sequence_containers: bool,
+        parameters: bool,
+        parameter_types: bool,
+        root_container: str
+) -> None:
+    """Describe the contents and structure of an XTCE packet definition file."""
     # pylint: disable=protected-access
     logging.debug(f"Describing XTCE file: {file_path}")
-    definition = XtcePacketDefinition(file_path)
+    definition = XtcePacketDefinition(file_path, root_container_name=root_container)
     tree = Tree(definition.root_container_name)
 
     # Recursively add nodes based on the inheritors of each container
@@ -84,6 +89,7 @@ def describe_xtce(file_path: Path, sequence_containers: bool, parameters: bool, 
                 f"{child_key} {definition._sequence_container_cache[child_key].restriction_criteria}")
             # Recursively add any children of this child
             add_nodes(child_node, child_key)
+
     add_nodes(tree, definition.root_container_name)
 
     console.print(Panel(tree, title="XTCE Container Layout", border_style="cyan", expand=False))
@@ -101,13 +107,15 @@ def describe_xtce(file_path: Path, sequence_containers: bool, parameters: bool, 
                             border_style="magenta", expand=False))
 
 
-@cli.command()
+@spp.command()
 @click.argument("file_path", type=click.Path(exists=True, path_type=Path))
+# TODO: Allow multiple file paths, ordered
+# TODO: Allow filtering by header values
 def describe_packets(file_path: Path) -> None:
-    """Describe the contents of a packet file."""
+    """Describe the header contents of a packet file, no packet definition required."""
     logging.debug(f"Describing packet file: {file_path}")
     with open(file_path, "rb") as f:
-        packets = list(packet_generator(f))
+        packets = list(ccsds_generator(f))
 
     npackets = len(packets)
     if npackets == 0:
@@ -119,8 +127,8 @@ def describe_packets(file_path: Path) -> None:
                   show_header=True,
                   header_style="bold magenta")
 
-    # Add columns dynamically based on the first packet's keys
-    for key in packets[0]:
+    # Add columns for header fields only
+    for key in DISPLAY_HEADER_FIELDS:
         table.add_column(key)
 
     # Determine rows to display (head and tail with ellipsis if necessary)
@@ -131,32 +139,40 @@ def describe_packets(file_path: Path) -> None:
 
     # Add rows to the table
     for packet in packets_to_show[:HEAD_ROWS]:
-        table.add_row(*[str(value) for value in packet.values()])
+        table.add_row(*[str(value) for value in packet.header_values])
 
     # Add ellipsis if there are more packets
     if npackets > MAX_ROWS:
-        table.add_row(*["..." for _ in packets[0]])
+        table.add_row(*["..." for _ in packets[0].header_values])
 
     for packet in packets_to_show[-HEAD_ROWS:]:
-        table.add_row(*[str(value) for value in packet.values()])
+        table.add_row(*[str(value) for value in packet.header_values])
 
     # Print the table
     console.print(table, overflow="ellipsis")
 
 
-@cli.command()
+@spp.command()
 @click.argument("packet_file", type=click.Path(exists=True, path_type=Path))
 @click.argument("definition_file", type=click.Path(exists=True, path_type=Path))
 @click.option("--packet", type=int, default=None, help="Display the packet at the given index (0-indexed)")
 @click.option("--max-items", type=int, default=20, help="Maximum number of items to display")
 @click.option("--max-string", type=int, default=40, help="Maximum length of string data")
-def parse(packet_file: Path, definition_file: Path, packet: Union[int, None], max_items: int, max_string: int) -> None:
+@click.option("--skip-header-bytes", type=int, default=0, help="Number of bytes to skip before each packet")
+def parse(  # pylint: disable=too-many-positional-arguments
+        packet_file: Path,
+        definition_file: Path,
+        packet: Optional[int],
+        max_items: int,
+        max_string: int,
+        skip_header_bytes: int
+) -> None:
     """Parse a packet file using the provided XTCE definition."""
     logging.debug(f"Parsing packet file: {packet_file}")
     logging.debug(f"Using packet definition file: {definition_file}")
 
     with open(packet_file, "rb") as f:
-        packets = list(packet_generator(f, definition=XtcePacketDefinition(definition_file)))
+        packets = list(XtcePacketDefinition(definition_file).packet_generator(f, skip_header_bytes=skip_header_bytes))
 
     if packet is not None:
         if packet > len(packets):
