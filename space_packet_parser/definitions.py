@@ -32,7 +32,8 @@ class XtcePacketDefinition:
             self,
             xtce_document: Union[str, Path, TextIO],
             *,
-            ns: Optional[dict] = None
+            ns: Optional[dict] = None,
+            root_container_name: Optional[str] = "CCSDSPacket"
     ) -> None:
         """Instantiate an object representation of a CCSDS packet definition, according to a format specified in an XTCE
         XML document. The parser iteratively builds sequences of parameters according to the
@@ -47,6 +48,8 @@ class XtcePacketDefinition:
             Path to XTCE XML document containing packet definition.
         ns : Optional[dict]
             Optional different namespace than the namespace defined in the XTCE document.
+        root_container_name : Optional[str]
+            Optional override to the root container name. Default is 'CCSDSPacket'.
         """
         self._sequence_container_cache = {}  # Lookup for parsed sequence container objects
         self._parameter_cache = {}  # Lookup for parsed parameter objects
@@ -55,6 +58,7 @@ class XtcePacketDefinition:
         self.ns = ns or self.tree.getroot().nsmap
         self.type_tag_to_object = {k.format(**self.ns): v for k, v in
                                    self._tag_to_type_template.items()}
+        self.root_container_name = root_container_name
 
         self._populate_parameter_type_cache()
         self._populate_parameter_cache()
@@ -301,7 +305,7 @@ class XtcePacketDefinition:
     def parse_ccsds_packet(self,
                            packet: packets.CCSDSPacket,
                            *,
-                           root_container_name: str = "CCSDSPacket") -> packets.CCSDSPacket:
+                           root_container_name: Optional[str] = None) -> packets.CCSDSPacket:
         """Parse binary packet data according to the self.packet_definition object
 
         Parameters
@@ -309,14 +313,16 @@ class XtcePacketDefinition:
         packet: packets.CCSDSPacket
             Binary representation of the packet used to get the coming bits and any
             previously parsed data items to infer field lengths.
-        root_container_name : str
-            Default is CCSDSPacket. Any root container may be specified.
+        root_container_name : Optional[str]
+            Default is taken from the XtcePacketDefinition object. Any root container may be specified, but it must
+            begin with the definition of a CCSDS header in order to parse correctly.
 
         Returns
         -------
         Packet
             A Packet object containing header and data attributes.
         """
+        root_container_name = root_container_name or self.root_container_name
         current_container: packets.SequenceContainer = self._sequence_container_cache[root_container_name]
         while True:
             current_container.parse(packet)
@@ -351,7 +357,7 @@ class XtcePacketDefinition:
             binary_data: Union[BinaryIO, socket.socket],
             *,
             parse_bad_pkts: bool = True,
-            root_container_name="CCSDSPacket",
+            root_container_name: Optional[str] = None,
             ccsds_headers_only: bool = False,
             combine_segmented_packets: bool = False,
             secondary_header_bytes: int = 0,
@@ -377,7 +383,7 @@ class XtcePacketDefinition:
         root_container_name : str
             The name of the root level (lowest level of container inheritance) SequenceContainer. This SequenceContainer
             is assumed to be inherited by every possible packet structure in the XTCE document and is the starting
-            point for parsing. Default is 'CCSDSPacket'.
+            point for parsing. Default is taken from the parent XtcePacketDefinition object.
         ccsds_headers_only : bool
             Default False. If True, only parses the packet headers (does not use the provided packet definition).
             ``space_packet_parser.packets.ccsds_packet_generator`` can be used directly to parse only the CCSDS headers
@@ -416,6 +422,8 @@ class XtcePacketDefinition:
             If yield_unrecognized_packet_errors is True, it will yield an unraised exception object,
             which can be raised or used for debugging purposes.
         """
+        root_container_name = root_container_name or self.root_container_name
+
         # Used to keep track of any continuation packets that we encounter
         # gathering them all up before combining them into a single packet
         # for the XTCE to parse, lookup is by APID.
