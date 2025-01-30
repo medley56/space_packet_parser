@@ -9548,6 +9548,7 @@
             <xtce:Parameter name="sw_tec_curr" parameterTypeRef="U16Type"/>
             <xtce:Parameter name="sw_img_state" parameterTypeRef="U16Type"/>
             <xtce:Parameter name="sw_img_currprocType" parameterTypeRef="D16Type"/>
+            <xtce:Parameter name="packet_checksum" parameterTypeRef="U16Type"/>
         </xtce:ParameterSet>
         <xtce:ContainerSet>
             <xtce:SequenceContainer name="CCSDSTelemetryPacket" abstract="true">
@@ -9573,6 +9574,7 @@
                     <xtce:ParameterRefEntry parameterRef="sw_major_version"/>
                     <xtce:ParameterRefEntry parameterRef="sw_minor_version"/>
                     <xtce:ParameterRefEntry parameterRef="sw_patch_version"/>
+                    <xtce:ParameterRefEntry parameterRef="REUSABLE_SPARE_1"/>
                     <xtce:ParameterRefEntry parameterRef="sw_sd_state_card1"/>
                     <xtce:ParameterRefEntry parameterRef="sw_sd_state_card0"/>
                     <xtce:ParameterRefEntry parameterRef="ana_zynq_temp"/>
@@ -9626,6 +9628,7 @@
                     <xtce:ParameterRefEntry parameterRef="sw_tec_curr"/>
                     <xtce:ParameterRefEntry parameterRef="sw_img_state"/>
                     <xtce:ParameterRefEntry parameterRef="sw_img_currprocType"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_2_Packet">
@@ -9641,6 +9644,7 @@
                     <xtce:ParameterRefEntry parameterRef="lib_id_err"/>
                     <xtce:ParameterRefEntry parameterRef="lib_entry_num"/>
                     <xtce:ParameterRefEntry parameterRef="lib_entry_store"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_3_Packet">
@@ -9659,6 +9663,7 @@
                     <xtce:ParameterRefEntry parameterRef="mem_curr_bytes"/>
                     <xtce:ParameterRefEntry parameterRef="mem_total_bytes"/>
                     <xtce:ParameterRefEntry parameterRef="mem_checksum"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_4_Packet">
@@ -9690,6 +9695,7 @@
                     <xtce:ParameterRefEntry parameterRef="hw_uart_sc_par"/>
                     <xtce:ParameterRefEntry parameterRef="hw_uart_sc_rx_count"/>
                     <xtce:ParameterRefEntry parameterRef="hw_uart_sc_tx_count"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_6_Packet">
@@ -10223,6 +10229,7 @@
                     <xtce:ParameterRefEntry parameterRef="mem_dump_data_509"/>
                     <xtce:ParameterRefEntry parameterRef="mem_dump_data_510"/>
                     <xtce:ParameterRefEntry parameterRef="mem_dump_data_511"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_8_Packet">
@@ -10319,6 +10326,7 @@
                     <xtce:ParameterRefEntry parameterRef="tbl_info_addr_back_outspec_2d"/>
                     <xtce:ParameterRefEntry parameterRef="tbl_info_update_pend_outspec_2d"/>
                     <xtce:ParameterRefEntry parameterRef="SPARE_8"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_9_Packet">
@@ -10333,6 +10341,7 @@
                     <xtce:ParameterRefEntry parameterRef="cmd_echo_count"/>
                     <xtce:ParameterRefEntry parameterRef="cmd_echo_status"/>
                     <xtce:ParameterRefEntry parameterRef="SPARE_8"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_10_Packet">
@@ -10568,6 +10577,7 @@
                     <xtce:ParameterRefEntry parameterRef="fs_list_file_177"/>
                     <xtce:ParameterRefEntry parameterRef="fs_list_file_187"/>
                     <xtce:ParameterRefEntry parameterRef="fs_list_file_197"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_12_Packet">
@@ -10595,6 +10605,7 @@
                     <xtce:ParameterRefEntry parameterRef="cmd_bad_type_count"/>
                     <xtce:ParameterRefEntry parameterRef="cmd_echo_source"/>
                     <xtce:ParameterRefEntry parameterRef="cmd_echo_num"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_15_Packet">
@@ -10622,6 +10633,7 @@
                     <xtce:ParameterRefEntry parameterRef="SPARE_8"/>
                     <xtce:ParameterRefEntry parameterRef="log_pub_state"/>
                     <xtce:ParameterRefEntry parameterRef="SPARE_16"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_17_Packet">
@@ -10647,6 +10659,7 @@
                     <xtce:ParameterRefEntry parameterRef="tlm_stream_err_count"/>
                     <xtce:ParameterRefEntry parameterRef="SPARE_8"/>
                     <xtce:ParameterRefEntry parameterRef="SPARE_8"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_18_Packet">
@@ -10661,6 +10674,7 @@
                     <xtce:ParameterRefEntry parameterRef="time_received"/>
                     <xtce:ParameterRefEntry parameterRef="time_pps_count"/>
                     <xtce:ParameterRefEntry parameterRef="time_miss_count"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_20_Packet">
@@ -10681,6 +10695,7 @@
                     <xtce:ParameterRefEntry parameterRef="log_params_1"/>
                     <xtce:ParameterRefEntry parameterRef="log_params_2"/>
                     <xtce:ParameterRefEntry parameterRef="log_params_3"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_22_Packet">
@@ -10756,6 +10771,7 @@
                     <xtce:ParameterRefEntry parameterRef="os_task_cpu_usage_sc_tlm"/>
                     <xtce:ParameterRefEntry parameterRef="os_task_cpu_max_sc_tlm"/>
                     <xtce:ParameterRefEntry parameterRef="os_task_exec_cnt_sc_tlm"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_23_Packet">
@@ -10776,6 +10792,7 @@
                     <xtce:ParameterRefEntry parameterRef="task_hk_stk_max"/>
                     <xtce:ParameterRefEntry parameterRef="task_hk_id"/>
                     <xtce:ParameterRefEntry parameterRef="task_hk_priority"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_24_Packet">
@@ -10801,6 +10818,7 @@
                     <xtce:ParameterRefEntry parameterRef="tec_volt"/>
                     <xtce:ParameterRefEntry parameterRef="tec_avg_curr"/>
                     <xtce:ParameterRefEntry parameterRef="tec_curr"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_25_Packet">
@@ -10826,6 +10844,7 @@
                     <xtce:ParameterRefEntry parameterRef="ccd_dac_dd_ccd"/>
                     <xtce:ParameterRefEntry parameterRef="ccd_dac_clkhi_ccd"/>
                     <xtce:ParameterRefEntry parameterRef="ccd_dac_clklo_ccd"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_28_Packet">
@@ -10868,6 +10887,7 @@
                     <xtce:ParameterRefEntry parameterRef="fs_vol_free_sector"/>
                     <xtce:ParameterRefEntry parameterRef="fs_vol_used_sector"/>
                     <xtce:ParameterRefEntry parameterRef="fs_vol_tot_sector"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_29_Packet">
@@ -10885,6 +10905,7 @@
                     <xtce:ParameterRefEntry parameterRef="os_trace_params_1"/>
                     <xtce:ParameterRefEntry parameterRef="os_trace_params_2"/>
                     <xtce:ParameterRefEntry parameterRef="os_trace_params_3"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_30_Packet">
@@ -10915,6 +10936,7 @@
                     <xtce:ParameterRefEntry parameterRef="bct_tlm_time_pps_tai"/>
                     <xtce:ParameterRefEntry parameterRef="SPARE_16"/>
                     <xtce:ParameterRefEntry parameterRef="bct_tlm_time_checksum"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_31_Packet">
@@ -10925,6 +10947,7 @@
                 </xtce:BaseContainer>
                 <xtce:EntryList>
                     <xtce:ParameterRefEntry parameterRef="fsw_mode"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_32_Packet">
@@ -10952,6 +10975,7 @@
                     <xtce:ParameterRefEntry parameterRef="img_biasStatus_13"/>
                     <xtce:ParameterRefEntry parameterRef="img_biasStatus_14"/>
                     <xtce:ParameterRefEntry parameterRef="img_biasStatus_15"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_33_Packet">
@@ -10988,6 +11012,7 @@
                     <xtce:ParameterRefEntry parameterRef="img_pos_error_1_noproc"/>
                     <xtce:ParameterRefEntry parameterRef="img_pos_error_2_noproc"/>
                     <xtce:ParameterRefEntry parameterRef="img_tai_time_noproc"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_34_Packet">
@@ -11044,6 +11069,7 @@
                     <xtce:ParameterRefEntry parameterRef="tlm_stat_max_bin2d_proc_roi3"/>
                     <xtce:ParameterRefEntry parameterRef="tlm_stat_mean_bin2d_proc_roi3"/>
                     <xtce:ParameterRefEntry parameterRef="tlm_stat_stddev_bin2d_proc_roi3"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_35_Packet">
@@ -11084,6 +11110,7 @@
                     <xtce:ParameterRefEntry parameterRef="tlm_stat_max_bias_proc_over"/>
                     <xtce:ParameterRefEntry parameterRef="tlm_stat_mean_bias_proc_over"/>
                     <xtce:ParameterRefEntry parameterRef="tlm_stat_stddev_bias_proc_over"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_36_Packet">
@@ -11136,6 +11163,7 @@
                     <xtce:ParameterRefEntry parameterRef="tlm_stat_max_dark_proc_over"/>
                     <xtce:ParameterRefEntry parameterRef="tlm_stat_mean_dark_proc_over"/>
                     <xtce:ParameterRefEntry parameterRef="tlm_stat_stddev_dark_proc_over"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_37_Packet">
@@ -11243,6 +11271,7 @@
                     <xtce:ParameterRefEntry parameterRef="tlm_stat_mean_ospec2d_proc_roi3"/>
                     <xtce:ParameterRefEntry parameterRef="tlm_stat_stddev_ospec2d_proc_roi3"/>
                     <xtce:ParameterRefEntry parameterRef="img_outSpcProcCenter"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_38_Packet">
@@ -11309,6 +11338,7 @@
                     <xtce:ParameterRefEntry parameterRef="tlm_stat_stddev_spc1d_proc_over"/>
                     <xtce:ParameterRefEntry parameterRef="img_spc1dProcCenter"/>
                     <xtce:ParameterRefEntry parameterRef="img_spc1dRawCenter"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_39_Packet">
@@ -11361,6 +11391,7 @@
                     <xtce:ParameterRefEntry parameterRef="tlm_stat_max_trim2d_proc_roi3"/>
                     <xtce:ParameterRefEntry parameterRef="tlm_stat_mean_trim2d_proc_roi3"/>
                     <xtce:ParameterRefEntry parameterRef="tlm_stat_stddev_trim2d_proc_roi3"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_40_Packet">
@@ -11398,6 +11429,7 @@
                     <xtce:ParameterRefEntry parameterRef="img_pos_error_2_cross_d"/>
                     <xtce:ParameterRefEntry parameterRef="img_tai_time_cross_d"/>
                     <xtce:ParameterRefEntry parameterRef="img_cross_d_center"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_41_Packet">
@@ -12400,6 +12432,7 @@
                     <xtce:ParameterRefEntry parameterRef="img_frame_data_NOPROC_986"/>
                     <xtce:ParameterRefEntry parameterRef="img_frame_data_NOPROC_987"/>
                     <xtce:ParameterRefEntry parameterRef="img_frame_cksm_NOPROC"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_42_Packet">
@@ -13402,6 +13435,7 @@
                     <xtce:ParameterRefEntry parameterRef="img_frame_data_BIN2D_986"/>
                     <xtce:ParameterRefEntry parameterRef="img_frame_data_BIN2D_987"/>
                     <xtce:ParameterRefEntry parameterRef="img_frame_cksm_BIN2D"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_43_Packet">
@@ -14404,6 +14438,7 @@
                     <xtce:ParameterRefEntry parameterRef="img_frame_data_BIAS_986"/>
                     <xtce:ParameterRefEntry parameterRef="img_frame_data_BIAS_987"/>
                     <xtce:ParameterRefEntry parameterRef="img_frame_cksm_BIAS"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_44_Packet">
@@ -15406,6 +15441,7 @@
                     <xtce:ParameterRefEntry parameterRef="img_frame_data_DARK_986"/>
                     <xtce:ParameterRefEntry parameterRef="img_frame_data_DARK_987"/>
                     <xtce:ParameterRefEntry parameterRef="img_frame_cksm_DARK"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_45_Packet">
@@ -16408,6 +16444,7 @@
                     <xtce:ParameterRefEntry parameterRef="img_frame_data_OSPEC2D_986"/>
                     <xtce:ParameterRefEntry parameterRef="img_frame_data_OSPEC2D_987"/>
                     <xtce:ParameterRefEntry parameterRef="img_frame_cksm_OSPEC2D"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_46_Packet">
@@ -17410,6 +17447,7 @@
                     <xtce:ParameterRefEntry parameterRef="img_frame_data_SPEC1D_986"/>
                     <xtce:ParameterRefEntry parameterRef="img_frame_data_SPEC1D_987"/>
                     <xtce:ParameterRefEntry parameterRef="img_frame_cksm_SPEC1D"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_47_Packet">
@@ -18412,6 +18450,7 @@
                     <xtce:ParameterRefEntry parameterRef="img_frame_data_TRIM2D_986"/>
                     <xtce:ParameterRefEntry parameterRef="img_frame_data_TRIM2D_987"/>
                     <xtce:ParameterRefEntry parameterRef="img_frame_cksm_TRIM2D"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
             <xtce:SequenceContainer name="APID_48_Packet">
@@ -19414,6 +19453,7 @@
                     <xtce:ParameterRefEntry parameterRef="img_frame_data_CROSSD_986"/>
                     <xtce:ParameterRefEntry parameterRef="img_frame_data_CROSSD_987"/>
                     <xtce:ParameterRefEntry parameterRef="img_frame_cksm_CROSSD"/>
+                    <xtce:ParameterRefEntry parameterRef="packet_checksum"/>
                 </xtce:EntryList>
             </xtce:SequenceContainer>
         </xtce:ContainerSet>

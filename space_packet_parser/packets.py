@@ -217,8 +217,8 @@ def create_ccsds_packet(data=b"\x00",
                         secondary_header_flag=0,
                         apid=2047,  # 2047 is defined as a fill packet in the CCSDS spec
                         sequence_flags=SequenceFlags.UNSEGMENTED,
-                        sequence_count=0):
-    """Create a binary CCSDS packet.
+                        sequence_count=0) -> RawPacketData:
+    """Create a binary CCSDS packet from input values.
 
     Pack the header fields into the proper bit locations and append the data bytes.
 
@@ -238,6 +238,11 @@ def create_ccsds_packet(data=b"\x00",
         CCSDS Packet Sequence Flags (2 bits)
     sequence_count : int
         CCSDS Packet Sequence Count (14 bits)
+
+    Returns
+    -------
+    : RawPacketData
+        Resulting binary packet
     """
     if version_number < 0 or version_number > 7:  # 3 bits
         raise ValueError("version_number must be between 0 and 7")

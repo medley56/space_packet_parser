@@ -25,6 +25,8 @@ Release notes for the `space_packet_parser` library
     ``definition.packet_generator(data, combine_segmented_packets=True, secondary_header_bytes=4)``
 - Add a command line interface (spp) to enable quick and easy access to
   some common tasks and utilities.
+- Add function to directly create an `xarray.DataSet` from a packet file and XTCE definition.
+  e.g. `space_packet_parser.xarr.create_dataset([packets1, packets2, ...], definition)`
 
 ### v5.0.1 (released)
 - BUGFIX: Allow raw_value representation for enums with falsy raw values. Previously these defaulted to the enum label.

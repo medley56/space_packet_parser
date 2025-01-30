@@ -482,7 +482,8 @@ class XtcePacketDefinition:
 
             if packet.raw_data.pos != len(packet.raw_data) * 8:
                 warnings.warn(f"Number of bits parsed ({packet.raw_data.pos}b) did not match "
-                              f"the length of data available ({len(packet.raw_data) * 8}b).")
+                              f"the length of data available ({len(packet.raw_data) * 8}b) for packet with APID "
+                              f"{packet.raw_data.apid}.")
 
                 if not parse_bad_pkts:
                     logger.warning(f"Skipping (not yielding) bad packet with apid {raw_packet_data.apid}.")
