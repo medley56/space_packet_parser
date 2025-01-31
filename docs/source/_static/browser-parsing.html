@@ -72,7 +72,8 @@ All data stays local and never gets sent to an external server.
             return;
         }
 
-        const xtceFileText = await xtceFile.text();
+        const xtceArrayBuffer = await xtceFile.arrayBuffer();
+        const xtceUint8Array = new Uint8Array(xtceArrayBuffer);
 
         // Read the file as binary using FileReader and ArrayBuffer
         const arrayBuffer = await packetFile.arrayBuffer();
@@ -88,7 +89,7 @@ All data stays local and never gets sent to an external server.
         // Pass the binary file content to Python by setting a Python global variable
         pyodide.globals.set('packet_content', uint8Array);
         // also pass in the XTCE file content
-        pyodide.globals.set('xtce_content', xtceFileText);
+        pyodide.globals.set('xtce_content', xtceUint8Array);
 
         // Execute Python code to simulate opening a binary file
         await pyodide.runPythonAsync(`
@@ -97,10 +98,10 @@ All data stays local and never gets sent to an external server.
 
             # Create an in-memory binary file using io.BytesIO
             packet_file_obj = io.BytesIO(packet_content.to_py())
-            xtce_file_obj = io.StringIO(xtce_content)
+            xtce_file_obj = io.BytesIO(xtce_content.to_py())
             packet_def = XtcePacketDefinition(xtce_file_obj)
             # print(xtce_file_obj.read())
-            packet_parser = PacketParser(packet_def)
+            #packet_parser = PacketParser(packet_def)
 
             count = 0
             packet_generator = packet_def.packet_generator(packet_file_obj)
