@@ -70,7 +70,7 @@ jobs:
           path: dist/
 
       - name: Publish distribution artifacts 📦 to PyPI
-        uses: pypa/gh-action-pypi-publish@v1.8.10
+        uses: pypa/gh-action-pypi-publish@v1.12.4
 
   # Job that pushes dist artifacts to TestPyPI for test release tags
   # This will fail if the version (according to package metadata) has already been pushed
@@ -96,7 +96,7 @@ jobs:
           path: dist/
 
       - name: Publish distribution artifacts 📦 to TestPyPI
-        uses: pypa/gh-action-pypi-publish@v1.8.10
+        uses: pypa/gh-action-pypi-publish@v1.12.4
         with:
           repository-url: https://test.pypi.org/legacy/
 
