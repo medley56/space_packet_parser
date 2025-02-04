@@ -2,12 +2,12 @@
 """Calibrator definitions"""
 from abc import ABCMeta, abstractmethod
 from collections import namedtuple
-from typing import List, Union
+from typing import Union
 
 import lxml.etree as ElementTree
 
-from space_packet_parser.exceptions import CalibrationError
 from space_packet_parser import comparisons
+from space_packet_parser.exceptions import CalibrationError
 
 
 class Calibrator(comparisons.AttrComparable, metaclass=ABCMeta):
@@ -286,7 +286,7 @@ class ContextCalibrator(comparisons.AttrComparable):
         self.calibrator = calibrator
 
     @staticmethod
-    def get_context_match_criteria(element: ElementTree.Element, ns: dict) -> List[comparisons.MatchCriteria]:
+    def get_context_match_criteria(element: ElementTree.Element, ns: dict) -> list[comparisons.MatchCriteria]:
         """Parse contextual requirements from a Comparison, ComparisonList, or BooleanExpression
 
         Parameters

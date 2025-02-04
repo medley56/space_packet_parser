@@ -1,14 +1,14 @@
 """Matching logical objects"""
+import inspect
+import warnings
 from abc import ABCMeta, abstractmethod
 from collections import namedtuple
-import inspect
 from typing import Any, Optional, Union
-import warnings
 
 import lxml.etree as ElementTree
 
-from space_packet_parser.exceptions import ComparisonError
 from space_packet_parser import packets
+from space_packet_parser.exceptions import ComparisonError
 
 
 # Common comparable mixin
@@ -379,13 +379,13 @@ class Condition(MatchCriteria):
 class Anded(namedtuple('Anded', ['conditions', 'ors'])):
     """Tuple object for AND operations in BooleanExpression"""
     def __repr__(self):
-        return " && ".join((str(c) for c in self.conditions))
+        return " && ".join(str(c) for c in self.conditions)
 
 
 class Ored(namedtuple('Ored', ['conditions', 'ands'])):
     """Tuple object for OR operations in BooleanExpression"""
     def __repr__(self):
-        return " || ".join((str(c) for c in self.conditions))
+        return " || ".join(str(c) for c in self.conditions)
 
 
 class BooleanExpression(MatchCriteria):

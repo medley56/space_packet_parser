@@ -1,11 +1,12 @@
 """DataEncoding definitions"""
 # Standard
-from abc import ABCMeta, abstractmethod
 import logging
 import struct
-from typing import List, Optional, Union
+from abc import ABCMeta, abstractmethod
+from typing import Optional, Union
 
 import lxml.etree as ElementTree
+
 # Local
 from space_packet_parser import calibrators, comparisons, packets
 
@@ -60,7 +61,7 @@ class DataEncoding(comparisons.AttrComparable, metaclass=ABCMeta):
 
     @staticmethod
     def get_context_calibrators(
-            data_encoding_element: ElementTree.Element, ns: dict) -> Union[List[calibrators.ContextCalibrator], None]:
+            data_encoding_element: ElementTree.Element, ns: dict) -> Union[list[calibrators.ContextCalibrator], None]:
         """Get the context default_calibrator(s) for the data encoding element
 
         Parameters
@@ -165,20 +166,19 @@ class StringDataEncoding(DataEncoding):
     _supported_encodings = ('US-ASCII', 'ISO-8859-1', 'Windows-1252', 'UTF-8', 'UTF-16',
                             'UTF-16LE', 'UTF-16BE', 'UTF-32', 'UTF-32LE', 'UTF-32BE')
 
-    def __init__(  # pylint: disable=too-many-branches
+    def __init__(
             self,
             *,
             encoding: str = 'UTF-8',
             byte_order: Optional[str] = None,
             fixed_raw_length: Optional[int] = None,
             dynamic_length_reference: Optional[str] = None,
-            discrete_lookup_length: Optional[List[comparisons.DiscreteLookup]] = None,
+            discrete_lookup_length: Optional[list[comparisons.DiscreteLookup]] = None,
             use_calibrated_value: Optional[bool] = True,
             length_linear_adjuster: Optional[callable] = None,
             termination_character: Optional[str] = None,
             leading_length_size: Optional[int] = None
     ):
-        # pylint: disable=pointless-statement
         f"""Constructor
         Only one of termination_character, fixed_length, or leading_length_size should be set. Setting more than one
         is nonsensical.
@@ -469,7 +469,7 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
                  *,
                  byte_order: str = "mostSignificantByteFirst",
                  default_calibrator: Optional[calibrators.Calibrator] = None,
-                 context_calibrators: Optional[List[calibrators.ContextCalibrator]] = None):
+                 context_calibrators: Optional[list[calibrators.ContextCalibrator]] = None):
         """Constructor
 
         Parameters
@@ -613,7 +613,7 @@ class FloatDataEncoding(NumericDataEncoding):
             encoding: str = 'IEEE-754',
             byte_order: str = 'mostSignificantByteFirst',
             default_calibrator: Optional[calibrators.Calibrator] = None,
-            context_calibrators: Optional[List[calibrators.ContextCalibrator]] = None
+            context_calibrators: Optional[list[calibrators.ContextCalibrator]] = None
     ):
         """Constructor
 
@@ -732,7 +732,7 @@ class BinaryDataEncoding(DataEncoding):
                  fixed_size_in_bits: Optional[int] = None,
                  size_reference_parameter: Optional[str] = None,
                  use_calibrated_value: bool = True,
-                 size_discrete_lookup_list: Optional[List[comparisons.DiscreteLookup]] = None,
+                 size_discrete_lookup_list: Optional[list[comparisons.DiscreteLookup]] = None,
                  linear_adjuster: Optional[callable] = None):
         """Constructor
 

@@ -14,17 +14,20 @@ Use
 import logging
 from pathlib import Path
 from typing import Optional
+
 # Installed
 import click
+from rich import pretty
 from rich.console import Console
-from rich.table import Table
 from rich.logging import RichHandler
 from rich.panel import Panel
+from rich.table import Table
 from rich.tree import Tree
-from rich import pretty
+
+from space_packet_parser.definitions import DEFAULT_ROOT_CONTAINER, XtcePacketDefinition
+
 # Local
 from space_packet_parser.packets import ccsds_generator
-from space_packet_parser.definitions import XtcePacketDefinition, DEFAULT_ROOT_CONTAINER
 
 # Initialize a console instance for rich output
 console = Console()
@@ -75,7 +78,6 @@ def describe_xtce(
         root_container: str
 ) -> None:
     """Describe the contents and structure of an XTCE packet definition file."""
-    # pylint: disable=protected-access
     logging.debug(f"Describing XTCE file: {file_path}")
     definition = XtcePacketDefinition(file_path, root_container_name=root_container)
     tree = Tree(definition.root_container_name)
@@ -159,7 +161,7 @@ def describe_packets(file_path: Path) -> None:
 @click.option("--max-items", type=int, default=20, help="Maximum number of items to display")
 @click.option("--max-string", type=int, default=40, help="Maximum length of string data")
 @click.option("--skip-header-bytes", type=int, default=0, help="Number of bytes to skip before each packet")
-def parse(  # pylint: disable=too-many-positional-arguments
+def parse(
         packet_file: Path,
         definition_file: Path,
         packet: Optional[int],

@@ -56,3 +56,6 @@ def test_parsing_from_socket(jpss_test_data_dir):
             packets.append(p)
 
     assert len(packets) == 7200
+    # Cleanup the sockets
+    sender.close()
+    receiver.close()

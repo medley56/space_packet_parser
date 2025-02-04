@@ -9,16 +9,16 @@ parsed content from the data field. This generator is useful for debugging and p
 to other parsing functions.
 """
 
-from dataclasses import dataclass, field
 import datetime as dt
-from functools import cached_property
-from enum import IntEnum
 import io
 import logging
 import socket
 import time
-from typing import BinaryIO, Iterator, List, Optional, Protocol, Union, Tuple
-
+from collections.abc import Iterator
+from dataclasses import dataclass, field
+from enum import IntEnum
+from functools import cached_property
+from typing import BinaryIO, Optional, Protocol, Union
 
 BuiltinDataTypes = Union[bytes, float, int, str]
 logger = logging.getLogger(__name__)
@@ -156,7 +156,7 @@ class RawPacketData(bytes):
         return len(self) - RawPacketData.HEADER_LENGTH_BYTES - 1
 
     @cached_property
-    def header_values(self) -> Tuple[int, ...]:
+    def header_values(self) -> tuple[int, ...]:
         """Convenience property for tuple of header values"""
         return (self.version_number,
                 self.type,
@@ -213,7 +213,7 @@ class RawPacketData(bytes):
 def create_ccsds_packet(data=b"\x00",
                         *,
                         version_number=0,
-                        type=0,  # pylint: disable=redefined-builtin
+                        type=0,
                         secondary_header_flag=0,
                         apid=2047,  # 2047 is defined as a fill packet in the CCSDS spec
                         sequence_flags=SequenceFlags.UNSEGMENTED,
@@ -345,7 +345,7 @@ class SequenceContainer(Parseable):
     base_container_name: Optional[str] = None
     restriction_criteria: Optional[list] = field(default_factory=lambda: [])
     abstract: bool = False
-    inheritors: Optional[List['SequenceContainer']] = field(default_factory=lambda: [])
+    inheritors: Optional[list['SequenceContainer']] = field(default_factory=lambda: [])
 
     def __post_init__(self):
         # Handle the explicit None passing for default values
@@ -361,7 +361,7 @@ class SequenceContainer(Parseable):
             entry.parse(packet=packet)
 
 
-def ccsds_generator(  # pylint: disable=too-many-branches,too-many-statements
+def ccsds_generator(
             binary_data: Union[BinaryIO, socket.socket, bytes],
             *,
             buffer_read_size_bytes: Optional[int] = None,
@@ -423,9 +423,9 @@ def ccsds_generator(  # pylint: disable=too-many-branches,too-many-statements
         read_bytes_from_source = None  # No data to read, we've filled the read_buffer already
         logger.info(f"Creating packet generator from a bytes object. Total length is {total_length_bytes} bytes")
     elif isinstance(binary_data, io.TextIOWrapper):
-        raise IOError("Packet data file opened in TextIO mode. You must open packet data in binary mode.")
+        raise OSError("Packet data file opened in TextIO mode. You must open packet data in binary mode.")
     else:
-        raise IOError(f"Unrecognized data source: {binary_data}")
+        raise OSError(f"Unrecognized data source: {binary_data}")
 
     # ========
     # Packet loop. Each iteration of this loop yields a RawPacketData object
