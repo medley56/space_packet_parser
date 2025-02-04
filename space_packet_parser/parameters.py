@@ -1,11 +1,13 @@
 """ParameterType definitions"""
 # Standard
+import warnings
 from abc import ABCMeta
 from dataclasses import dataclass
 from typing import Optional, Union
-import warnings
+
 # Installed
 import lxml.etree as ElementTree
+
 # Local
 from space_packet_parser import calibrators, comparisons, encodings, packets
 
@@ -83,9 +85,9 @@ class ParameterType(comparisons.AttrComparable, metaclass=ABCMeta):
         # Assume we are not parsing a Time Parameter Type, which stores units differently
         units = parameter_type_element.findall('xtce:UnitSet/xtce:Unit', ns)
         # TODO: Implement multiple unit elements for compound unit definitions
-        assert len(units) <= 1, f"Found {len(units)} <xtce:Unit> elements in a single <xtce:UnitSet>." \
-                                f"This is supported in the standard but is rarely used " \
-                                f"and is not yet supported by this library."
+        if len(units) > 1:
+            raise NotImplementedError(f"Found {len(units)} <xtce:Unit> elements in a single <xtce:UnitSet>."
+                                      f"This is supported in the standard but is not yet supported by this library.")
         if units:
             return " ".join([u.text for u in units])
         # Units are optional so return None if they aren't specified

@@ -1,15 +1,19 @@
 """Module for parsing XTCE xml files to specify packet format"""
 # Standard
 import logging
-from pathlib import Path
 import socket
-from typing import Tuple, Optional, List, TextIO, Dict, Union, BinaryIO, Iterator
 import warnings
+from collections.abc import Iterator
+from pathlib import Path
+from typing import BinaryIO, Optional, TextIO, Union
+
 # Installed
 import lxml.etree as ElementTree
+
+from space_packet_parser import comparisons, packets, parameters
+
 # Local
 from space_packet_parser.exceptions import ElementNotFoundError, InvalidParameterTypeError, UnrecognizedPacketTypeError
-from space_packet_parser import comparisons, parameters, packets
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +60,7 @@ class XtcePacketDefinition:
         self._sequence_container_cache = {}  # Lookup for parsed sequence container objects
         self._parameter_cache = {}  # Lookup for parsed parameter objects
         self._parameter_type_cache = {}  # Lookup for parsed parameter type objects
-        self.tree = ElementTree.parse(xtce_document)
+        self.tree = ElementTree.parse(xtce_document)  # noqa: S320
         self.ns = ns or self.tree.getroot().nsmap
         self.type_tag_to_object = {k.format(**self.ns): v for k, v in
                                    self._tag_to_type_template.items()}
@@ -164,11 +168,11 @@ class XtcePacketDefinition:
         container_contents = sequence_container.find('xtce:EntryList', self.ns).findall('*', self.ns)
 
         for entry in container_contents:
-            if entry.tag == '{{{xtce}}}ParameterRefEntry'.format(**self.ns):  # pylint: disable=consider-using-f-string
+            if entry.tag == '{{{xtce}}}ParameterRefEntry'.format(**self.ns):
                 parameter_name = entry.attrib['parameterRef']
                 entry_list.append(self._parameter_cache[parameter_name])
 
-            elif entry.tag == '{{{xtce}}}ContainerRefEntry'.format(  # pylint: disable=consider-using-f-string
+            elif entry.tag == '{{{xtce}}}ContainerRefEntry'.format(
                     **self.ns):
                 nested_container = self._find_container(name=entry.attrib['containerRef'])
                 entry_list.append(self.parse_sequence_container_contents(nested_container))
@@ -189,17 +193,17 @@ class XtcePacketDefinition:
                                          long_description=long_description)
 
     @property
-    def named_containers(self) -> Dict[str, packets.SequenceContainer]:
+    def named_containers(self) -> dict[str, packets.SequenceContainer]:
         """Property accessor that returns the dict cache of SequenceContainer objects"""
         return self._sequence_container_cache
 
     @property
-    def named_parameters(self) -> Dict[str, parameters.Parameter]:
+    def named_parameters(self) -> dict[str, parameters.Parameter]:
         """Property accessor that returns the dict cache of Parameter objects"""
         return self._parameter_cache
 
     @property
-    def named_parameter_types(self) -> Dict[str, parameters.ParameterType]:
+    def named_parameter_types(self) -> dict[str, parameters.ParameterType]:
         """Property accessor that returns the dict cache of ParameterType objects"""
         return self._parameter_type_cache
 
@@ -249,13 +253,14 @@ class XtcePacketDefinition:
         : ElementTree.Element
         """
         containers = self.container_set.findall(f"./xtce:SequenceContainer[@name='{name}']", self.ns)
-        assert len(containers) == 1, f"Found {len(containers)} matching container_set with name {name}. " \
-                                     f"Container names are expected to exist and be unique."
+        if len(containers) != 1:
+            raise ValueError(f"Found {len(containers)} matching container_set with name {name}. "
+                             f"Container names are expected to exist and be unique.")
         return containers[0]
 
     def _get_container_base_container(
             self,
-            container_element: ElementTree.Element) -> Tuple[ElementTree.Element, List[comparisons.MatchCriteria]]:
+            container_element: ElementTree.Element) -> tuple[ElementTree.Element, list[comparisons.MatchCriteria]]:
         """Examines the container_element and returns information about its inheritance.
 
         Parameters
@@ -354,7 +359,7 @@ class XtcePacketDefinition:
                 partial_data=packet)
         return packet
 
-    def packet_generator(  # pylint: disable=too-many-branches,too-many-statements
+    def packet_generator(
             self,
             binary_data: Union[BinaryIO, socket.socket],
             *,

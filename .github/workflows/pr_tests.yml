@@ -2,32 +2,22 @@ name: Run Style Checks and Test
 on: pull_request
 jobs:
 
-  pycodestyle:
+  linting:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
-      - name: Install pycodestyle
-        run: pip install . pycodestyle
-      - name: Run pycodestyle
-        run: pycodestyle --config=pycodestyle.ini space_packet_parser
-
-  pylint:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repo
-        uses: actions/checkout@v4
-      - name: Install pylint
-        run: pip install . pylint
-      - name: Run pylint
-        run: pylint space_packet_parser
+      - name: Install ruff
+        run: pip install . ruff
+      - name: Run ruff
+        run: ruff check space_packet_parser
 
   ci-tests:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
-        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13-dev']
+        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
     defaults:
       run:
         shell: bash

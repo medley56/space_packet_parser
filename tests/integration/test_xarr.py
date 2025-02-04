@@ -37,6 +37,7 @@ def test_create_xarray_dataset_multiple_files(jpss_test_data_dir):
     assert len(ds[11]["VERSION"]) == 14400
 
 
+@pytest.mark.filterwarnings("ignore:Number of bits parsed")
 def test_create_xarray_dataset_ctim(ctim_test_data_dir, caplog):
     """CTIM data contains many APIDs"""
     packet_file = ctim_test_data_dir / "ccsds_2021_155_14_39_51"

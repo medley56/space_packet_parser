@@ -1,18 +1,20 @@
 """Extras package that supports generating an `xarray.DataSet` directly"""
 # Extras import first since it might fail
 try:
-    import xarray as xr
     import numpy as np
+    import xarray as xr
 except ImportError as ie:
     raise ImportError(
         "Failed to import dependencies for xarray extra. Did you install the [xarray] extras package?"
     ) from ie
 # Standard
 import collections
-from typing import Optional, Union, Iterable
+from collections.abc import Iterable
 from pathlib import Path
+from typing import Optional, Union
+
 # Local
-from space_packet_parser import definitions, parameters, encodings
+from space_packet_parser import definitions, encodings, parameters
 
 
 def _min_dtype_for_encoding(data_encoding: encodings.DataEncoding):
@@ -60,7 +62,7 @@ def _min_dtype_for_encoding(data_encoding: encodings.DataEncoding):
     return datatype
 
 
-def _get_minimum_numpy_datatype(  # noqa: PLR0912 - Too many branches pylint: disable=too-many-branches
+def _get_minimum_numpy_datatype(
         name: str,
         definition: definitions.XtcePacketDefinition,
         use_raw_value: bool = False

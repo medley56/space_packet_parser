@@ -44,12 +44,11 @@ xarray = { version = ">2024.0.0", optional = true }
 numpy = { version = "^2.0.0", optional = true }
 
 [tool.poetry.group.dev.dependencies]
-pycodestyle = "*"
-pylint = "*"
 pytest = "*"
 pytest-randomly = "*"
 pytest-cov = "*"
 pyyaml = "*"
+ruff = "*"
 sphinx = "*"
 myst-parser = "*"
 sphinx-autoapi = "*"
@@ -75,5 +74,11 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
 filterwarnings = [
+    "error",
     "ignore:You are encoding a BooleanParameterType:UserWarning",
 ]
+
+[tool.ruff]
+target-version = "py39"
+line-length = 120
+lint.select = ["E", "F", "I", "S", "W", "PT", "UP"]
