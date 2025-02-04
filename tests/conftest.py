@@ -37,3 +37,9 @@ def clarreo_test_data_dir(test_data_dir):
 def suda_test_data_dir(test_data_dir):
     """SUDA test data directory"""
     return test_data_dir / 'suda'
+
+
+@pytest.fixture
+def idex_test_data_dir(test_data_dir):
+    """IDEX test data directory"""
+    return test_data_dir / 'idex'

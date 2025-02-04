@@ -6,4 +6,5 @@
    developers.md
    changelog.md
    browser-demo.rst
+   benchmarking.md
    autoapi/index.rst

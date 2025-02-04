@@ -15,6 +15,7 @@
 coverage_report
 corbertura_report.xml
 tests/test_data/hidden
+*/.benchmarks
 
 # Local Installation Artifacts #
 ################################

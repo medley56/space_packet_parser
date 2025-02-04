@@ -45,6 +45,7 @@ numpy = { version = "^2.0.0", optional = true }
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"
+pytest-benchmark = "*"
 pytest-randomly = "*"
 pytest-cov = "*"
 pyyaml = "*"
@@ -76,6 +77,7 @@ build-backend = "poetry.core.masonry.api"
 filterwarnings = [
     "error",
     "ignore:You are encoding a BooleanParameterType:UserWarning",
+    "ignore:Number of bits parsed:UserWarning"
 ]
 
 [tool.ruff]
