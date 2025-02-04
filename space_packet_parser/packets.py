@@ -447,8 +447,12 @@ def ccsds_generator(
 
         # Fill buffer enough to parse a header
         while len(read_buffer) - current_pos < skip_header_bytes + RawPacketData.HEADER_LENGTH_BYTES:
-            result = read_bytes_from_source(buffer_read_size_bytes)
-            if not result:  # If there is verifiably no more data to add, break
+            try:
+                result = read_bytes_from_source(buffer_read_size_bytes)
+                if not result:  # If there is verifiably no more data to add, break
+                    break
+            except ConnectionResetError:
+                # Forcibly quit
                 break
             read_buffer += result
         # Skip the header bytes
@@ -463,8 +467,12 @@ def ccsds_generator(
 
         # Fill the buffer enough to read a full packet, taking into account the user data length
         while len(read_buffer) - current_pos < n_bytes_packet:
-            result = read_bytes_from_source(buffer_read_size_bytes)
-            if not result:  # If there is verifiably no more data to add, break
+            try:
+                result = read_bytes_from_source(buffer_read_size_bytes)
+                if not result:  # If there is verifiably no more data to add, break
+                    break
+            except ConnectionResetError:
+                # Forcibly quit
                 break
             read_buffer += result
 
