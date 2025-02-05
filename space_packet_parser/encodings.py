@@ -603,7 +603,8 @@ class IntegerDataEncoding(NumericDataEncoding):
 
 class FloatDataEncoding(NumericDataEncoding):
     """<xtce:FloatDataEncoding>"""
-    _supported_encodings = ['IEEE754_1985', 'IEEE754', 'MILSTD_1750A']
+    _allowed_encodings = ['IEEE754_1985', 'IEEE754', 'MILSTD_1750A', 'DEC', 'IBM', 'TI']
+    _supported_encodings = _allowed_encodings[:3] # this should be expanded if/when support for other float types is added
     _data_return_class = packets.FloatParameter
 
     def __init__(
@@ -632,9 +633,12 @@ class FloatDataEncoding(NumericDataEncoding):
             List of ContextCalibrator objects, containing match criteria and corresponding calibrators to use in
             various scenarios, based on other parameters.
         """
-        if encoding not in self._supported_encodings:
+        if encoding not in self._allowed_encodings:
             raise ValueError(f"Invalid encoding type {encoding} for float data. "
-                             f"Must be one of {self._supported_encodings}.")
+                             f"Must be one of {self._allowed_encodings}.")
+        if encoding not in self._supported_encodings:
+            raise NotImplementedError(f"Although the XTCE spec allows {encoding}-encoded floats, "
+                                      "parsing them is not currently supported.")
         if encoding == 'MILSTD_1750A' and size_in_bits != 32:
             raise ValueError("MIL-1750A encoded floats must be 32 bits, per the MIL-1750A spec. See "
                              "https://www.xgc-tek.com/manuals/mil-std-1750a/c191.html#AEN324")
