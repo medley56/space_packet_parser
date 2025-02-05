@@ -968,7 +968,7 @@ def test_integer_data_encoding(xml_string: str, expectation):
     ('xml_string', 'expectation'),
     [
         ("""
-<xtce:FloatDataEncoding xmlns:xtce="http://www.omg.org/space/xtce" sizeInBits="4" encoding="IEEE-754"/>
+<xtce:FloatDataEncoding xmlns:xtce="http://www.omg.org/space/xtce" sizeInBits="4" encoding="IEEE754"/>
 """,
          ValueError()),
         ("""
@@ -982,7 +982,7 @@ def test_integer_data_encoding(xml_string: str, expectation):
 </xtce:FloatDataEncoding>
 """,
          encodings.FloatDataEncoding(
-             size_in_bits=16, encoding='IEEE-754',
+             size_in_bits=16, encoding='IEEE754',
              default_calibrator=calibrators.PolynomialCalibrator([
                  calibrators.PolynomialCoefficient(0.012155, 1), calibrators.PolynomialCoefficient(2.54, 0)
              ]))),
@@ -1027,7 +1027,7 @@ def test_integer_data_encoding(xml_string: str, expectation):
 </xtce:FloatDataEncoding>
 """,
          encodings.FloatDataEncoding(
-             size_in_bits=16, encoding='IEEE-754',
+             size_in_bits=16, encoding='IEEE754',
              default_calibrator=calibrators.PolynomialCalibrator([
                  calibrators.PolynomialCoefficient(0.012155, 1), calibrators.PolynomialCoefficient(2.54, 0)
              ]),
@@ -1523,7 +1523,7 @@ def test_integer_parameter_parsing(parameter_type, raw_data, current_pos, expect
 </xtce:FloatParameterType>
 """,
          parameters.FloatParameterType(name='TEST_INT_Type', unit='smoot',
-                                       encoding=encodings.FloatDataEncoding(size_in_bits=16, encoding='IEEE-754'))),
+                                       encoding=encodings.FloatDataEncoding(size_in_bits=16, encoding='IEEE754'))),
         ("""
 <xtce:FloatParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_INT_Type">
     <xtce:UnitSet>
@@ -1636,63 +1636,63 @@ def test_float_parameter_type(xml_string: str, expectation):
         # Test values taken from: https://www.xgc-tek.com/manuals/mil-std-1750a/c191.html#AEN324
         (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
-            encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
+            encodings.FloatDataEncoding(32, encoding="MILSTD_1750A")),
          b'\x7f\xff\xff\x7f',
          0.9999998 * (2 ** 127)),
         (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
-            encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
+            encodings.FloatDataEncoding(32, encoding="MILSTD_1750A")),
          b'\x40\x00\x00\x7f',
          0.5 * (2 ** 127)),
         (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
-            encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
+            encodings.FloatDataEncoding(32, encoding="MILSTD_1750A")),
          b'\x50\x00\x00\x04',
          0.625 * (2 ** 4)),
         (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
-            encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
+            encodings.FloatDataEncoding(32, encoding="MILSTD_1750A")),
          b'\x40\x00\x00\x01',
          0.5 * (2 ** 1)),
         (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
-            encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
+            encodings.FloatDataEncoding(32, encoding="MILSTD_1750A")),
          b'\x40\x00\x00\x00',
          0.5 * (2 ** 0)),
         (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
-            encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
+            encodings.FloatDataEncoding(32, encoding="MILSTD_1750A")),
          b'\x40\x00\x00\xff',
          0.5 * (2 ** -1)),
         (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
-            encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
+            encodings.FloatDataEncoding(32, encoding="MILSTD_1750A")),
          b'\x40\x00\x00\x80',
          0.5 * (2 ** -128)),
         (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
-            encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
+            encodings.FloatDataEncoding(32, encoding="MILSTD_1750A")),
          b'\x00\x00\x00\x00',
          0.0 * (2 ** 0)),
         (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
-            encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
+            encodings.FloatDataEncoding(32, encoding="MILSTD_1750A")),
          b'\x80\x00\x00\x00',
          -1.0 * (2 ** 0)),
         (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
-            encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
+            encodings.FloatDataEncoding(32, encoding="MILSTD_1750A")),
          b'\xBF\xFF\xFF\x80',
          -0.5000001 * (2 ** -128)),
         (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
-            encodings.FloatDataEncoding(32, encoding="MIL-1750A")),
+            encodings.FloatDataEncoding(32, encoding="MILSTD_1750A")),
          b'\x9F\xFF\xFF\x04',
          -0.7500001 * (2 ** 4)),
         # Little endian version of previous test
         (parameters.FloatParameterType(
             'MIL_1750A_FLOAT',
-            encodings.FloatDataEncoding(32, encoding="MIL-1750A", byte_order="leastSignificantByteFirst")),
+            encodings.FloatDataEncoding(32, encoding="MILSTD_1750A", byte_order="leastSignificantByteFirst")),
          b'\x04\xFF\xFF\x9F',
          -0.7500001 * (2 ** 4)),
     ]
@@ -1730,7 +1730,7 @@ def test_float_parameter_parsing(parameter_type, raw_data, expected):
         ("""
 <xtce:EnumeratedParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_ENUM_Type">
     <xtce:UnitSet/>
-    <xtce:FloatDataEncoding sizeInBits="32" encoding="IEEE-754"/>
+    <xtce:FloatDataEncoding sizeInBits="32" encoding="IEEE754"/>
     <xtce:EnumerationList>
         <xtce:Enumeration label="BOOT_POR" value="0.0"/>
         <xtce:Enumeration label="BOOT_RETURN" value="1.1"/>
@@ -1741,7 +1741,7 @@ def test_float_parameter_parsing(parameter_type, raw_data, expected):
 </xtce:EnumeratedParameterType>
 """,
          parameters.EnumeratedParameterType(name='TEST_ENUM_Type',
-                                            encoding=encodings.FloatDataEncoding(size_in_bits=32, encoding='IEEE-754'),
+                                            encoding=encodings.FloatDataEncoding(size_in_bits=32, encoding='IEEE754'),
                                             # NOTE: Duplicate final value is on purpose to make sure we handle that case
                                             enumeration={0.0: 'BOOT_POR', 1.1: 'BOOT_RETURN', 2.2: 'OP_LOW', 3.3: 'OP_HIGH',
                                                          4.4: 'OP_HIGH'})),
@@ -1823,7 +1823,7 @@ def test_enumerated_parameter_type(xml_string: str, expectation):
         (parameters.EnumeratedParameterType(name='TEST_FLOAT_ENUM',
                                             encoding=encodings.FloatDataEncoding(
                                                 size_in_bits=32,
-                                                encoding='IEEE-754',
+                                                encoding='IEEE754',
                                                 byte_order="mostSignificantByteFirst"),
                                             # NOTE: Duplicate final value is on purpose to make sure we handle that case
                                             enumeration={0.0: 'BOOT_POR', 3.5: 'BOOT_RETURN', 2.2: 'OP_LOW',
@@ -2160,7 +2160,7 @@ def test_boolean_parameter_parsing(parameter_type, raw_data, current_pos, expect
          parameters.AbsoluteTimeParameterType(
              name='TEST_PARAM_Type', unit='s',
              encoding=encodings.FloatDataEncoding(
-                 size_in_bits=32, encoding="IEEE-754",
+                 size_in_bits=32, encoding="IEEE754",
                  default_calibrator=calibrators.PolynomialCalibrator(
                      coefficients=[
                          calibrators.PolynomialCoefficient(147.884, 0),
@@ -2209,7 +2209,7 @@ def test_absolute_time_parameter_type(xml_string, expectation):
         (parameters.AbsoluteTimeParameterType(
             name='TEST_PARAM_Type', unit='s',
             encoding=encodings.FloatDataEncoding(
-                size_in_bits=32, encoding="IEEE-754",
+                size_in_bits=32, encoding="IEEE754",
                 default_calibrator=calibrators.PolynomialCalibrator(
                     coefficients=[
                         calibrators.PolynomialCoefficient(147.884, 0),

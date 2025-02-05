@@ -77,17 +77,17 @@
                 <xtce:UnitSet>
                     <xtce:Unit>m</xtce:Unit>
                 </xtce:UnitSet>
-                <xtce:FloatDataEncoding sizeInBits="32" encoding="IEEE-754"/>
+                <xtce:FloatDataEncoding sizeInBits="32" encoding="IEEE754"/>
             </xtce:FloatParameterType>
             <xtce:FloatParameterType name="ADGPSVEL_Type">
                 <xtce:UnitSet>
                     <xtce:Unit>m/s</xtce:Unit>
                 </xtce:UnitSet>
-                <xtce:FloatDataEncoding sizeInBits="32" encoding="IEEE-754"/>
+                <xtce:FloatDataEncoding sizeInBits="32" encoding="IEEE754"/>
             </xtce:FloatParameterType>
             <xtce:FloatParameterType name="ADCFAQ_Type">
                 <xtce:UnitSet/>
-                <xtce:FloatDataEncoding sizeInBits="32" encoding="IEEE-754"/>
+                <xtce:FloatDataEncoding sizeInBits="32" encoding="IEEE754"/>
             </xtce:FloatParameterType>
         </xtce:ParameterTypeSet>
         <xtce:ParameterSet>
