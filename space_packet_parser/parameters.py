@@ -1,18 +1,16 @@
 """ParameterType definitions"""
-# Standard
 import warnings
 from abc import ABCMeta
 from dataclasses import dataclass
 from typing import Optional, Union
 
-# Installed
 import lxml.etree as ElementTree
 
-# Local
-from space_packet_parser import calibrators, comparisons, encodings, packets
+from space_packet_parser import calibrators, encodings, mixins, packets
+from space_packet_parser.encodings import StringDataEncoding
 
 
-class ParameterType(comparisons.AttrComparable, metaclass=ABCMeta):
+class ParameterType(mixins.AttrComparable, metaclass=ABCMeta):
     """Abstract base class for XTCE parameter types"""
 
     def __init__(self, name: str, encoding: encodings.DataEncoding, unit: Optional[str] = None):
@@ -63,6 +61,26 @@ class ParameterType(comparisons.AttrComparable, metaclass=ABCMeta):
         unit = cls.get_units(element, ns)
         encoding = cls.get_data_encoding(element, ns)
         return cls(name, encoding, unit)
+
+    def to_parameter_type_xml_element(self, ns: dict) -> ElementTree.Element:
+        """Create a parameter type XML element
+
+        Returns
+        -------
+        : ElementTree.Element
+        """
+        _, xtce_uri = next(iter(ns.items()))
+        xtce = f"{{{xtce_uri}}}"
+        param_type_element = ElementTree.Element(xtce + self.__class__.__name__,
+                                                 attrib={"name": self.name},
+                                                 nsmap=ns)
+        if self.unit:
+            unitset_element = ElementTree.SubElement(param_type_element, xtce + "UnitSet", nsmap=ns)
+            unit_element = ElementTree.SubElement(unitset_element, xtce + "Unit", nsmap=ns)
+            unit_element.text = self.unit
+            param_type_element.append(unitset_element)
+        param_type_element.append(self.encoding.to_data_encoding_xml_element(ns))
+        return param_type_element
 
     @staticmethod
     def get_units(parameter_type_element: ElementTree.Element, ns: dict) -> Union[str, None]:
@@ -214,6 +232,42 @@ class EnumeratedParameterType(ParameterType):
         encoding = cls.get_data_encoding(element, ns)
         enumeration = cls.get_enumeration_list_contents(element, encoding, ns)
         return cls(name, encoding, enumeration=enumeration, unit=unit)
+
+    def to_parameter_type_xml_element(self, ns: dict) -> ElementTree.Element:
+        """Create a parameter type XML element
+
+        Parameters
+        ----------
+        ns : dict
+            XML namespace dict
+
+        Returns
+        -------
+        : ElementTree.Element
+        """
+        _, xtce_uri = next(iter(ns.items()))
+        xtce = f"{{{xtce_uri}}}"
+        param_type_element = ElementTree.Element(xtce + self.__class__.__name__,
+                                                 attrib={"name": self.name},
+                                                 nsmap=ns)
+        if self.unit:
+            unitset_element = ElementTree.SubElement(param_type_element, xtce + "UnitSet", nsmap=ns)
+            unit_element = ElementTree.SubElement(unitset_element, xtce + "Unit", nsmap=ns)
+            unit_element.text = self.unit
+            param_type_element.append(unitset_element)
+        param_type_element.append(self.encoding.to_data_encoding_xml_element(ns))
+        enum_list_element = ElementTree.SubElement(param_type_element, xtce + "EnumerationList", nsmap=ns)
+        for value, label in self.enumeration.items():
+            if isinstance(self.encoding, StringDataEncoding):
+                # If the values are string encoded, we actually store them as bytes, but they need to be decoded
+                # with the string encoding (e.g. UTF-16) for inclusion in the XML
+                value = value.decode(self.encoding.encoding)
+            ElementTree.SubElement(enum_list_element,
+                                   xtce + "Enumeration",
+                                   attrib={"label": label, "value": str(value)},
+                                   nsmap=ns)
+        return param_type_element
+
 
     @staticmethod
     def get_enumeration_list_contents(element: ElementTree.Element, encoding: encodings.DataEncoding, ns: dict) -> dict:
@@ -413,6 +467,61 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
         offset_from = cls.get_offset_from(element, ns)
         return cls(name, encoding, unit=unit, epoch=epoch, offset_from=offset_from)
 
+    def to_parameter_type_xml_element(self, ns: dict) -> ElementTree.Element:
+        """Create a TimeParameterType XML element
+
+        For some reason, Time types have a really different structure than other parameter types so we
+        can't use ParameterType.to_parameter_type_xml_element().
+
+        Parameters
+        ----------
+        ns : dict
+            XML namespace dict
+
+        Returns
+        -------
+        : ElementTree.Element
+        """
+        _, xtce_uri = next(iter(ns.items()))
+        xtce = f"{{{xtce_uri}}}"
+        element = ElementTree.Element(xtce + self.__class__.__name__, attrib={"name": self.name}, nsmap=ns)
+        encoding_attrib = {
+            "units": self.unit
+        }
+        if not isinstance(self.encoding, encodings.NumericDataEncoding):
+            raise ValueError("Only NumericDataEncodings are supported for TimeParameterTypes.")
+        if self.encoding.default_calibrator:
+            if not isinstance(self.encoding.default_calibrator, calibrators.PolynomialCalibrator):
+                raise ValueError("Expected to get a PolynomialCalibrator for TimeParameterType but "
+                                 f"got {self.encoding.default_calibrator}")
+            coefficients = self.encoding.default_calibrator.coefficients
+            scale = [c.coefficient for c in coefficients if c.exponent == 1]
+            offset = [c.coefficient for c in coefficients if c.exponent == 0]
+
+            if scale:
+                encoding_attrib["scale"] = str(scale[0])
+
+            if offset:
+                encoding_attrib["offset"] = str(offset[0])
+
+        encoding = ElementTree.SubElement(element, xtce + "Encoding",
+                                          attrib=encoding_attrib,
+                                          nsmap=ns)
+        encoding.append(self.encoding.to_data_encoding_xml_element(ns))
+        if self.offset_from or self.epoch:
+            reference_time = ElementTree.SubElement(element, xtce + "ReferenceTime", nsmap=ns)
+            if self.offset_from:
+                ElementTree.SubElement(reference_time,
+                                       xtce + "OffsetFrom",
+                                       attrib={"parameterRef": self.offset_from},
+                                       nsmap=ns)
+            if self.epoch:
+                epoch = ElementTree.SubElement(reference_time, xtce + "Epoch", nsmap=ns)
+                epoch.text = str(self.epoch)
+
+        return element
+
+
     @staticmethod
     def get_units(parameter_type_element: ElementTree.Element, ns: dict) -> Union[str, None]:
         """Finds the units associated with a parameter type element and parsed them to return a unit string.
@@ -559,3 +668,30 @@ class Parameter(packets.Parseable):
         Parse the parameter and add it to the packet dictionary.
         """
         packet[self.name] = self.parameter_type.parse_value(packet)
+
+    def to_parameter_xml_element(self, ns: dict) -> ElementTree.Element:
+        """Create a Parameter XML element
+
+        Parameters
+        ----------
+        ns : dict
+            XML namespace dictionary
+
+        Returns
+        -------
+        : ElementTree.Element
+        """
+        _, xtce_uri = next(iter(ns.items()))
+        xtce = f"{{{xtce_uri}}}"
+        element = ElementTree.Element(xtce + "Parameter",
+                                      attrib={
+                                          "name": self.name,
+                                          "parameterTypeRef": self.parameter_type.name,
+                                      },
+                                      nsmap=ns)
+        if self.short_description:
+            element.attrib["shortDescription"] = self.short_description
+        if self.long_description:
+            ld = ElementTree.SubElement(element, xtce + "LongDescription", nsmap=ns)
+            ld.text = self.long_description
+        return element

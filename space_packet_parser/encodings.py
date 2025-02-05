@@ -1,5 +1,4 @@
 """DataEncoding definitions"""
-# Standard
 import logging
 import struct
 import warnings
@@ -8,13 +7,12 @@ from typing import Optional, Union
 
 import lxml.etree as ElementTree
 
-# Local
-from space_packet_parser import calibrators, comparisons, packets
+from space_packet_parser import calibrators, comparisons, mixins, packets
 
 logger = logging.getLogger(__name__)
 
 
-class DataEncoding(comparisons.AttrComparable, metaclass=ABCMeta):
+class DataEncoding(mixins.AttrComparable, metaclass=ABCMeta):
     """Abstract base class for XTCE data encodings"""
 
     @classmethod
@@ -34,6 +32,23 @@ class DataEncoding(comparisons.AttrComparable, metaclass=ABCMeta):
         : DataEncoding
         """
         return NotImplemented
+
+    @abstractmethod
+    def to_data_encoding_xml_element(self, ns: dict) -> ElementTree.Element:
+        """Abstract method to create an XML element from a data encoding object.
+
+        Parameters
+        ----------
+        ns : dict
+            XML namespace mapping from name (key) to URI (value). Used to prepend URIs on to elements for proper naming
+
+        Returns
+        -------
+        : ElementTree.Element
+            The XML element
+        """
+        return NotImplemented
+
 
     @staticmethod
     def get_default_calibrator(data_encoding_element: ElementTree.Element,
@@ -143,7 +158,7 @@ class DataEncoding(comparisons.AttrComparable, metaclass=ABCMeta):
         : int
             Size of the data item in bits.
         """
-        raise NotImplementedError()
+        return NotImplemented
 
     def parse_value(self, packet: packets.CCSDSPacket) -> packets.ParameterDataTypes:
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
@@ -158,7 +173,7 @@ class DataEncoding(comparisons.AttrComparable, metaclass=ABCMeta):
         : packets.ParameterDataTypes
             Derived value with a `raw_value` attribute that can be used to get the original packet data.
         """
-        raise NotImplementedError()
+        return NotImplemented
 
 
 class StringDataEncoding(DataEncoding):
@@ -459,6 +474,65 @@ class StringDataEncoding(DataEncoding):
 
         return cls(**init_kwargs)
 
+    def to_data_encoding_xml_element(self, ns: dict) -> ElementTree.Element:
+        """Create a data encoding XML element
+
+        Returns
+        -------
+        : ElementTree.Element
+        """
+        _, xtce_uri = next(iter(ns.items()))
+        xtce = f"{{{xtce_uri}}}"
+        element = ElementTree.Element(xtce + "StringDataEncoding", attrib={"encoding": self.encoding}, nsmap=ns)
+
+        if self.fixed_length:
+            size_element = ElementTree.SubElement(element, xtce + "SizeInBits", nsmap=ns)
+            fixed = ElementTree.SubElement(size_element, xtce + "Fixed", nsmap=ns)
+            fixed_value = ElementTree.SubElement(fixed, xtce + "FixedValue", nsmap=ns)
+            fixed_value.text = str(self.fixed_length)
+        else:
+            size_element = ElementTree.SubElement(element, xtce + "Variable", nsmap=ns)
+            if self.dynamic_length_reference:
+                dynamic_value_element = ElementTree.SubElement(size_element, xtce + "DynamicValue", nsmap=ns)
+                ElementTree.SubElement(dynamic_value_element,
+                                       xtce + "ParameterInstanceRef",
+                                       attrib={
+                                           "parameterRef": self.dynamic_length_reference,
+                                           "useCalibratedValue": str(self.use_calibrated_value).lower(),
+                                       },
+                                       nsmap=ns)
+                if self.length_linear_adjuster:
+                    intercept = self.length_linear_adjuster(0)  # f(0)
+                    slope = self.length_linear_adjuster(1) - intercept  # ( f(1) - f(0) ) / (1 - 0)
+                    ElementTree.SubElement(dynamic_value_element,
+                                           xtce + "LinearAdjustment",
+                                           attrib={
+                                               "intercept": str(intercept),
+                                               "slope": str(slope)
+                                           },
+                                           nsmap=ns)
+
+            elif self.discrete_lookup_length:
+                discrete_lookup_list_element = ElementTree.SubElement(size_element,
+                                                                      xtce + "DiscreteLookupList",
+                                                                      nsmap=ns)
+                for dl in self.discrete_lookup_length:
+                    discrete_lookup_list_element.append(dl.to_discrete_lookup_xml_element(ns))
+
+            else:
+                raise ValueError("Variable element must contain either DynamicValue or DiscreteLookupList.")
+
+        if self.leading_length_size:
+            ElementTree.SubElement(size_element, xtce + "LeadingSize",
+                                   attrib={"sizeInBitsOfSizeTag": str(self.leading_length_size)},
+                                   nsmap=ns)
+
+        if self.termination_character:
+            tchar_element = ElementTree.SubElement(size_element, xtce + "TerminationChar", nsmap=ns)
+            tchar_element.text = self.termination_character.hex()
+
+        return element
+
 
 class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
     """Abstract class that is inherited by IntegerDataEncoding and FloatDataEncoding"""
@@ -515,7 +589,7 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
         : int
             Raw value
         """
-        raise NotImplementedError()
+        return NotImplemented
 
     @staticmethod
     def _twos_complement(val: int, bit_width: int) -> int:
@@ -555,6 +629,34 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
             return packets.FloatParameter(calibrated_value, parsed_value)
         # No calibrations applied, we need to determine if it's an int or a float encoding calling this routine
         return self._data_return_class(parsed_value)
+
+    def to_data_encoding_xml_element(self, ns: dict) -> ElementTree.Element:
+        """Create a data encoding XML element
+
+        Returns
+        -------
+        : ElementTree.Element
+        """
+        _, xtce_uri = next(iter(ns.items()))
+        xtce = f"{{{xtce_uri}}}"
+        element = ElementTree.Element(xtce + self.__class__.__name__,
+                                      attrib={
+                                          "sizeInBits": str(self.size_in_bits),
+                                          "encoding": self.encoding,
+                                          "byteOrder": self.byte_order
+                                      },
+                                      nsmap=ns)
+
+        if self.default_calibrator:
+            default_calibrator_element = ElementTree.SubElement(element, xtce + "DefaultCalibrator", nsmap=ns)
+            default_calibrator_element.append(self.default_calibrator.to_calibrator_xml_element(ns))
+
+        if self.context_calibrators:
+            context_calibrator_list_element = ElementTree.SubElement(element, xtce + "ContextCalibratorList", nsmap=ns)
+            for cal in self.context_calibrators:
+                context_calibrator_list_element.append(cal.to_context_calibrator_xml_element(ns))
+
+        return element
 
 
 class IntegerDataEncoding(NumericDataEncoding):
@@ -861,3 +963,49 @@ class BinaryDataEncoding(DataEncoding):
 
         raise ValueError("Tried parsing a binary parameter length using Fixed, Dynamic, and DiscreteLookupList "
                          "but failed. See 3.4.5 of the XTCE Green Book CCSDS 660.1-G-2.")
+
+    def to_data_encoding_xml_element(self, ns: dict) -> ElementTree.Element:
+        """Create a data encoding XML element
+
+        Parameters
+        ----------
+        ns : dict
+            XML namespace dict
+
+        Returns
+        -------
+        : ElementTree.Element
+        """
+        _, xtce_uri = next(iter(ns.items()))
+        xtce = f"{{{xtce_uri}}}"
+        element = ElementTree.Element(xtce + "BinaryDataEncoding", nsmap=ns)
+        size_in_bits = ElementTree.SubElement(element, xtce + "SizeInBits", nsmap=ns)
+
+        if self.fixed_size_in_bits:
+            fixed_value = ElementTree.SubElement(size_in_bits, xtce + "FixedValue", nsmap=ns)
+            fixed_value.text = str(self.fixed_size_in_bits)
+            return element
+
+        if self.size_reference_parameter:
+            dynamic_value = ElementTree.SubElement(size_in_bits, xtce + "DynamicValue", nsmap=ns)
+            ElementTree.SubElement(dynamic_value,
+                                   xtce + "ParameterInstanceRef",
+                                   attrib={
+                                       "parameterRef": self.size_reference_parameter,
+                                       "useCalibratedValue": str(self.use_calibrated_value).lower()
+                                   },
+                                   nsmap=ns)
+            if self.linear_adjuster:
+                intercept = self.linear_adjuster(0)
+                slope = self.linear_adjuster(1) - intercept
+                ElementTree.SubElement(dynamic_value,
+                                       xtce + "LinearAdjustment",
+                                       attrib={"intercept": str(intercept), "slope": str(slope)},
+                                       nsmap=ns)
+
+        if self.size_discrete_lookup_list:
+            discrete_lookup = ElementTree.SubElement(size_in_bits, xtce + "DiscreteLookupList", nsmap=ns)
+            for dl in self.size_discrete_lookup_list:
+                discrete_lookup.append(dl.to_discrete_lookup_xml_element(ns))
+
+        return element

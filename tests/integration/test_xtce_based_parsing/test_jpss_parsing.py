@@ -7,7 +7,7 @@ from space_packet_parser import packets
 def test_jpss_xtce_packet_parsing(jpss_test_data_dir):
     """Test parsing a real XTCE document"""
     jpss_xtce = jpss_test_data_dir / 'jpss1_geolocation_xtce_v1.xml'
-    jpss_definition = definitions.XtcePacketDefinition(xtce_document=jpss_xtce)
+    jpss_definition = definitions.XtcePacketDefinition.from_document(xtce_document=jpss_xtce)
     assert isinstance(jpss_definition, definitions.XtcePacketDefinition)
     assert jpss_definition.named_parameters['USEC'].short_description == "Secondary Header Fine Time (microsecond)"
     assert jpss_definition.named_parameters['USEC'].long_description == "CCSDS Packet 2nd Header Fine Time in microseconds."

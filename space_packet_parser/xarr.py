@@ -7,13 +7,12 @@ except ImportError as ie:
     raise ImportError(
         "Failed to import dependencies for xarray extra. Did you install the [xarray] extras package?"
     ) from ie
-# Standard
+
 import collections
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Optional, Union
 
-# Local
 from space_packet_parser import definitions, encodings, parameters
 
 
@@ -150,7 +149,7 @@ def create_dataset(
     packet_generator_kwargs = packet_generator_kwargs or {}
 
     if not isinstance(xtce_packet_definition, definitions.XtcePacketDefinition):
-        xtce_packet_definition = definitions.XtcePacketDefinition(xtce_packet_definition)
+        xtce_packet_definition = definitions.XtcePacketDefinition.from_document(xtce_packet_definition)
 
     if isinstance(packet_files, (str, Path)):
         packet_files = [packet_files]

@@ -1,4 +1,3 @@
-
 """Packet containers and parsing utilities for space packets.
 
 The parsing begins with binary data representing CCSDS Packets. A user can then create a generator
@@ -8,7 +7,6 @@ class can be used to inspect the CCSDS header fields of the packet, but it does 
 parsed content from the data field. This generator is useful for debugging and passing off
 to other parsing functions.
 """
-
 import datetime as dt
 import io
 import logging
@@ -19,6 +17,8 @@ from dataclasses import dataclass, field
 from enum import IntEnum
 from functools import cached_property
 from typing import BinaryIO, Optional, Protocol, Union
+
+import lxml.etree as ElementTree
 
 BuiltinDataTypes = Union[bytes, float, int, str]
 logger = logging.getLogger(__name__)
@@ -359,6 +359,58 @@ class SequenceContainer(Parseable):
         """
         for entry in self.entry_list:
             entry.parse(packet=packet)
+
+    def to_sequence_container_xml_element(self, ns: dict) -> ElementTree.Element:
+        """Create a SequenceContainer XML element
+
+        Parameters
+        ----------
+        ns : dict
+            XML namespace dict
+
+        Returns
+        -------
+        : ElementTree.Element
+        """
+        _, xtce_uri = next(iter(ns.items()))
+        xtce = f"{{{xtce_uri}}}"
+        element = ElementTree.Element(xtce + "SequenceContainer",
+                                      attrib={
+                                          "abstract": str(self.abstract).lower(),
+                                          "name": self.name
+                                      },
+                                      nsmap=ns)
+        if self.short_description:
+            element.attrib["shortDescription"] = self.short_description
+
+        if self.long_description:
+            ld = ElementTree.SubElement(element, xtce + "LongDescription", nsmap=ns)
+            ld.text = self.long_description
+
+        if self.base_container_name:
+            base_container = ElementTree.SubElement(element,
+                                                    xtce + "BaseContainer",
+                                                    attrib={"containerRef": self.base_container_name},
+                                                    nsmap=ns)
+            if self.restriction_criteria:
+                restriction_criteria = ElementTree.SubElement(base_container,
+                                                              xtce + "RestrictionCriteria",
+                                                              nsmap=ns)
+                if len(self.restriction_criteria) == 1:
+                    restriction_criteria.append(self.restriction_criteria[0].to_match_criteria_xml_element())
+                else:
+                    comp_list = ElementTree.SubElement(restriction_criteria, xtce + "ComparisonList", nsmap=ns)
+                    for comp in self.restriction_criteria:
+                        comp_list.append(comp.to_match_criteria_xml_element(ns))
+
+        entry_list = ElementTree.SubElement(element, xtce + "EntryList", nsmap=ns)
+        for entry in self.entry_list:
+            ElementTree.SubElement(entry_list,
+                                   xtce + "ParameterRefEntry",
+                                   attrib={"parameterRef": entry.name},
+                                   nsmap=ns)
+
+        return element
 
 
 def ccsds_generator(

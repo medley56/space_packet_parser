@@ -1,19 +1,17 @@
 """Module for parsing XTCE xml files to specify packet format"""
-# Standard
 import logging
 import socket
 import warnings
 from collections.abc import Iterator
+from datetime import datetime
 from pathlib import Path
 from typing import BinaryIO, Optional, TextIO, Union
 
-# Installed
 import lxml.etree as ElementTree
 
 from space_packet_parser import comparisons, packets, parameters
-
-# Local
 from space_packet_parser.exceptions import ElementNotFoundError, InvalidParameterTypeError, UnrecognizedPacketTypeError
+from space_packet_parser.xtce import XTCE_NSMAP
 
 logger = logging.getLogger(__name__)
 
@@ -36,11 +34,112 @@ class XtcePacketDefinition:
 
     def __init__(
             self,
+            *,
+            sequence_container_list: Optional[list[packets.SequenceContainer]] = None,
+            ns: dict = XTCE_NSMAP,
+            root_container_name: Optional[str] = DEFAULT_ROOT_CONTAINER,
+            space_system_name: Optional[str] = None,
+            xtce_version: str = "1.0",
+            author: Optional[str] = None
+    ):
+        f"""
+
+        Parameters
+        ----------
+        sequence_container_list : Optional[list[packets.SequenceContainer]]
+            List of SequenceContainer objects, containing entry lists of Parameter objects, which contain their
+            ParameterTypes.
+        ns : dict
+            XML namespace, expected as a single entry dictionary with the key being the namespace label and the
+            value being the namespace URI. Default {XTCE_NSMAP}
+        root_container_name : Optional[str]
+            Name of root sequence container (where to start parsing)
+        space_system_name : Optional[str]
+            Name of space system to encode in XML when serializing.
+        xtce_version : str
+            Default "1.0"
+        author : Optional[str]
+            Optional author name to include in XML when serializing.
+        """
+        self._parameter_type_cache = {}
+        self._parameter_cache = {}
+        self._sequence_container_cache = {}
+
+        if sequence_container_list:
+            for sc in sequence_container_list:
+                self._parameter_type_cache.update({p.parameter_type.name: p.parameter_type for p in sc.entry_list})
+                self._parameter_cache.update({p.name: p for p in sc.entry_list})
+            self._sequence_container_cache.update({sc.name: sc for sc in sequence_container_list})
+
+        self.ns = ns
+        self.root_container_name = root_container_name
+        self.space_system_name = space_system_name
+        self.xtce_version = xtce_version
+        self.author = author
+        self.type_tag_to_object = {k.format(**self.ns): v for k, v in
+                                   self._tag_to_type_template.items()}
+        self.tree = self._initialize_xml_tree()
+
+    def _initialize_xml_tree(self) -> ElementTree.ElementTree:
+        """Initializes and returns an ElementTree object based on parameter type, parameter, and container information
+
+        Returns
+        -------
+        : ElementTree.ElementTree
+        """
+        xtce_label, xtce_uri = next(iter(self.ns.items()))
+        xtce = f"{{{xtce_uri}}}"
+        tree = ElementTree.ElementTree(ElementTree.XML(
+f"""<?xml version='1.0' encoding='UTF-8'?>
+<xtce:SpaceSystem xmlns:{xtce_label}="{xtce_uri}"/>""".encode()
+        ))
+
+        if self._sequence_container_cache and self._parameter_type_cache and self._parameter_cache:
+            space_system_root = tree.getroot()
+            if self.space_system_name:
+                space_system_root.attrib["name"] = self.space_system_name
+
+            header = ElementTree.SubElement(space_system_root, xtce + "Header",
+                                            attrib={
+                                                "date": datetime.now().isoformat(),
+                                                "version": self.xtce_version
+                                            },
+                                            nsmap=self.ns)
+            if self.author:
+                header.attrib["author"] = self.author
+
+            telemetry_metadata_element = ElementTree.SubElement(space_system_root,
+                                                                xtce + "TelemetryMetaData",
+                                                                nsmap=self.ns)
+
+            parameter_type_set = ElementTree.SubElement(telemetry_metadata_element,
+                                                        xtce + "ParameterTypeSet",
+                                                        nsmap=self.ns)
+            for _, ptype in self._parameter_type_cache.items():
+                parameter_type_set.append(ptype.to_parameter_type_xml_element(self.ns))
+
+            parameter_set = ElementTree.SubElement(telemetry_metadata_element,
+                                                   xtce + "ParameterSet",
+                                                   nsmap=self.ns)
+            for _, param in self._parameter_cache.items():
+                parameter_set.append(param.to_parameter_xml_element(self.ns))
+
+            sequence_container_set = ElementTree.SubElement(telemetry_metadata_element,
+                                                            xtce + "ContainerSet",
+                                                            nsmap=self.ns)
+            for _, sc in self._sequence_container_cache.items():
+                sequence_container_set.append(sc.to_sequence_container_xml_element(self.ns))
+
+        return tree
+
+    @classmethod
+    def from_document(
+            cls,
             xtce_document: Union[str, Path, TextIO],
             *,
             ns: Optional[dict] = None,
             root_container_name: Optional[str] = DEFAULT_ROOT_CONTAINER
-    ) -> None:
+    ) -> 'XtcePacketDefinition':
         """Instantiate an object representation of a CCSDS packet definition, according to a format specified in an XTCE
         XML document. The parser iteratively builds sequences of parameters according to the
         SequenceContainers specified in the XML document's ContainerSet element. The notions of container inheritance
@@ -57,18 +156,16 @@ class XtcePacketDefinition:
         root_container_name : Optional[str]
             Optional override to the root container name. Default is 'CCSDSPacket'.
         """
-        self._sequence_container_cache = {}  # Lookup for parsed sequence container objects
-        self._parameter_cache = {}  # Lookup for parsed parameter objects
-        self._parameter_type_cache = {}  # Lookup for parsed parameter type objects
-        self.tree = ElementTree.parse(xtce_document)  # noqa: S320
-        self.ns = ns or self.tree.getroot().nsmap
-        self.type_tag_to_object = {k.format(**self.ns): v for k, v in
-                                   self._tag_to_type_template.items()}
-        self.root_container_name = root_container_name
+        tree = ElementTree.parse(xtce_document)  # noqa: S320
+        ns = ns or tree.getroot().nsmap
+        xtce_definition = cls(ns=ns, root_container_name=root_container_name)
+        xtce_definition.tree = tree  # noqa: S320
 
-        self._populate_parameter_type_cache()
-        self._populate_parameter_cache()
-        self._populate_sequence_container_cache()
+        xtce_definition._populate_parameter_type_cache()
+        xtce_definition._populate_parameter_cache()
+        xtce_definition._populate_sequence_container_cache()
+
+        return xtce_definition
 
     def __getitem__(self, item):
         return self._sequence_container_cache[item]

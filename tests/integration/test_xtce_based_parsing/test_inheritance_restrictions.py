@@ -7,7 +7,7 @@ from space_packet_parser import packets
 def test_jpss_xtce_packet_parsing(jpss_test_data_dir):
     """Test parsing a real XTCE document"""
     jpss_xtce = jpss_test_data_dir / 'contrived_inheritance_structure.xml'
-    jpss_definition = definitions.XtcePacketDefinition(xtce_document=jpss_xtce)
+    jpss_definition = definitions.XtcePacketDefinition.from_document(xtce_document=jpss_xtce)
     assert isinstance(jpss_definition, definitions.XtcePacketDefinition)
 
     jpss_packet_file = jpss_test_data_dir / 'J01_G011_LZ_2021-04-09T00-00-00Z_V01.DAT1'

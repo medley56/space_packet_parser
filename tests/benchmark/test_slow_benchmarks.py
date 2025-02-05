@@ -14,7 +14,7 @@ from space_packet_parser import definitions, packets
 def test_benchmark_complex_xtce_definition_parsing(benchmark, suda_test_data_dir):
     """Benchmark the time it takes to parse a specific, relatively complex XTCE packet definition document"""
     definition: definitions.XtcePacketDefinition = benchmark(
-        definitions.XtcePacketDefinition,
+        definitions.XtcePacketDefinition.from_document,
         suda_test_data_dir / "suda_combined_science_definition.xml"
     )
     print(definition.named_parameters)
@@ -24,7 +24,8 @@ def test_benchmark_complex_xtce_definition_parsing(benchmark, suda_test_data_dir
 @pytest.mark.benchmark
 def test_benchmark_simple_packet_parsing(benchmark, jpss_test_data_dir):
     """Benchmark the time it takes to parse 7200 simple JPSS geolocation packets from a flat packet definition"""
-    packet_definition = definitions.XtcePacketDefinition(jpss_test_data_dir / "jpss1_geolocation_xtce_v1.xml")
+    packet_definition = definitions.XtcePacketDefinition.from_document(
+        jpss_test_data_dir / "jpss1_geolocation_xtce_v1.xml")
     packet_data = jpss_test_data_dir / "J01_G011_LZ_2021-04-09T00-00-00Z_V01.DAT1"
 
     # Open reusable filehandler
@@ -54,7 +55,8 @@ def test_benchmark_simple_packet_parsing(benchmark, jpss_test_data_dir):
 @pytest.mark.benchmark
 def test_benchmark_complex_packet_parsing(benchmark, idex_test_data_dir):
     """Benchmark the time it takes to parse IDEX packets, which have a polymorphic structure"""
-    packet_definition = definitions.XtcePacketDefinition(idex_test_data_dir / "idex_combined_science_definition.xml")
+    packet_definition = definitions.XtcePacketDefinition.from_document(
+        idex_test_data_dir / "idex_combined_science_definition.xml")
     packet_data = idex_test_data_dir / "sciData_2023_052_14_45_05"
 
     # Open reusable filehandler

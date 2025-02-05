@@ -10,12 +10,10 @@ Use
     spp --help
     spp --describe <packet_file>
 """
-# Standard
 import logging
 from pathlib import Path
 from typing import Optional
 
-# Installed
 import click
 from rich import pretty
 from rich.console import Console
@@ -25,8 +23,6 @@ from rich.table import Table
 from rich.tree import Tree
 
 from space_packet_parser.definitions import DEFAULT_ROOT_CONTAINER, XtcePacketDefinition
-
-# Local
 from space_packet_parser.packets import ccsds_generator
 
 # Initialize a console instance for rich output
@@ -79,7 +75,7 @@ def describe_xtce(
 ) -> None:
     """Describe the contents and structure of an XTCE packet definition file."""
     logging.debug(f"Describing XTCE file: {file_path}")
-    definition = XtcePacketDefinition(file_path, root_container_name=root_container)
+    definition = XtcePacketDefinition.from_document(file_path, root_container_name=root_container)
     tree = Tree(definition.root_container_name)
 
     # Recursively add nodes based on the inheritors of each container
@@ -174,7 +170,14 @@ def parse(
     logging.debug(f"Using packet definition file: {definition_file}")
 
     with open(packet_file, "rb") as f:
-        packets = list(XtcePacketDefinition(definition_file).packet_generator(f, skip_header_bytes=skip_header_bytes))
+        packets = list(
+            XtcePacketDefinition.from_document(
+                definition_file
+            ).packet_generator(
+                f,
+                skip_header_bytes=skip_header_bytes
+            )
+        )
 
     if packet is not None:
         if packet > len(packets):

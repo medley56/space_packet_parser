@@ -1,5 +1,4 @@
 """Matching logical objects"""
-import inspect
 import warnings
 from abc import ABCMeta, abstractmethod
 from collections import namedtuple
@@ -7,33 +6,15 @@ from typing import Any, Optional, Union
 
 import lxml.etree as ElementTree
 
-from space_packet_parser import packets
+from space_packet_parser import mixins, packets
 from space_packet_parser.exceptions import ComparisonError
 
 
-# Common comparable mixin
-class AttrComparable(metaclass=ABCMeta):
-    """Generic class that provides a notion of equality based on all non-callable, non-dunder attributes"""
-
-    def __eq__(self, other):
-        if not isinstance(other, self.__class__):
-            raise NotImplementedError(f"No method to compare {type(other)} with {self.__class__}")
-
-        compare = inspect.getmembers(self, lambda a: not inspect.isroutine(a))
-        compare = [attr[0] for attr in compare
-                   if not (attr[0].startswith('__') or attr[0].startswith(f'_{self.__class__.__name__}__'))]
-        for attr in compare:
-            if getattr(self, attr) != getattr(other, attr):
-                print(f'Mismatch was in {attr}. {getattr(self, attr)} != {getattr(other, attr)}')
-                return False
-        return True
-
-
-class MatchCriteria(AttrComparable, metaclass=ABCMeta):
+class MatchCriteria(mixins.AttrComparable, metaclass=ABCMeta):
     """<xtce:MatchCriteriaType>
     This class stores criteria for performing logical operations based on parameter values
-    Classes that inherit from this ABC include those that represent <xtce:Comparison>, <xtce:ComparisonList>,
-    <xtce:BooleanExpression> (not supported), and <xtce:CustomAlgorithm> (not supported)
+    Classes that inherit from this ABC include those that represent <xtce:Comparison>,
+    <xtce:BooleanExpression>, and <xtce:CustomAlgorithm> (not supported)
     """
 
     # Valid operator representations in XML. Note: the XTCE spec only allows for &gt; style representations of < and >
@@ -63,6 +44,21 @@ class MatchCriteria(AttrComparable, metaclass=ABCMeta):
         Returns
         -------
         : cls
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def to_match_criteria_xml_element(self, ns: dict) -> ElementTree.Element:
+        """Abstract method to create an XML element from this class
+
+        Parameters
+        ----------
+        ns : dict
+            XML namespace dict
+
+        Returns
+        -------
+        : ElementTree.Element
         """
         raise NotImplementedError()
 
@@ -156,6 +152,30 @@ class Comparison(MatchCriteria):
 
         return cls(value, parameter_name, operator=operator, use_calibrated_value=use_calibrated_value)
 
+    def to_match_criteria_xml_element(self, ns: dict) -> ElementTree.Element:
+        """Create a Comparison XML element
+
+        Parameters
+        ----------
+        ns : dict
+            XML namespace dict
+
+        Returns
+        -------
+        : ElementTree.Element
+        """
+        _, xtce_uri = next(iter(ns.items()))
+        xtce = f"{{{xtce_uri}}}"
+        return ElementTree.Element(
+            xtce + "Comparison",
+            attrib={
+                "parameterRef": self.referenced_parameter,
+                "useCalibratedValue": str(self.use_calibrated_value).lower(),
+                "comparisonOperator": self.operator,
+                "value": str(self.required_value)
+            },
+            nsmap=ns)
+
     def evaluate(self,
                  packet: packets.CCSDSPacket,
                  current_parsed_value: Optional[Union[int, float]] = None) -> bool:
@@ -213,7 +233,7 @@ class Comparison(MatchCriteria):
 
 class Condition(MatchCriteria):
     """<xtce:Condition>
-    Note: This xtce model doesn't actually inherit from MatchCriteria in the UML model
+    Note: This xtce model doesn't actually inherit from MatchCriteria in the UML model,
     but it's functionally close enough that we inherit the class here.
     """
 
@@ -309,6 +329,7 @@ class Condition(MatchCriteria):
         operator = element.find('xtce:ComparisonOperator', ns).text
         params = element.findall('xtce:ParameterInstanceRef', ns)
         if len(params) == 1:
+            # XTCE green book Figure 3-5 specifies if only one ParameterInstanceRef, it is the LHS of the operator
             left_param, use_calibrated_value = cls._parse_parameter_instance_ref(params[0])
             right_value = element.find('xtce:Value', ns).text
             return cls(left_param, operator, right_value=right_value,
@@ -322,6 +343,45 @@ class Condition(MatchCriteria):
                        right_use_calibrated_value=right_use_calibrated_value)
         raise ValueError(f'Failed to parse a Condition element {element}. '
                          'See 3.4.3.4.2 of XTCE Green Book CCSDS 660.1-G-2')
+
+    def to_match_criteria_xml_element(self, ns: dict) -> ElementTree.Element:
+        """Create a Condition XML element
+
+        Parameters
+        ----------
+        ns : dict
+            XML namespace dict
+
+        Returns
+        -------
+        : ElementTree.Element
+        """
+        _, xtce_uri = next(iter(ns.items()))
+        xtce = f"{{{xtce_uri}}}"
+        condition_element = ElementTree.Element(xtce + "Condition", nsmap=ns)
+        ElementTree.SubElement(
+            condition_element,
+            xtce + "ParameterInstanceRef",
+            attrib={
+                "parameterRef": self.left_param,
+                "useCalibratedValue": str(self.left_use_calibrated_value).lower()
+            },
+            nsmap=ns)
+        operator_element = ElementTree.SubElement(condition_element, xtce + "ComparisonOperator", nsmap=ns)
+        operator_element.text = self.operator
+        if self.right_param:
+            ElementTree.SubElement(
+                condition_element,
+                xtce + "ParameterInstanceRef",
+                attrib={
+                    "parameterRef": self.right_param,
+                    "useCalibratedValue": str(self.right_use_calibrated_value).lower()
+                },
+                nsmap=ns)
+        else:
+            right_value_element = ElementTree.SubElement(condition_element, xtce + "Value", nsmap=ns)
+            right_value_element.text = str(self.right_value)
+        return condition_element
 
     def evaluate(self,
                  packet: packets.CCSDSPacket,
@@ -501,16 +561,57 @@ class BooleanExpression(MatchCriteria):
 
         raise ValueError(f"Error evaluating an unknown expression {self.expression}.")
 
+    def to_match_criteria_xml_element(self, ns: dict) -> ElementTree.Element:
+        """Create a Condition XML element
 
-class DiscreteLookup(AttrComparable):
+        Parameters
+        ----------
+        ns : dict
+            XML namespace dict
+
+        Returns
+        -------
+        : ElementTree.Element
+        """
+        _, xtce_uri = next(iter(ns.items()))
+        xtce = f"{{{xtce_uri}}}"
+
+        def _serialize_anded(anded: Anded) -> ElementTree.Element:
+            anded_conditions_element = ElementTree.Element(xtce + "ANDedConditions", nsmap=ns)
+            for cond in anded.conditions:
+                anded_conditions_element.append(cond.to_match_criteria_xml_element(ns))
+            for ored in anded.ors:
+                anded_conditions_element.append(_serialize_ored(ored))
+            return anded_conditions_element
+
+        def _serialize_ored(ored: Ored) -> ElementTree.Element:
+            ored_conditions_element = ElementTree.SubElement(element, xtce + "ORedConditions", nsmap=ns)
+            for cond in ored.conditions:
+                ored_conditions_element.append(cond.to_match_criteria_xml_element(ns))
+            for anded in ored.ands:
+                ored_conditions_element.append(_serialize_anded(anded))
+            return ored_conditions_element
+
+        element = ElementTree.Element(xtce + "BooleanExpression", nsmap=ns)
+
+        if isinstance(self.expression, Condition):
+            element.append(self.expression.to_match_criteria_xml_element(ns))
+        elif isinstance(self.expression, Anded):
+            element.append(_serialize_anded(self.expression))
+        else:
+            element.append(_serialize_ored(self.expression))
+
+        return element
+
+class DiscreteLookup(mixins.AttrComparable):
     """<xtce:DiscreteLookup>"""
 
-    def __init__(self, match_criteria: list, lookup_value: Union[int, float]):
+    def __init__(self, match_criteria: list[Comparison], lookup_value: Union[int, float]):
         """Constructor
 
         Parameters
         ----------
-        match_criteria : list
+        match_criteria : list[Comparison]
             List of criteria to determine if the lookup value should be returned during evaluation.
         lookup_value : Union[int, float]
             Value to return from the lookup if the criteria evaluate true
@@ -544,6 +645,34 @@ class DiscreteLookup(AttrComparable):
             raise NotImplementedError("Only Comparison and ComparisonList are implemented for DiscreteLookup.")
 
         return cls(match_criteria, lookup_value)
+
+    def to_discrete_lookup_xml_element(self, ns: dict) -> ElementTree.Element:
+        """Create a DiscreteLookup XML element
+
+        Parameters
+        ----------
+        ns : dict
+            XML namespace dict
+
+        Returns
+        -------
+        : ElementTree.Element
+        """
+        _, xtce_uri = next(iter(ns.items()))
+        xtce = f"{{{xtce_uri}}}"
+        dl_element = ElementTree.Element(
+            xtce + "DiscreteLookup",
+            attrib={"value": str(self.lookup_value)},
+            nsmap=ns)
+        if len(self.match_criteria) > 1:
+            comparison_parent_element = ElementTree.SubElement(dl_element, xtce + "ComparisonList", nsmap=ns)
+        else:
+            comparison_parent_element = dl_element
+
+        for comp in self.match_criteria:
+            comparison_parent_element.append(comp.to_match_criteria_xml_element(ns))
+
+        return dl_element
 
     def evaluate(self, packet: packets.CCSDSPacket, current_parsed_value: Optional[Union[int, float]] = None) -> Any:
         """Evaluate the lookup to determine if it is valid.

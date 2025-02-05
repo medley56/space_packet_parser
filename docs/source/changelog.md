@@ -5,7 +5,10 @@ list and release milestones.
 ## Version Release Notes
 Release notes for the `space_packet_parser` library
 
-### v5.1.0 (unreleased)
+### v6.0.0 (unreleased)
+- BREAKING: `XtcePacketDefinition` no longer accepts a file object as input. 
+  Use `XtcePacketDefinition.from_document()` instead.
+- Add support for creating a packet definition from Python objects and serializing it as XML.
 - BUGFIX: Fix kbps calculation in packet generator for showing progress.
 - Add support for string and float encoded enumerated lookup parameters.
 - Add properties to extract the CCSDS Header items from the ``RawPacketData`` object directly.

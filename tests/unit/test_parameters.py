@@ -1,15 +1,11 @@
-"""Tests for space_packet_parser.xtcedef"""
-# Standard
+"""Tests for parameters"""
 import io
-# Installed
+
 import pytest
 import lxml.etree as ElementTree
-# Local
-from space_packet_parser.exceptions import CalibrationError, ComparisonError
-from space_packet_parser import calibrators, comparisons, definitions, encodings, parameters, packets
 
-XTCE_URI = "http://www.omg.org/space/xtce"
-TEST_NAMESPACE = {'xtce': XTCE_URI}
+from space_packet_parser import parameters, encodings, comparisons, calibrators, packets, definitions
+from space_packet_parser.xtce import XTCE_NSMAP
 
 
 def test_invalid_parameter_type_error(test_data_dir):
@@ -42,7 +38,7 @@ def test_invalid_parameter_type_error(test_data_dir):
 """
     x = io.TextIOWrapper(io.BytesIO(test_xtce_document.encode("UTF-8")))
     with pytest.raises(definitions.InvalidParameterTypeError):
-        definitions.XtcePacketDefinition(x)
+        definitions.XtcePacketDefinition.from_document(x)
 
 
 def test_unsupported_parameter_type_error(test_data_dir):
@@ -83,1046 +79,9 @@ def test_unsupported_parameter_type_error(test_data_dir):
 """
     x = io.TextIOWrapper(io.BytesIO(test_xtce_document.encode("UTF-8")))
     with pytest.raises(NotImplementedError):
-        definitions.XtcePacketDefinition(x)
+        definitions.XtcePacketDefinition.from_document(x)
 
 
-def test_attr_comparable():
-    """Test abstract class that allows comparisons based on all non-callable attributes"""
-
-    class TestClass(comparisons.AttrComparable):
-        """Test Class"""
-
-        def __init__(self, public, private, dunder):
-            self.public = public
-            self._private = private
-            self.__dunder = dunder  # Dundered attributes are ignored (they get mangled by class name on construction)
-
-        @property
-        def entertained(self):
-            """Properties are compared"""
-            return 10 * self.public
-
-        def ignored(self, x):
-            """Methods are ignored"""
-            return 2 * x
-
-    a = TestClass(1, 2, 9)
-    a.__doc__ = "foobar"  # Ignored dunder method
-    b = TestClass(1, 2, 10)
-    assert a == b
-    a.public += 1  # Change an attribute that _does_ get compared
-    with pytest.raises(AssertionError):
-        assert a == b
-
-
-@pytest.mark.parametrize(
-    ('xml_string', 'test_parsed_data', 'current_parsed_value', 'expected_comparison_result'),
-    [
-        ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
-    comparisonOperator="==" value="678" parameterRef="MSN__PARAM"/>
-""",
-         {'MSN__PARAM': packets.FloatParameter(678, 3)}, None, True),
-        ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
-    comparisonOperator="eq" value="678" parameterRef="MSN__PARAM"/>
-""",
-         {'MSN__PARAM': packets.FloatParameter(668, 3)}, None, False),
-        ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
-    comparisonOperator="!=" value="678" parameterRef="MSN__PARAM"/>
-""",
-         {'MSN__PARAM': packets.FloatParameter(678, 3)}, None, False),
-        ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
-    comparisonOperator="neq" value="678" parameterRef="MSN__PARAM"/>
-""",
-         {'MSN__PARAM': packets.FloatParameter(658, 3)}, None, True),
-        ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
-    comparisonOperator="&lt;" value="678" parameterRef="MSN__PARAM"/>
-""",
-         {'MSN__PARAM': packets.FloatParameter(679, 3)}, None, False),
-        ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
-    comparisonOperator="lt" value="678" parameterRef="MSN__PARAM"/>
-""",
-         {'MSN__PARAM': packets.FloatParameter(670, 3)}, None, True),
-        ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
-    comparisonOperator="&gt;" value="678" parameterRef="MSN__PARAM"/>
-""",
-         {'MSN__PARAM': packets.FloatParameter(678, 3)}, None, False),
-        ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
-    comparisonOperator="gt" value="678" parameterRef="MSN__PARAM"/>
-""",
-         {'MSN__PARAM': packets.FloatParameter(679, 3)}, None, True),
-        ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
-    comparisonOperator="&lt;=" value="678" parameterRef="MSN__PARAM"/>
-""",
-         {'MSN__PARAM': packets.FloatParameter(660, 3)}, None, True),
-        ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
-    comparisonOperator="leq" value="678" parameterRef="MSN__PARAM"/>
-""",
-         {'MSN__PARAM': packets.FloatParameter(690, 3)}, None, False),
-        ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
-    comparisonOperator="&gt;=" value="678" parameterRef="MSN__PARAM"/>
-""",
-         {'MSN__PARAM': packets.FloatParameter(660, 3)}, None, False),
-        ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
-    comparisonOperator="geq" value="678" parameterRef="MSN__PARAM"/>
-""",
-         {'MSN__PARAM': packets.FloatParameter(690, 3)}, None, True),
-        ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
-    comparisonOperator="==" value="678" parameterRef="MSN__PARAM" useCalibratedValue="false"/>
-""",
-         {'MSN__PARAM': packets.FloatParameter(690, 678)}, None, True),
-        ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
-    comparisonOperator="==" value="678" parameterRef="MSN__PARAM" useCalibratedValue="true"/>
-""",
-         {'MSN__PARAM': packets.FloatParameter(678, 3)}, None, True),
-        ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
-    comparisonOperator="==" value="foostring" parameterRef="MSN__PARAM" useCalibratedValue="false"/>
-""",
-         {'MSN__PARAM': packets.StrParameter('calibratedfoostring', 'foostring')}, None, True),
-        ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
-    comparisonOperator="==" value="3.14" parameterRef="MSN__PARAM"/>
-""",
-         {'MSN__PARAM': packets.FloatParameter(3.14, 1)}, None, True),
-        ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
-    comparisonOperator="==" value="3.0" parameterRef="REFERENCE_TO_OWN_RAW_VAL"/>
-""",
-         {}, 3.0, True),
-        ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
-    comparisonOperator="==" value="3" parameterRef="REFERENCE_TO_OWN_RAW_VAL"/>
-""",
-         {}, 3, True),
-        ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
-    comparisonOperator="==" value="foostr" parameterRef="REFERENCE_TO_OWN_RAW_VAL"/>
-""",
-         {}, "foostr", True),
-        ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
-    comparisonOperator="==" value="3.0" parameterRef="REFERENCE_TO_OWN_RAW_VAL"/>
-""",
-         {}, 3, ComparisonError("Fails to parse a float string 3.0 into an int")),
-    ]
-)
-@pytest.mark.filterwarnings("ignore:Performing a comparison against a current value")
-def test_comparison(xml_string, test_parsed_data, current_parsed_value, expected_comparison_result):
-    """Test Comparison object"""
-    element = ElementTree.fromstring(xml_string)
-    if isinstance(expected_comparison_result, Exception):
-        with pytest.raises(type(expected_comparison_result)):
-            comparison = comparisons.Comparison.from_match_criteria_xml_element(element, TEST_NAMESPACE)
-            comparison.evaluate(test_parsed_data, current_parsed_value)
-    else:
-        comparison = comparisons.Comparison.from_match_criteria_xml_element(element, TEST_NAMESPACE)
-        assert comparison.evaluate(test_parsed_data, current_parsed_value) == expected_comparison_result
-
-
-@pytest.mark.parametrize(
-    ('xml_string', 'test_parsed_data', 'expected_condition_result'),
-    [
-        ("""
-<xtce:Condition xmlns:xtce="http://www.omg.org/space/xtce">
-    <xtce:ParameterInstanceRef parameterRef="P1"/>
-    <xtce:ComparisonOperator>&gt;=</xtce:ComparisonOperator>
-    <xtce:ParameterInstanceRef parameterRef="P2"/>
-</xtce:Condition>
-""",
-         {'P1': packets.IntParameter(700, 4),
-          'P2': packets.IntParameter(678, 3)}, True),
-        ("""
-<xtce:Condition xmlns:xtce="http://www.omg.org/space/xtce">
-    <xtce:ParameterInstanceRef parameterRef="P1"/>
-    <xtce:ComparisonOperator>&gt;=</xtce:ComparisonOperator>
-    <xtce:Value>4</xtce:Value>
-</xtce:Condition>
-""",
-         {'P1': packets.IntParameter(700, 4)}, True),
-        ("""
-<xtce:Condition xmlns:xtce="http://www.omg.org/space/xtce">
-    <xtce:ParameterInstanceRef parameterRef="P1"/>
-    <xtce:ComparisonOperator>==</xtce:ComparisonOperator>
-    <xtce:ParameterInstanceRef parameterRef="P2"/>
-</xtce:Condition>
-""",
-         {'P1': packets.IntParameter(700, 4),
-          'P2': packets.IntParameter(678, 3)}, False),
-        ("""
-<xtce:Condition xmlns:xtce="http://www.omg.org/space/xtce">
-    <xtce:ParameterInstanceRef parameterRef="P1" useCalibratedValue="false"/>
-    <xtce:ComparisonOperator>==</xtce:ComparisonOperator>
-    <xtce:ParameterInstanceRef parameterRef="P2" useCalibratedValue="false"/>
-</xtce:Condition>
-""",
-         {'P1': packets.StrParameter('abcd'),
-          'P2': packets.StrParameter('abcd')}, True),
-        ("""
-<xtce:Condition xmlns:xtce="http://www.omg.org/space/xtce">
-    <xtce:ParameterInstanceRef parameterRef="P1"/>
-    <xtce:ComparisonOperator>==</xtce:ComparisonOperator>
-    <xtce:ParameterInstanceRef parameterRef="P2"/>
-</xtce:Condition>
-""",
-         {'P1': packets.FloatParameter(3.14, 1),
-          'P2': packets.FloatParameter(3.14, 180)}, True),
-    ]
-)
-def test_condition(xml_string, test_parsed_data, expected_condition_result):
-    """Test Condition object"""
-    element = ElementTree.fromstring(xml_string)
-    condition = comparisons.Condition.from_match_criteria_xml_element(element, TEST_NAMESPACE)
-    assert condition.evaluate(test_parsed_data, None) == expected_condition_result
-
-
-@pytest.mark.parametrize(
-    ('xml_string', 'test_parsed_data', 'expected_result'),
-    [
-        ("""
-<xtce:BooleanExpression xmlns:xtce="http://www.omg.org/space/xtce">
-    <xtce:ORedConditions>
-        <xtce:Condition>
-            <xtce:ParameterInstanceRef parameterRef="P"/>
-            <xtce:ComparisonOperator>==</xtce:ComparisonOperator>
-            <xtce:Value>100</xtce:Value>
-        </xtce:Condition>
-        <xtce:ANDedConditions>
-            <xtce:Condition>
-                <xtce:ParameterInstanceRef parameterRef="P2"/>
-                <xtce:ComparisonOperator>&lt;=</xtce:ComparisonOperator>
-                <xtce:ParameterInstanceRef parameterRef="P3"/>
-            </xtce:Condition>
-            <xtce:Condition>
-                <xtce:ParameterInstanceRef parameterRef="P4"/>
-                <xtce:ComparisonOperator>!=</xtce:ComparisonOperator>
-                <xtce:Value>99</xtce:Value>
-            </xtce:Condition>
-        </xtce:ANDedConditions>
-    </xtce:ORedConditions>
-</xtce:BooleanExpression>
-""",
-         {'P': packets.IntParameter(0, 4),
-          'P2': packets.IntParameter(700, 4),
-          'P3': packets.IntParameter(701, 4),
-          'P4': packets.IntParameter(98, 4)}, True),
-        ("""
-<xtce:BooleanExpression xmlns:xtce="http://www.omg.org/space/xtce">
-    <xtce:ANDedConditions>
-        <xtce:Condition>
-            <xtce:ParameterInstanceRef parameterRef="P"/>
-            <xtce:ComparisonOperator>==</xtce:ComparisonOperator>
-            <xtce:Value>100</xtce:Value>
-        </xtce:Condition>
-        <xtce:Condition>
-            <xtce:ParameterInstanceRef parameterRef="P0"/>
-            <xtce:ComparisonOperator>&gt;=</xtce:ComparisonOperator>
-            <xtce:ParameterInstanceRef parameterRef="P1"/>
-        </xtce:Condition>
-        <xtce:ORedConditions>
-            <xtce:Condition>
-                <xtce:ParameterInstanceRef parameterRef="P2"/>
-                <xtce:ComparisonOperator>&lt;=</xtce:ComparisonOperator>
-                <xtce:ParameterInstanceRef parameterRef="P3"/>
-            </xtce:Condition>
-            <xtce:Condition>
-                <xtce:ParameterInstanceRef parameterRef="P4"/>
-                <xtce:ComparisonOperator>!=</xtce:ComparisonOperator>
-                <xtce:Value>99</xtce:Value>
-            </xtce:Condition>
-        </xtce:ORedConditions>
-    </xtce:ANDedConditions>
-</xtce:BooleanExpression>
-""",
-         {'P': packets.IntParameter(100, 4),
-          'P0': packets.IntParameter(678, 4),
-          'P1': packets.IntParameter(500, 4),
-          'P2': packets.IntParameter(700, 4),
-          'P3': packets.IntParameter(701, 4),
-          'P4': packets.IntParameter(99, 4)}, True),
-    ]
-)
-def test_boolean_expression(xml_string, test_parsed_data, expected_result):
-    """Test BooleanExpression object"""
-    element = ElementTree.fromstring(xml_string)
-    if isinstance(expected_result, Exception):
-        with pytest.raises(type(expected_result)):
-            comparisons.BooleanExpression.from_match_criteria_xml_element(element, TEST_NAMESPACE)
-    else:
-        expression = comparisons.BooleanExpression.from_match_criteria_xml_element(element, TEST_NAMESPACE)
-        assert expression.evaluate(test_parsed_data, current_parsed_value=None) == expected_result
-
-
-@pytest.mark.parametrize(
-    ('xml_string', 'test_parsed_data', 'expected_lookup_result'),
-    [
-        ("""
-<xtce:DiscreteLookup value="10" xmlns:xtce="http://www.omg.org/space/xtce">
-    <xtce:Comparison useCalibratedValue="false" parameterRef="P1" value="1"/>
-</xtce:DiscreteLookup>
-""",
-         {'P1': packets.IntParameter(678, 1)}, 10),
-        ("""
-<xtce:DiscreteLookup value="10" xmlns:xtce="http://www.omg.org/space/xtce">
-    <xtce:Comparison useCalibratedValue="false" parameterRef="P1" value="1"/>
-</xtce:DiscreteLookup>
-""",
-         {'P1': packets.IntParameter(678, 0)}, None),
-        ("""
-<xtce:DiscreteLookup value="11" xmlns:xtce="http://www.omg.org/space/xtce">
-    <xtce:ComparisonList>
-        <xtce:Comparison comparisonOperator="&gt;=" value="678" parameterRef="MSN__PARAM1"/>
-        <xtce:Comparison comparisonOperator="&lt;" value="4096" parameterRef="MSN__PARAM2"/>
-    </xtce:ComparisonList>
-</xtce:DiscreteLookup>
-""",
-         {
-             'MSN__PARAM1': packets.IntParameter(680, 3),
-             'MSN__PARAM2': packets.IntParameter(3000, 3),
-         }, 11),
-    ]
-)
-def test_discrete_lookup(xml_string, test_parsed_data, expected_lookup_result):
-    """Test DiscreteLookup object"""
-    element = ElementTree.fromstring(xml_string)
-    discrete_lookup = comparisons.DiscreteLookup.from_discrete_lookup_xml_element(element, TEST_NAMESPACE)
-    assert discrete_lookup.evaluate(test_parsed_data, current_parsed_value=None) == expected_lookup_result
-
-
-# ----------------
-# Calibrator Tests
-# ----------------
-@pytest.mark.parametrize(
-    ('xml_string', 'expectation'),
-    [
-        ("""
-<xtce:ContextCalibrator xmlns:xtce="http://www.omg.org/space/xtce">
-    <xtce:ContextMatch>
-        <xtce:ComparisonList>
-            <xtce:Comparison comparisonOperator="&gt;=" value="678" parameterRef="EXI__FPGAT"/>
-            <xtce:Comparison comparisonOperator="&lt;" value="4096" parameterRef="EXI__FPGAT"/>
-        </xtce:ComparisonList>
-    </xtce:ContextMatch>
-    <xtce:Calibrator>
-        <xtce:PolynomialCalibrator>
-            <xtce:Term exponent="0" coefficient="0.5"/>
-            <xtce:Term exponent="1" coefficient="1.5"/>
-            <xtce:Term exponent="2" coefficient="-0.045"/>
-            <xtce:Term exponent="3" coefficient="1.25"/>
-            <xtce:Term exponent="4" coefficient="2.5E-3"/>
-        </xtce:PolynomialCalibrator>
-    </xtce:Calibrator>
-</xtce:ContextCalibrator>
-""",
-         calibrators.ContextCalibrator(
-             match_criteria=[
-                 comparisons.Comparison(required_value='678', referenced_parameter='EXI__FPGAT', operator='>=',
-                                        use_calibrated_value=True),
-                 comparisons.Comparison(required_value='4096', referenced_parameter='EXI__FPGAT', operator='<',
-                                        use_calibrated_value=True),
-             ],
-             calibrator=calibrators.PolynomialCalibrator(coefficients=[
-                 calibrators.PolynomialCoefficient(coefficient=0.5, exponent=0),
-                 calibrators.PolynomialCoefficient(coefficient=1.5, exponent=1),
-                 calibrators.PolynomialCoefficient(coefficient=-0.045, exponent=2),
-                 calibrators.PolynomialCoefficient(coefficient=1.25, exponent=3),
-                 calibrators.PolynomialCoefficient(coefficient=0.0025, exponent=4)
-             ]))),
-        ("""
-<xtce:ContextCalibrator xmlns:xtce="http://www.omg.org/space/xtce">
-    <xtce:ContextMatch>
-        <xtce:Comparison comparisonOperator="!=" value="3.14" parameterRef="EXI__FPGAT"/>
-    </xtce:ContextMatch>
-    <xtce:Calibrator>
-        <xtce:PolynomialCalibrator>
-            <xtce:Term exponent="0" coefficient="0.5"/>
-            <xtce:Term exponent="1" coefficient="1.5"/>
-            <xtce:Term exponent="2" coefficient="-0.045"/>
-            <xtce:Term exponent="3" coefficient="1.25"/>
-            <xtce:Term exponent="4" coefficient="2.5E-3"/>
-        </xtce:PolynomialCalibrator>
-    </xtce:Calibrator>
-</xtce:ContextCalibrator>
-""",
-         calibrators.ContextCalibrator(
-             match_criteria=[
-                 comparisons.Comparison(required_value='3.14', referenced_parameter='EXI__FPGAT', operator='!=',
-                                        use_calibrated_value=True),
-             ],
-             calibrator=calibrators.PolynomialCalibrator(coefficients=[
-                 calibrators.PolynomialCoefficient(coefficient=0.5, exponent=0),
-                 calibrators.PolynomialCoefficient(coefficient=1.5, exponent=1),
-                 calibrators.PolynomialCoefficient(coefficient=-0.045, exponent=2),
-                 calibrators.PolynomialCoefficient(coefficient=1.25, exponent=3),
-                 calibrators.PolynomialCoefficient(coefficient=0.0025, exponent=4)
-             ]))),
-        ("""
-<xtce:ContextCalibrator xmlns:xtce="http://www.omg.org/space/xtce">
-    <xtce:ContextMatch>
-        <xtce:BooleanExpression xmlns:xtce="http://www.omg.org/space/xtce">
-            <xtce:ANDedConditions>
-                <xtce:Condition>
-                    <xtce:ParameterInstanceRef parameterRef="P1"/>
-                    <xtce:ComparisonOperator>==</xtce:ComparisonOperator>
-                    <xtce:Value>100</xtce:Value>
-                </xtce:Condition>
-                <xtce:Condition>
-                    <xtce:ParameterInstanceRef parameterRef="P4"/>
-                    <xtce:ComparisonOperator>!=</xtce:ComparisonOperator>
-                    <xtce:Value>99</xtce:Value>
-                </xtce:Condition>
-            </xtce:ANDedConditions>
-        </xtce:BooleanExpression>
-    </xtce:ContextMatch>
-    <xtce:Calibrator>
-        <xtce:PolynomialCalibrator>
-            <xtce:Term exponent="0" coefficient="0.5"/>
-            <xtce:Term exponent="1" coefficient="1.5"/>
-        </xtce:PolynomialCalibrator>
-    </xtce:Calibrator>
-</xtce:ContextCalibrator>
-""",
-         calibrators.ContextCalibrator(
-             match_criteria=[
-                 comparisons.BooleanExpression(
-                     expression=comparisons.Anded(
-                         conditions=[
-                             comparisons.Condition(left_param='P1', operator='==', right_value='100',
-                                                   right_use_calibrated_value=False),
-                             comparisons.Condition(left_param='P4', operator='!=', right_value='99',
-                                                   right_use_calibrated_value=False)
-                         ],
-                         ors=[]
-                     )
-                 ),
-             ],
-             calibrator=calibrators.PolynomialCalibrator(coefficients=[
-                 calibrators.PolynomialCoefficient(coefficient=0.5, exponent=0),
-                 calibrators.PolynomialCoefficient(coefficient=1.5, exponent=1),
-             ]))),
-    ]
-)
-def test_context_calibrator(xml_string, expectation):
-    """Test parsing a ContextCalibrator from an XML element"""
-    element = ElementTree.fromstring(xml_string)
-
-    result = calibrators.ContextCalibrator.from_context_calibrator_xml_element(element, TEST_NAMESPACE)
-    assert result == expectation
-
-
-@pytest.mark.parametrize(
-    ('context_calibrator', 'parsed_data', 'parsed_value', 'match_expectation', 'expectation'),
-    [
-        (calibrators.ContextCalibrator(
-            match_criteria=[
-                comparisons.Comparison(required_value='678', referenced_parameter='EXI__FPGAT', operator='>=',
-                                       use_calibrated_value=True),
-                comparisons.Comparison(required_value='4096', referenced_parameter='EXI__FPGAT', operator='<',
-                                       use_calibrated_value=True),
-            ],
-            calibrator=calibrators.PolynomialCalibrator(coefficients=[
-                calibrators.PolynomialCoefficient(coefficient=0.5, exponent=0),
-                calibrators.PolynomialCoefficient(coefficient=1.5, exponent=1)
-            ])),
-         {"EXI__FPGAT": packets.IntParameter(700, 600)},
-         42, True, 63.5),
-        (calibrators.ContextCalibrator(
-            match_criteria=[
-                comparisons.Comparison(required_value='3.14', referenced_parameter='EXI__FPGAT', operator='!=',
-                                       use_calibrated_value=True),
-            ],
-            calibrator=calibrators.PolynomialCalibrator(coefficients=[
-                calibrators.PolynomialCoefficient(coefficient=0.5, exponent=0),
-                calibrators.PolynomialCoefficient(coefficient=1.5, exponent=1),
-            ])),
-         {"EXI__FPGAT": packets.FloatParameter(700.0, 3.14)},
-         42, True, 63.5),
-        (calibrators.ContextCalibrator(
-            match_criteria=[
-                comparisons.BooleanExpression(
-                    expression=comparisons.Anded(
-                        conditions=[
-                            comparisons.Condition(left_param='P1', operator='==', right_value='700',
-                                                  right_use_calibrated_value=False),
-                            comparisons.Condition(left_param='P2', operator='!=', right_value='99',
-                                                  right_use_calibrated_value=False)
-                        ],
-                        ors=[]
-                    )
-                ),
-            ],
-            calibrator=calibrators.PolynomialCalibrator(coefficients=[
-                calibrators.PolynomialCoefficient(coefficient=0.5, exponent=0),
-                calibrators.PolynomialCoefficient(coefficient=1.5, exponent=1),
-            ])),
-         {"P1": packets.FloatParameter(700.0, 100.0),
-          "P2": packets.FloatParameter(700.0, 99)},
-         42, True, 63.5),
-        (calibrators.ContextCalibrator(
-            match_criteria=[
-                comparisons.BooleanExpression(
-                    expression=comparisons.Ored(
-                        conditions=[  # Neither of these are true given the parsed data so far
-                            comparisons.Condition(left_param='P1', operator='==', right_value='700',
-                                                  left_use_calibrated_value=False,
-                                                  right_use_calibrated_value=False),
-                            comparisons.Condition(left_param='P2', operator='!=', right_value='700',
-                                                  right_use_calibrated_value=False)
-                        ],
-                        ands=[]
-                    )
-                ),
-            ],
-            calibrator=calibrators.PolynomialCalibrator(coefficients=[
-                calibrators.PolynomialCoefficient(coefficient=0.5, exponent=0),
-                calibrators.PolynomialCoefficient(coefficient=1.5, exponent=1),
-            ])),
-         {"P1": packets.FloatParameter(700.0, 100.0),
-          "P2": packets.FloatParameter(700.0, 99)},
-         42, False, 63.5),
-    ]
-)
-def test_context_calibrator_calibrate(context_calibrator, parsed_data, parsed_value, match_expectation, expectation):
-    """Test context calibrator calibration"""
-    # Check if the context match is True or False given the parsed data so far
-    match = all(criterion.evaluate(parsed_data, parsed_value) for criterion in context_calibrator.match_criteria)
-    if match_expectation:
-        assert match
-    else:
-        assert not match
-    # Regardless of the context match, we still test the hypothetical result if the calibrator is evaluated
-    assert context_calibrator.calibrate(parsed_value) == expectation
-
-
-@pytest.mark.parametrize(
-    ('xml_string', 'expectation'),
-    [
-        ("""
-<xtce:SplineCalibrator xmlns:xtce="http://www.omg.org/space/xtce" order="zero" extrapolate="true">
-    <xtce:SplinePoint raw="1" calibrated="10"/>
-    <xtce:SplinePoint raw="2.7" calibrated="100.948"/>
-    <xtce:SplinePoint raw="3" calibrated="5E2"/>
-</xtce:SplineCalibrator> 
-""",
-         calibrators.SplineCalibrator(order=0, extrapolate=True, points=[
-             calibrators.SplinePoint(raw=1, calibrated=10),
-             calibrators.SplinePoint(raw=2.7, calibrated=100.948),
-             calibrators.SplinePoint(raw=3, calibrated=500),
-         ])),
-        ("""
-<xtce:SplineCalibrator xmlns:xtce="http://www.omg.org/space/xtce">
-    <xtce:SplinePoint raw="1" calibrated="10"/>
-    <xtce:SplinePoint raw="2.7" calibrated="100.948"/>
-    <xtce:SplinePoint raw="3" calibrated="5E2"/>
-</xtce:SplineCalibrator> 
-""",
-         calibrators.SplineCalibrator(order=0, extrapolate=False, points=[
-             calibrators.SplinePoint(raw=1, calibrated=10),
-             calibrators.SplinePoint(raw=2.7, calibrated=100.948),
-             calibrators.SplinePoint(raw=3, calibrated=500),
-         ])),
-    ]
-)
-def test_spline_calibrator(xml_string: str, expectation):
-    """Test parsing a StringDataEncoding from an XML string"""
-    element = ElementTree.fromstring(xml_string)
-
-    if isinstance(expectation, Exception):
-        with pytest.raises(type(expectation)):
-            calibrators.SplineCalibrator.from_calibrator_xml_element(element, TEST_NAMESPACE)
-    else:
-        result = calibrators.SplineCalibrator.from_calibrator_xml_element(element, TEST_NAMESPACE)
-        assert result == expectation
-
-
-@pytest.mark.parametrize(
-    ('xq', 'order', 'extrapolate', 'expectation'),
-    [
-        # Zero order
-        (-10, 0, True, 0.),
-        (-10, 0, False, CalibrationError()),
-        (-1, 0, True, 0.),
-        (-1, 0, False, 0.),
-        (1.5, 0, False, 3.),
-        (5., 0, False, CalibrationError()),
-        (5., 0, True, 2.),
-        # First order
-        (-10, 1, True, -27.),
-        (-10, 1, False, CalibrationError()),
-        (-1, 1, True, 0.),
-        (-1, 1, False, 0.),
-        (1.5, 1, False, 2.25),
-        (5., 1, False, CalibrationError()),
-        (5., 1, True, 0.5),
-    ],
-)
-def test_spline_calibrator_calibrate(xq, order, extrapolate, expectation):
-    """Test spline default_calibrator interpolation routines"""
-    spline_points = [
-        calibrators.SplinePoint(-1., 0.),
-        calibrators.SplinePoint(0., 3.),
-        calibrators.SplinePoint(2., 2),
-    ]
-    calibrator = calibrators.SplineCalibrator(spline_points, order=order, extrapolate=extrapolate)
-
-    if isinstance(expectation, Exception):
-        with pytest.raises(type(expectation)):
-            calibrator.calibrate(xq)
-    else:
-        result = calibrator.calibrate(xq)
-        assert result == expectation
-
-
-@pytest.mark.parametrize(
-    ('xml_string', 'expectation'),
-    [
-        ("""
-<xtce:PolynomialCalibrator xmlns:xtce="http://www.omg.org/space/xtce">
-    <xtce:Term exponent="0" coefficient="0.5"/>
-    <xtce:Term exponent="1" coefficient="1.5"/>
-    <xtce:Term exponent="2" coefficient="-0.045"/>
-    <xtce:Term exponent="3" coefficient="1.25"/>
-    <xtce:Term exponent="4" coefficient="2.5E-3"/>
-</xtce:PolynomialCalibrator> 
-""",
-         calibrators.PolynomialCalibrator(coefficients=[
-             calibrators.PolynomialCoefficient(coefficient=0.5, exponent=0),
-             calibrators.PolynomialCoefficient(coefficient=1.5, exponent=1),
-             calibrators.PolynomialCoefficient(coefficient=-0.045, exponent=2),
-             calibrators.PolynomialCoefficient(coefficient=1.25, exponent=3),
-             calibrators.PolynomialCoefficient(coefficient=0.0025, exponent=4),
-         ])),
-    ]
-)
-def test_polynomial_calibrator(xml_string: str, expectation):
-    """Test parsing a StringDataEncoding from an XML string"""
-    element = ElementTree.fromstring(xml_string)
-
-    if isinstance(expectation, Exception):
-        with pytest.raises(type(expectation)):
-            calibrators.PolynomialCalibrator.from_calibrator_xml_element(element, TEST_NAMESPACE)
-    else:
-        result = calibrators.PolynomialCalibrator.from_calibrator_xml_element(element, TEST_NAMESPACE)
-        assert result == expectation
-
-
-@pytest.mark.parametrize(
-    ('xq', 'expectation'),
-    [
-        (-10., 101.5),
-        (0., 1.5),
-        (50, 2501.5)
-    ],
-)
-def test_polynomial_calibrator_calibrate(xq, expectation):
-    """Test polynomial default_calibrator interpolation routines"""
-    polynomial_coefficients = [
-        calibrators.PolynomialCoefficient(1.5, 0),
-        calibrators.PolynomialCoefficient(0, 1),
-        calibrators.PolynomialCoefficient(1., 2)
-    ]
-    calibrator = calibrators.PolynomialCalibrator(polynomial_coefficients)
-
-    if isinstance(expectation, Exception):
-        with pytest.raises(type(expectation)):
-            calibrator.calibrate(xq)
-    else:
-        result = calibrator.calibrate(xq)
-        assert result == expectation
-
-
-# ------------------
-# DataEncoding Tests
-# ------------------
-@pytest.mark.parametrize(
-    ('xml_string', 'expectation'),
-    [
-        ("""
-<xtce:StringDataEncoding encoding="UTF-16BE" xmlns:xtce="http://www.omg.org/space/xtce">
-    <xtce:SizeInBits>
-        <xtce:Fixed>
-            <xtce:FixedValue>32</xtce:FixedValue>
-        </xtce:Fixed>
-        <xtce:TerminationChar>0058</xtce:TerminationChar>
-    </xtce:SizeInBits>
-</xtce:StringDataEncoding>
-""",
-         encodings.StringDataEncoding(fixed_raw_length=32, termination_character='0058', encoding='UTF-16BE')),
-        ("""
-<xtce:StringDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
-    <xtce:SizeInBits>
-        <xtce:Fixed>
-            <xtce:FixedValue>17</xtce:FixedValue>
-        </xtce:Fixed>
-        <xtce:LeadingSize sizeInBitsOfSizeTag="3"/>
-    </xtce:SizeInBits>
-</xtce:StringDataEncoding>
-""",
-         encodings.StringDataEncoding(fixed_raw_length=17, leading_length_size=3)),
-        ("""
-<xtce:StringDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
-    <xtce:Variable maxSizeInBits="32">
-        <xtce:DynamicValue>
-            <xtce:ParameterInstanceRef parameterRef="SizeFromThisParameter"/>
-            <xtce:LinearAdjustment intercept="25" slope="8"/>
-        </xtce:DynamicValue>
-        <xtce:TerminationChar>58</xtce:TerminationChar>
-    </xtce:Variable>
-</xtce:StringDataEncoding>
-""",
-         encodings.StringDataEncoding(dynamic_length_reference='SizeFromThisParameter',
-                                      length_linear_adjuster=object(),
-                                      termination_character='58')),
-        ("""
-<xtce:StringDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
-    <xtce:Variable maxSizeInBits="32">
-        <xtce:DynamicValue>
-            <xtce:ParameterInstanceRef parameterRef="SizeFromThisParameter"/>
-            <xtce:LinearAdjustment intercept="25" slope="8"/>
-        </xtce:DynamicValue>
-        <xtce:LeadingSize sizeInBitsOfSizeTag="3"/>
-    </xtce:Variable>
-</xtce:StringDataEncoding>
-""",
-         encodings.StringDataEncoding(dynamic_length_reference='SizeFromThisParameter',
-                                      length_linear_adjuster=object(),
-                                      leading_length_size=3)),
-        ("""
-<xtce:StringDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
-    <xtce:Variable maxSizeInBits="32">
-        <xtce:DiscreteLookupList>
-            <xtce:DiscreteLookup value="10">
-                <xtce:Comparison parameterRef="P1" value="1"/>
-            </xtce:DiscreteLookup>
-            <xtce:DiscreteLookup value="25">
-                <xtce:Comparison parameterRef="P1" value="2"/>
-            </xtce:DiscreteLookup>
-        </xtce:DiscreteLookupList>
-        <xtce:TerminationChar>58</xtce:TerminationChar>
-    </xtce:Variable>
-</xtce:StringDataEncoding>
-""",
-         encodings.StringDataEncoding(
-             discrete_lookup_length=[
-                 comparisons.DiscreteLookup([comparisons.Comparison('1', 'P1')], 10),
-                 comparisons.DiscreteLookup([comparisons.Comparison('2', 'P1')], 25)
-             ],
-             termination_character="58"
-         )),
-        ("""
-<xtce:StringDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
-    <xtce:Variable maxSizeInBits="32">
-        <xtce:DiscreteLookupList>
-            <xtce:DiscreteLookup value="10">
-                <xtce:Comparison parameterRef="P1" value="1"/>
-            </xtce:DiscreteLookup>
-            <xtce:DiscreteLookup value="25">
-                <xtce:Comparison parameterRef="P1" value="2"/>
-            </xtce:DiscreteLookup>
-        </xtce:DiscreteLookupList>
-        <xtce:LeadingSize sizeInBitsOfSizeTag="3"/>
-    </xtce:Variable>
-</xtce:StringDataEncoding>
-""",
-         encodings.StringDataEncoding(
-             discrete_lookup_length=[
-                 comparisons.DiscreteLookup([comparisons.Comparison('1', 'P1')], 10),
-                 comparisons.DiscreteLookup([comparisons.Comparison('2', 'P1')], 25)
-             ],
-             leading_length_size=3
-         )),
-        ("""
-<xtce:StringDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
-    <xtce:SizeInBits>
-        <xtce:Fixed>
-            <xtce:InvalidTag>9000</xtce:InvalidTag>
-        </xtce:Fixed>
-    </xtce:SizeInBits>
-</xtce:StringDataEncoding>
-""",
-         AttributeError())
-    ]
-)
-def test_string_data_encoding(xml_string: str, expectation):
-    """Test parsing a StringDataEncoding from an XML string"""
-    element = ElementTree.fromstring(xml_string)
-
-    if isinstance(expectation, Exception):
-        with pytest.raises(type(expectation)):
-            encodings.StringDataEncoding.from_data_encoding_xml_element(element, TEST_NAMESPACE)
-    else:
-        result = encodings.StringDataEncoding.from_data_encoding_xml_element(element, TEST_NAMESPACE)
-        assert result == expectation
-
-
-@pytest.mark.parametrize(
-    ('xml_string', 'expectation'),
-    [
-        ("""
-<xtce:IntegerDataEncoding xmlns:xtce="http://www.omg.org/space/xtce" sizeInBits="4" encoding="unsigned"/>
-""",
-         encodings.IntegerDataEncoding(size_in_bits=4, encoding='unsigned')),
-        ("""
-<xtce:IntegerDataEncoding xmlns:xtce="http://www.omg.org/space/xtce" sizeInBits="4"/>
-""",
-         encodings.IntegerDataEncoding(size_in_bits=4, encoding='unsigned')),
-        ("""
-<xtce:IntegerDataEncoding xmlns:xtce="http://www.omg.org/space/xtce" sizeInBits="16" encoding="unsigned">
-    <xtce:DefaultCalibrator>
-        <xtce:PolynomialCalibrator>
-            <xtce:Term exponent="1" coefficient="1.215500e-02"/>
-            <xtce:Term exponent="0" coefficient="2.540000e+00"/>
-        </xtce:PolynomialCalibrator>
-    </xtce:DefaultCalibrator>
-</xtce:IntegerDataEncoding>
-""",
-         encodings.IntegerDataEncoding(
-             size_in_bits=16, encoding='unsigned',
-             default_calibrator=calibrators.PolynomialCalibrator([
-                 calibrators.PolynomialCoefficient(0.012155, 1), calibrators.PolynomialCoefficient(2.54, 0)
-             ]))),
-        ("""
-<xtce:IntegerDataEncoding xmlns:xtce="http://www.omg.org/space/xtce" sizeInBits="12" encoding="unsigned">
-    <xtce:ContextCalibratorList>
-        <xtce:ContextCalibrator>
-            <xtce:ContextMatch>
-                <xtce:ComparisonList>
-                    <xtce:Comparison comparisonOperator="&gt;=" value="0" parameterRef="MSN__PARAM"/>
-                    <xtce:Comparison comparisonOperator="&lt;" value="678" parameterRef="MSN__PARAM"/>
-                </xtce:ComparisonList>
-            </xtce:ContextMatch>
-            <xtce:Calibrator>
-                <xtce:PolynomialCalibrator>
-                    <xtce:Term exponent="0" coefficient="142.998"/>
-                    <xtce:Term exponent="1" coefficient="-0.349712"/>
-                </xtce:PolynomialCalibrator>
-            </xtce:Calibrator>
-        </xtce:ContextCalibrator>
-        <xtce:ContextCalibrator>
-            <xtce:ContextMatch>
-                <xtce:ComparisonList>
-                    <xtce:Comparison comparisonOperator="&gt;=" value="678" parameterRef="MSN__PARAM"/>
-                    <xtce:Comparison comparisonOperator="&lt;=" value="4096" parameterRef="MSN__PARAM"/>
-                </xtce:ComparisonList>
-            </xtce:ContextMatch>
-            <xtce:Calibrator>
-                <xtce:PolynomialCalibrator>
-                    <xtce:Term exponent="0" coefficient="100.488"/>
-                    <xtce:Term exponent="1" coefficient="-0.110197"/>
-                </xtce:PolynomialCalibrator>
-            </xtce:Calibrator>
-        </xtce:ContextCalibrator>
-    </xtce:ContextCalibratorList>
-    </xtce:IntegerDataEncoding>
-""",
-         encodings.IntegerDataEncoding(size_in_bits=12, encoding='unsigned',
-                                       default_calibrator=None,
-                                       context_calibrators=[
-                                           calibrators.ContextCalibrator(
-                                               match_criteria=[comparisons.Comparison(required_value='0', operator=">=",
-                                                                                      referenced_parameter='MSN__PARAM'),
-                                                               comparisons.Comparison(required_value='678',
-                                                                                      operator="<",
-                                                                                      referenced_parameter='MSN__PARAM')],
-                                               calibrator=calibrators.PolynomialCalibrator(
-                                                   coefficients=[calibrators.PolynomialCoefficient(142.998, 0),
-                                                                 calibrators.PolynomialCoefficient(-0.349712, 1)])),
-                                           calibrators.ContextCalibrator(
-                                               match_criteria=[
-                                                   comparisons.Comparison(required_value='678', operator=">=",
-                                                                          referenced_parameter='MSN__PARAM'),
-                                                   comparisons.Comparison(required_value='4096', operator="<=",
-                                                                          referenced_parameter='MSN__PARAM')],
-                                               calibrator=calibrators.PolynomialCalibrator(
-                                                   coefficients=[calibrators.PolynomialCoefficient(100.488, 0),
-                                                                 calibrators.PolynomialCoefficient(-0.110197, 1)]))
-                                       ])),
-    ]
-)
-def test_integer_data_encoding(xml_string: str, expectation):
-    """Test parsing an IntegerDataEncoding from an XML string"""
-    element = ElementTree.fromstring(xml_string)
-
-    if isinstance(expectation, Exception):
-        with pytest.raises(type(expectation)):
-            encodings.IntegerDataEncoding.from_data_encoding_xml_element(element, TEST_NAMESPACE)
-    else:
-        result = encodings.IntegerDataEncoding.from_data_encoding_xml_element(element, TEST_NAMESPACE)
-        assert result == expectation
-
-
-@pytest.mark.parametrize(
-    ('xml_string', 'expectation'),
-    [
-        ("""
-<xtce:FloatDataEncoding xmlns:xtce="http://www.omg.org/space/xtce" sizeInBits="4" encoding="IEEE754"/>
-""",
-         ValueError()),
-        ("""
-<xtce:FloatDataEncoding xmlns:xtce="http://www.omg.org/space/xtce" sizeInBits="16">
-    <xtce:DefaultCalibrator>
-        <xtce:PolynomialCalibrator>
-            <xtce:Term exponent="1" coefficient="1.215500e-02"/>
-            <xtce:Term exponent="0" coefficient="2.540000e+00"/>
-        </xtce:PolynomialCalibrator>
-    </xtce:DefaultCalibrator>
-</xtce:FloatDataEncoding>
-""",
-         encodings.FloatDataEncoding(
-             size_in_bits=16, encoding='IEEE754',
-             default_calibrator=calibrators.PolynomialCalibrator([
-                 calibrators.PolynomialCoefficient(0.012155, 1), calibrators.PolynomialCoefficient(2.54, 0)
-             ]))),
-        ("""
-<xtce:FloatDataEncoding xmlns:xtce="http://www.omg.org/space/xtce" sizeInBits="16">
-    <xtce:ContextCalibratorList>
-        <xtce:ContextCalibrator>
-            <xtce:ContextMatch>
-                <xtce:ComparisonList>
-                    <xtce:Comparison comparisonOperator="&gt;=" value="0" parameterRef="MSN__PARAM"/>
-                    <xtce:Comparison comparisonOperator="&lt;" value="678" parameterRef="MSN__PARAM"/>
-                </xtce:ComparisonList>
-            </xtce:ContextMatch>
-            <xtce:Calibrator>
-                <xtce:PolynomialCalibrator>
-                    <xtce:Term exponent="0" coefficient="142.998"/>
-                    <xtce:Term exponent="1" coefficient="-0.349712"/>
-                </xtce:PolynomialCalibrator>
-            </xtce:Calibrator>
-        </xtce:ContextCalibrator>
-        <xtce:ContextCalibrator>
-            <xtce:ContextMatch>
-                <xtce:ComparisonList>
-                    <xtce:Comparison comparisonOperator="&gt;=" value="678" parameterRef="MSN__PARAM"/>
-                    <xtce:Comparison comparisonOperator="&lt;=" value="4096" parameterRef="MSN__PARAM"/>
-                </xtce:ComparisonList>
-            </xtce:ContextMatch>
-            <xtce:Calibrator>
-                <xtce:PolynomialCalibrator>
-                    <xtce:Term exponent="0" coefficient="100.488"/>
-                    <xtce:Term exponent="1" coefficient="-0.110197"/>
-                </xtce:PolynomialCalibrator>
-            </xtce:Calibrator>
-        </xtce:ContextCalibrator>
-    </xtce:ContextCalibratorList>
-    <xtce:DefaultCalibrator>
-        <xtce:PolynomialCalibrator>
-            <xtce:Term exponent="1" coefficient="1.215500e-02"/>
-            <xtce:Term exponent="0" coefficient="2.540000e+00"/>
-        </xtce:PolynomialCalibrator>
-    </xtce:DefaultCalibrator>
-</xtce:FloatDataEncoding>
-""",
-         encodings.FloatDataEncoding(
-             size_in_bits=16, encoding='IEEE754',
-             default_calibrator=calibrators.PolynomialCalibrator([
-                 calibrators.PolynomialCoefficient(0.012155, 1), calibrators.PolynomialCoefficient(2.54, 0)
-             ]),
-             context_calibrators=[
-                 calibrators.ContextCalibrator(
-                     match_criteria=[comparisons.Comparison(required_value='0', operator=">=",
-                                                            referenced_parameter='MSN__PARAM'),
-                                     comparisons.Comparison(required_value='678', operator="<",
-                                                            referenced_parameter='MSN__PARAM')],
-                     calibrator=calibrators.PolynomialCalibrator(
-                         coefficients=[calibrators.PolynomialCoefficient(142.998, 0),
-                                       calibrators.PolynomialCoefficient(-0.349712, 1)])),
-                 calibrators.ContextCalibrator(
-                     match_criteria=[comparisons.Comparison(required_value='678', operator=">=",
-                                                            referenced_parameter='MSN__PARAM'),
-                                     comparisons.Comparison(required_value='4096', operator="<=",
-                                                            referenced_parameter='MSN__PARAM')],
-                     calibrator=calibrators.PolynomialCalibrator(
-                         coefficients=[calibrators.PolynomialCoefficient(100.488, 0),
-                                       calibrators.PolynomialCoefficient(-0.110197, 1)]))
-             ]
-         )),
-    ]
-)
-def test_float_data_encoding(xml_string: str, expectation):
-    """Test parsing an FloatDataEncoding from an XML string"""
-    element = ElementTree.fromstring(xml_string)
-
-    if isinstance(expectation, Exception):
-        with pytest.raises(type(expectation)):
-            encodings.FloatDataEncoding.from_data_encoding_xml_element(element, TEST_NAMESPACE)
-    else:
-        result = encodings.FloatDataEncoding.from_data_encoding_xml_element(element, TEST_NAMESPACE)
-        assert result == expectation
-
-
-@pytest.mark.parametrize(
-    ('xml_string', 'expectation'),
-    [
-        ("""
-<xtce:BinaryDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
-    <xtce:SizeInBits>
-        <xtce:FixedValue>256</xtce:FixedValue>
-    </xtce:SizeInBits>
-</xtce:BinaryDataEncoding>
-""",
-         encodings.BinaryDataEncoding(fixed_size_in_bits=256)),
-        ("""
-<xtce:BinaryDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
-    <xtce:SizeInBits>
-        <xtce:DynamicValue>
-            <xtce:ParameterInstanceRef parameterRef="SizeFromThisParameter"/>
-            <xtce:LinearAdjustment intercept="25" slope="8"/>
-        </xtce:DynamicValue>
-    </xtce:SizeInBits>
-</xtce:BinaryDataEncoding>
-""",
-         encodings.BinaryDataEncoding(
-             size_reference_parameter='SizeFromThisParameter',
-             linear_adjuster=lambda x: 25 + 8 * x)),
-        ("""
-<xtce:BinaryDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
-    <xtce:SizeInBits>
-        <xtce:DiscreteLookupList>
-            <xtce:DiscreteLookup value="10">
-                <xtce:Comparison parameterRef="P1" value="1"/>
-            </xtce:DiscreteLookup>
-            <xtce:DiscreteLookup value="25">
-                <xtce:Comparison parameterRef="P1" value="2"/>
-            </xtce:DiscreteLookup>
-        </xtce:DiscreteLookupList>
-    </xtce:SizeInBits>
-</xtce:BinaryDataEncoding>
-""",
-         encodings.BinaryDataEncoding(size_discrete_lookup_list=[
-             comparisons.DiscreteLookup([comparisons.Comparison('1', 'P1')], 10),
-             comparisons.DiscreteLookup([comparisons.Comparison('2', 'P1')], 25)
-         ])),
-    ]
-)
-def test_binary_data_encoding(xml_string: str, expectation):
-    """Test parsing an BinaryDataEncoding from an XML string"""
-    element = ElementTree.fromstring(xml_string)
-
-    if isinstance(expectation, Exception):
-        with pytest.raises(type(expectation)):
-            encodings.BinaryDataEncoding.from_data_encoding_xml_element(element, TEST_NAMESPACE)
-    else:
-        result = encodings.BinaryDataEncoding.from_data_encoding_xml_element(element, TEST_NAMESPACE)
-        assert result == expectation
-
-
-# -------------------
-# ParameterType Tests
-# -------------------
 @pytest.mark.parametrize(
     ('xml_string', 'expectation'),
     [
@@ -1178,10 +137,15 @@ def test_string_parameter_type(xml_string: str, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            parameters.StringParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+            parameters.StringParameterType.from_parameter_type_xml_element(element, XTCE_NSMAP)
     else:
-        result = parameters.StringParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+        result = parameters.StringParameterType.from_parameter_type_xml_element(element, XTCE_NSMAP)
         assert result == expectation
+        # Recover XML and re-parse it to check it's recoverable
+        result_string = ElementTree.tostring(result.to_parameter_type_xml_element(XTCE_NSMAP), pretty_print=True).decode()
+        full_circle = parameters.StringParameterType.from_parameter_type_xml_element(ElementTree.fromstring(result_string),
+                                                                                     ns=XTCE_NSMAP)
+        assert full_circle == expectation
 
 
 @pytest.mark.parametrize(
@@ -1369,7 +333,7 @@ def test_string_parameter_parsing(parameter_type, raw_data, current_pos, expecte
     </xtce:UnitSet>
     <xtce:IntegerDataEncoding sizeInBits="16" encoding="unsigned">
         <xtce:DefaultCalibrator>
-            <xtce:SplineCalibrator order="zero">
+            <xtce:SplineCalibrator order="0">
                 <xtce:SplinePoint raw="1" calibrated="10"/>
                 <xtce:SplinePoint raw="2" calibrated="100"/>
                 <xtce:SplinePoint raw="3" calibrated="500"/>
@@ -1397,10 +361,16 @@ def test_integer_parameter_type(xml_string: str, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            parameters.IntegerParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+            parameters.IntegerParameterType.from_parameter_type_xml_element(element, XTCE_NSMAP)
     else:
-        result = parameters.IntegerParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+        result = parameters.IntegerParameterType.from_parameter_type_xml_element(element, XTCE_NSMAP)
         assert result == expectation
+        # Recover XML and re-parse it to check it's recoverable
+        result_string = ElementTree.tostring(result.to_parameter_type_xml_element(XTCE_NSMAP), pretty_print=True).decode()
+        full_circle = parameters.IntegerParameterType.from_parameter_type_xml_element(
+            ElementTree.fromstring(result_string),
+            ns=XTCE_NSMAP)
+        assert full_circle == expectation
 
 
 @pytest.mark.parametrize(
@@ -1594,10 +564,16 @@ def test_float_parameter_type(xml_string: str, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            parameters.FloatParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+            parameters.FloatParameterType.from_parameter_type_xml_element(element, XTCE_NSMAP)
     else:
-        result = parameters.FloatParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+        result = parameters.FloatParameterType.from_parameter_type_xml_element(element, XTCE_NSMAP)
         assert result == expectation
+        # Recover XML and re-parse it to check it's recoverable
+        result_string = ElementTree.tostring(result.to_parameter_type_xml_element(XTCE_NSMAP), pretty_print=True).decode()
+        full_circle = parameters.FloatParameterType.from_parameter_type_xml_element(
+            ElementTree.fromstring(result_string),
+            ns=XTCE_NSMAP)
+        assert full_circle == expectation
 
 
 @pytest.mark.parametrize(
@@ -1772,6 +748,33 @@ def test_float_parameter_parsing(parameter_type, raw_data, expected):
                                                          b"CC": 'OP_LOW',
                                                          b"DD": 'OP_HIGH',
                                                          b"EE": 'OP_HIGH'})),
+        ("""
+<xtce:EnumeratedParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_ENUM_Type">
+    <xtce:UnitSet/>
+    <xtce:StringDataEncoding encoding="UTF-16BE">
+        <xtce:SizeInBits>
+            <xtce:Fixed>
+                <xtce:FixedValue>16</xtce:FixedValue>
+            </xtce:Fixed>
+        </xtce:SizeInBits>
+    </xtce:StringDataEncoding>
+    <xtce:EnumerationList>
+        <xtce:Enumeration label="BOOT_POR" value="AA"/>
+        <xtce:Enumeration label="BOOT_RETURN" value="BB"/>
+        <xtce:Enumeration label="OP_LOW" value="CC"/>
+        <xtce:Enumeration label="OP_HIGH" value="DD"/>
+        <xtce:Enumeration label="OP_HIGH" value="EE"/>
+    </xtce:EnumerationList>
+</xtce:EnumeratedParameterType>
+""",
+         parameters.EnumeratedParameterType(name='TEST_ENUM_Type',
+                                            encoding=encodings.StringDataEncoding(fixed_raw_length=16, encoding='UTF-16BE'),
+                                            # NOTE: Duplicate final value is on purpose to make sure we handle that case
+                                            enumeration={b"\x00A\x00A": 'BOOT_POR',
+                                                         b"\x00B\x00B": 'BOOT_RETURN',
+                                                         b"\x00C\x00C": 'OP_LOW',
+                                                         b"\x00D\x00D": 'OP_HIGH',
+                                                         b"\x00E\x00E": 'OP_HIGH'})),
     ]
 )
 def test_enumerated_parameter_type(xml_string: str, expectation):
@@ -1780,10 +783,16 @@ def test_enumerated_parameter_type(xml_string: str, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            parameters.EnumeratedParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+            parameters.EnumeratedParameterType.from_parameter_type_xml_element(element, XTCE_NSMAP)
     else:
-        result = parameters.EnumeratedParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+        result = parameters.EnumeratedParameterType.from_parameter_type_xml_element(element, XTCE_NSMAP)
         assert result == expectation
+        # Recover XML and re-parse it to check it's recoverable
+        result_string = ElementTree.tostring(result.to_parameter_type_xml_element(XTCE_NSMAP), pretty_print=True).decode()
+        full_circle = parameters.EnumeratedParameterType.from_parameter_type_xml_element(
+            ElementTree.fromstring(result_string),
+            ns=XTCE_NSMAP)
+        assert full_circle == expectation
 
 
 @pytest.mark.parametrize(
@@ -1924,10 +933,16 @@ def test_binary_parameter_type(xml_string: str, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            parameters.BinaryParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+            parameters.BinaryParameterType.from_parameter_type_xml_element(element, XTCE_NSMAP)
     else:
-        result = parameters.BinaryParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+        result = parameters.BinaryParameterType.from_parameter_type_xml_element(element, XTCE_NSMAP)
         assert result == expectation
+        # Recover XML and re-parse it to check it's recoverable
+        result_string = ElementTree.tostring(result.to_parameter_type_xml_element(XTCE_NSMAP), pretty_print=True).decode()
+        full_circle = parameters.BinaryParameterType.from_parameter_type_xml_element(
+            ElementTree.fromstring(result_string),
+            ns=XTCE_NSMAP)
+        assert full_circle == expectation
 
 
 @pytest.mark.parametrize(
@@ -2022,10 +1037,16 @@ def test_boolean_parameter_type(xml_string, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            parameters.BooleanParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+            parameters.BooleanParameterType.from_parameter_type_xml_element(element, XTCE_NSMAP)
     else:
-        result = parameters.BooleanParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+        result = parameters.BooleanParameterType.from_parameter_type_xml_element(element, XTCE_NSMAP)
         assert result == expectation
+        # Recover XML and re-parse it to check it's recoverable
+        result_string = ElementTree.tostring(result.to_parameter_type_xml_element(XTCE_NSMAP), pretty_print=True).decode()
+        full_circle = parameters.BooleanParameterType.from_parameter_type_xml_element(
+            ElementTree.fromstring(result_string),
+            ns=XTCE_NSMAP)
+        assert full_circle == expectation
 
 
 @pytest.mark.parametrize(
@@ -2175,10 +1196,17 @@ def test_absolute_time_parameter_type(xml_string, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            parameters.AbsoluteTimeParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+            parameters.AbsoluteTimeParameterType.from_parameter_type_xml_element(element, XTCE_NSMAP)
     else:
-        result = parameters.AbsoluteTimeParameterType.from_parameter_type_xml_element(element, TEST_NAMESPACE)
+        result = parameters.AbsoluteTimeParameterType.from_parameter_type_xml_element(element, XTCE_NSMAP)
         assert result == expectation
+        # Recover XML and re-parse it to check it's recoverable
+        result_string = ElementTree.tostring(result.to_parameter_type_xml_element(XTCE_NSMAP), pretty_print=True).decode()
+        print(result_string)
+        full_circle = parameters.AbsoluteTimeParameterType.from_parameter_type_xml_element(
+            ElementTree.fromstring(result_string),
+            ns=XTCE_NSMAP)
+        assert full_circle == expectation
 
 
 @pytest.mark.parametrize(
@@ -2231,109 +1259,24 @@ def test_absolute_time_parameter_parsing(parameter_type, raw_data, current_pos, 
     assert value == pytest.approx(expected_derived, rel=1E-6)
 
 
-# ---------------
-# Parameter Tests
-# ---------------
-def test_parameter():
+@pytest.mark.parametrize(
+    ("param_xml", "param_object"),
+    [
+        ("""
+<xtce:Parameter xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_INT" parameterTypeRef="TEST_INT_Type" shortDescription="Param short desc">
+  <xtce:LongDescription>This is a long description of the parameter</xtce:LongDescription>
+</xtce:Parameter>
+""",
+         parameters.Parameter(name='TEST_INT',
+                              parameter_type=parameters.IntegerParameterType(
+                                  name='TEST_INT_Type',
+                                  unit='floops',
+                                  encoding=encodings.IntegerDataEncoding(size_in_bits=16, encoding='unsigned')),
+                              short_description="Param short desc",
+                              long_description="This is a long description of the parameter")
+         )
+    ]
+)
+def test_parameter(param_xml, param_object):
     """Test Parameter"""
-    parameters.Parameter(name='TEST_INT',
-                         parameter_type=parameters.IntegerParameterType(
-                             name='TEST_INT_Type',
-                             unit='floops',
-                             encoding=encodings.IntegerDataEncoding(size_in_bits=16, encoding='unsigned')),
-                         short_description="Param short desc",
-                         long_description="This is a long description of the parameter")
-
-
-# -----------------------
-# Full XTCE Document Test
-# -----------------------
-def test_parsing_xtce_document(test_data_dir):
-    """Tests parsing an entire XTCE document and makes assertions about the contents"""
-    with open(test_data_dir / "test_xtce.xml") as x:
-        xdef = definitions.XtcePacketDefinition(x, ns=TEST_NAMESPACE)
-
-    # Test Parameter Types
-    ptname = "USEC_Type"
-    pt = xdef.named_parameter_types[ptname]
-    assert pt.name == ptname
-    assert pt.unit == "us"
-    assert isinstance(pt.encoding, encodings.IntegerDataEncoding)
-
-    # Test Parameters
-    pname = "ADAET1DAY"  # Named parameter
-    p = xdef.named_parameters[pname]
-    assert p.name == pname
-    assert p.short_description == "Ephemeris Valid Time, Days Since 1/1/1958"
-    assert p.long_description is None
-
-    pname = "USEC"
-    p = xdef.named_parameters[pname]
-    assert p.name == pname
-    assert p.short_description == "Secondary Header Fine Time (microsecond)"
-    assert p.long_description == "CCSDS Packet 2nd Header Fine Time in microseconds."
-
-    # Test Sequence Containers
-    scname = "SecondaryHeaderContainer"
-    sc = xdef.named_containers[scname]
-    assert sc.name == scname
-    assert sc == packets.SequenceContainer(
-        name=scname,
-        entry_list=[
-            parameters.Parameter(
-                name="DOY",
-                parameter_type=parameters.FloatParameterType(
-                    name="DOY_Type",
-                    encoding=encodings.IntegerDataEncoding(
-                        size_in_bits=16, encoding="unsigned"
-                    ),
-                    unit="day"
-                ),
-                short_description="Secondary Header Day of Year",
-                long_description="CCSDS Packet 2nd Header Day of Year in days."
-            ),
-            parameters.Parameter(
-                name="MSEC",
-                parameter_type=parameters.FloatParameterType(
-                    name="MSEC_Type",
-                    encoding=encodings.IntegerDataEncoding(
-                        size_in_bits=32, encoding="unsigned"
-                    ),
-                    unit="ms"
-                ),
-                short_description="Secondary Header Coarse Time (millisecond)",
-                long_description="CCSDS Packet 2nd Header Coarse Time in milliseconds."
-            ),
-            parameters.Parameter(
-                name="USEC",
-                parameter_type=parameters.FloatParameterType(
-                    name="USEC_Type",
-                    encoding=encodings.IntegerDataEncoding(
-                        size_in_bits=16, encoding="unsigned"
-                    ),
-                    unit="us"
-                ),
-                short_description="Secondary Header Fine Time (microsecond)",
-                long_description="CCSDS Packet 2nd Header Fine Time in microseconds."
-            )
-        ],
-        short_description=None,
-        long_description="Container for telemetry secondary header items",
-        base_container_name=None,
-        restriction_criteria=None,
-        abstract=True,
-        inheritors=None
-    )
-
-
-@pytest.mark.parametrize("start, nbits", [(0, 1), (0, 16), (0, 8), (0, 9),
-                                          (3, 5), (3, 8), (3, 13),
-                                          (7, 1), (7, 2), (7, 8),
-                                          (8, 1), (8, 8), (15, 1)])
-def test__extract_bits(start, nbits):
-    """Test the _extract_bits function with various start and nbits values"""
-    # Test extracting bits from a bitstream
-    s = '0000111100001111'
-    data = int(s, 2).to_bytes(2, byteorder="big")
-
-    assert packets._extract_bits(data, start, nbits) == int(s[start:start + nbits], 2)
+    assert ElementTree.tostring(param_object.to_parameter_xml_element(XTCE_NSMAP), pretty_print=True) == ElementTree.tostring(ElementTree.fromstring(param_xml), pretty_print=True)

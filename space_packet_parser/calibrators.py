@@ -1,4 +1,3 @@
-
 """Calibrator definitions"""
 from abc import ABCMeta, abstractmethod
 from collections import namedtuple
@@ -6,11 +5,10 @@ from typing import Union
 
 import lxml.etree as ElementTree
 
-from space_packet_parser import comparisons
-from space_packet_parser.exceptions import CalibrationError
+from space_packet_parser import comparisons, exceptions, mixins
 
 
-class Calibrator(comparisons.AttrComparable, metaclass=ABCMeta):
+class Calibrator(mixins.AttrComparable, metaclass=ABCMeta):
     """Abstract base class for XTCE calibrators"""
 
     @classmethod
@@ -28,6 +26,21 @@ class Calibrator(comparisons.AttrComparable, metaclass=ABCMeta):
         Returns
         -------
         cls
+        """
+        return NotImplemented
+
+    @abstractmethod
+    def to_calibrator_xml_element(self, ns: dict) -> ElementTree.Element:
+        """Create an XML element for this calibrator
+
+        Parameters
+        ----------
+        ns : dict
+            XML namespace dict
+
+        Returns
+        -------
+        : ElementTree.Element
         """
         return NotImplemented
 
@@ -53,7 +66,6 @@ SplinePoint = namedtuple('SplinePoint', ['raw', 'calibrated'])
 
 class SplineCalibrator(Calibrator):
     """<xtce:SplineCalibrator>"""
-    _order_mapping = {'zero': 0, 'first': 1, 'second': 2, 'third': 3}
 
     def __init__(self, points: list, order: int = 0, extrapolate: bool = False):
         """Constructor
@@ -84,9 +96,38 @@ class SplineCalibrator(Calibrator):
             SplinePoint(raw=float(p.attrib['raw']), calibrated=float(p.attrib['calibrated']))
             for p in point_elements
         ]
-        order = int(cls._order_mapping[element.attrib['order']]) if 'order' in element.attrib else 0
+        order = int(element.attrib['order']) if 'order' in element.attrib else 0
         extrapolate = element.attrib['extrapolate'].lower() == 'true' if 'extrapolate' in element.attrib else False
         return cls(order=order, points=spline_points, extrapolate=extrapolate)
+
+    def to_calibrator_xml_element(self, ns: dict) -> ElementTree.Element:
+        """Create a SplineCalibrator XML element
+
+        Parameters
+        ----------
+        ns : dict
+            XML namespace dict
+
+        Returns
+        -------
+        : ElementTree.Element
+        """
+        _, xtce_uri = next(iter(ns.items()))
+        xtce = f"{{{xtce_uri}}}"
+        element = ElementTree.Element(xtce + 'SplineCalibrator',
+                                      attrib={
+                                          "order": str(self.order),
+                                          "extrapolate": str(self.extrapolate).lower()
+                                      },
+                                      nsmap=ns)
+
+        for p in self.points:
+            ElementTree.SubElement(element,
+                                   xtce + "SplinePoint",
+                                   attrib={"raw": str(p.raw), "calibrated": str(p.calibrated)},
+                                   nsmap=ns)
+
+        return element
 
     def calibrate(self, uncalibrated_value: float) -> float:
         """Take an integer-encoded value and returns a calibrated version according to the spline points.
@@ -131,8 +172,8 @@ class SplineCalibrator(Calibrator):
             return y[-1]
         if query_point < min(x) and self.extrapolate:
             return y[0]
-        raise CalibrationError(f"Extrapolation is set to a falsy value ({self.extrapolate}) but query value "
-                               f"{query_point} falls outside the range of spline points {self.points}")
+        raise exceptions.CalibrationError(f"Extrapolation is set to a falsy value ({self.extrapolate}) but query value "
+                                          f"{query_point} falls outside the range of spline points {self.points}")
 
     def _first_order_spline_interp(self, query_point: float) -> float:
         """Abstraction for first order spline interpolation. If extrapolation is set to a truthy value, we use the
@@ -179,8 +220,8 @@ class SplineCalibrator(Calibrator):
             return linear_func(query_point, x[-2], x[-1], y[-2], y[-1])
         if query_point < min(x) and self.extrapolate:
             return linear_func(query_point, x[0], x[1], y[0], y[1])
-        raise CalibrationError(f"Extrapolation is set to a falsy value ({self.extrapolate}) but query value "
-                               f"{query_point} falls outside the range of spline points {self.points}")
+        raise exceptions.CalibrationError(f"Extrapolation is set to a falsy value ({self.extrapolate}) but query value "
+                                          f"{query_point} falls outside the range of spline points {self.points}")
 
 
 PolynomialCoefficient = namedtuple('PolynomialCoefficient', ['coefficient', 'exponent'])
@@ -189,7 +230,7 @@ PolynomialCoefficient = namedtuple('PolynomialCoefficient', ['coefficient', 'exp
 class PolynomialCalibrator(Calibrator):
     """<xtce:PolynomialCalibrator>"""
 
-    def __init__(self, coefficients: list):
+    def __init__(self, coefficients: list[PolynomialCoefficient]):
         """Constructor
 
         Parameters
@@ -220,6 +261,30 @@ class PolynomialCalibrator(Calibrator):
             for term in terms
         ]
         return cls(coefficients=coefficients)
+
+    def to_calibrator_xml_element(self, ns: dict) -> ElementTree.Element:
+        """Create a PolynomialCalibrator XML element
+
+        Parameters
+        ----------
+        ns : dict
+            XML namespace dict
+
+        Returns
+        -------
+        : ElementTree.Element
+        """
+        _, xtce_uri = next(iter(ns.items()))
+        xtce = f"{{{xtce_uri}}}"
+        element = ElementTree.Element(xtce + 'PolynomialCalibrator', nsmap=ns)
+
+        for coeff in self.coefficients:
+            ElementTree.SubElement(element,
+                                   xtce + "Term",
+                                   attrib={"exponent": str(coeff.exponent), "coefficient": str(coeff.coefficient)},
+                                   nsmap=ns)
+
+        return element
 
     def calibrate(self, uncalibrated_value: float) -> float:
         """Evaluate the polynomial defined by object coefficients at the specified uncalibrated point.
@@ -253,6 +318,20 @@ class MathOperationCalibrator(Calibrator):
         """Create a math operation default_calibrator from an <xtce:MathOperationCalibrator> XML element."""
         raise NotImplementedError(cls.err_msg)
 
+    def to_calibrator_xml_element(self, ns: dict) -> ElementTree.Element:
+        """Create a MathOperationsCalibrator XML element
+
+        Parameters
+        ----------
+        ns : dict
+            XML namespace dict
+
+        Returns
+        -------
+        : ElementTree.Element
+        """
+        raise NotImplementedError(self.err_msg)
+
     def calibrate(self, uncalibrated_value: int):
         """Stub
 
@@ -267,7 +346,7 @@ class MathOperationCalibrator(Calibrator):
         raise NotImplementedError(self.err_msg)
 
 
-class ContextCalibrator(comparisons.AttrComparable):
+class ContextCalibrator(mixins.AttrComparable):
     """<xtce:ContextCalibrator>"""
 
     def __init__(self, match_criteria: list, calibrator: Calibrator):
@@ -277,8 +356,8 @@ class ContextCalibrator(comparisons.AttrComparable):
         ----------
         match_criteria : Union[MatchCriteria, list]
             Object representing the logical operations to be performed to determine whether to use this
-            default_calibrator. This can be a Comparison, a ComparsonList (a list of Comparison objects),
-            a BooleanExpression (not supported), or a CustomAlgorithm (not supported)
+            calibrator. This can be a Comparison, a ComparsonList (a list of Comparison objects),
+            a BooleanExpression, or a CustomAlgorithm (not supported)
         calibrator : Calibrator
             Calibrator to use if match criteria evaluates to True
         """
@@ -342,6 +421,36 @@ class ContextCalibrator(comparisons.AttrComparable):
                 "calibrators for ContextCalibrators.")
 
         return cls(match_criteria=match_criteria, calibrator=calibrator)
+
+    def to_context_calibrator_xml_element(self, ns: dict) -> ElementTree.Element:
+        """Create a MathOperationsCalibrator XML element
+
+        Parameters
+        ----------
+        ns : dict
+            XML namespace dict
+
+        Returns
+        -------
+        : ElementTree.Element
+        """
+        _, xtce_uri = next(iter(ns.items()))
+        xtce = f"{{{xtce_uri}}}"
+        element = ElementTree.Element(xtce + "ContextCalibrator", nsmap=ns)
+        context_match_element = ElementTree.SubElement(element, xtce + 'ContextMatch', nsmap=ns)
+        if len(self.match_criteria) > 1:
+            comparison_list_element = ElementTree.SubElement(context_match_element, xtce + 'ComparisonList', nsmap=ns)
+            for comparison in self.match_criteria:
+                comparison_list_element.append(comparison.to_match_criteria_xml_element(ns))
+        elif isinstance(self.match_criteria[0], comparisons.Comparison):
+            context_match_element.append(self.match_criteria[0].to_match_criteria_xml_element(ns))
+        elif isinstance(self.match_criteria[0], comparisons.BooleanExpression):
+            context_match_element.append(self.match_criteria[0].to_match_criteria_xml_element(ns))
+        else:
+            raise ValueError("Unsupported ContextMatch contents in match_criteria attribute")
+        calibrator_element = ElementTree.SubElement(element, xtce + 'Calibrator', nsmap=ns)
+        calibrator_element.append(self.calibrator.to_calibrator_xml_element(ns))
+        return element
 
     def calibrate(self, parsed_value: Union[int, float]) -> float:
         """Wrapper method for the internal `Calibrator.calibrate`
