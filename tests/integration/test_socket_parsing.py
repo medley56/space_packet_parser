@@ -1,7 +1,7 @@
 """Mock socket streaming and listener that decodes on the fly"""
 # Standard
 from contextlib import closing
-from multiprocessing import Process
+from threading import Thread
 import random
 import socket
 import time
@@ -48,13 +48,14 @@ def test_parsing_from_socket(jpss_test_data_dir):
     receiver.settimeout(3)
     with closing(sender), closing(receiver):
         file = jpss_test_data_dir / 'J01_G011_LZ_2021-04-09T00-00-00Z_V01.DAT1'
-        p = Process(target=send_data, args=(sender, file,))
-        p.start()
+        t = Thread(target=send_data, args=(sender, file,))
+        t.start()
 
         packet_generator = xdef.packet_generator(receiver, buffer_read_size_bytes=4096)
         with pytest.raises(socket.timeout):
             packets = []
             for p in packet_generator:
                 packets.append(p)
+        t.join()
 
     assert len(packets) == 7200
