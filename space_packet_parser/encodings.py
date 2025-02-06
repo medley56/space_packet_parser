@@ -1,7 +1,8 @@
 """DataEncoding definitions"""
 # Standard
-import logging
 import struct
+import logging
+import warnings
 from abc import ABCMeta, abstractmethod
 from typing import Optional, Union
 
@@ -604,7 +605,7 @@ class IntegerDataEncoding(NumericDataEncoding):
 class FloatDataEncoding(NumericDataEncoding):
     """<xtce:FloatDataEncoding>"""
     _allowed_encodings = ['IEEE754_1985', 'IEEE754', 'MILSTD_1750A', 'DEC', 'IBM', 'TI']
-    _supported_encodings = _allowed_encodings[:3] # this should be expanded if/when support for other float types is added
+    _supported_encodings = _allowed_encodings[:3] # expand this if/when support for other float types is added
     _data_return_class = packets.FloatParameter
 
     def __init__(
@@ -633,6 +634,14 @@ class FloatDataEncoding(NumericDataEncoding):
             List of ContextCalibrator objects, containing match criteria and corresponding calibrators to use in
             various scenarios, based on other parameters.
         """
+        if encoding == "IEEE-754":
+            warnings.warn("Float encoding 'IEEE-754' (with a dash) is not supported by the XTCE spec; "
+                          "use 'IEEE754' instead")
+            encoding = "IEEE754"
+        elif encoding == "MIL-1750A":
+            warnings.warn("Float encoding 'MIL-1750A' is not supported by the XTCE spec; use "
+                          "'MILSTD_1750A' instead")
+            encoding = "MILSTD_1750A"
         if encoding not in self._allowed_encodings:
             raise ValueError(f"Invalid encoding type {encoding} for float data. "
                              f"Must be one of {self._allowed_encodings}.")
