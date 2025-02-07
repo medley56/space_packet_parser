@@ -34,8 +34,8 @@ class XtcePacketDefinition:
 
     def __init__(
             self,
-            *,
             sequence_container_list: Optional[list[packets.SequenceContainer]] = None,
+            *,
             ns: dict = XTCE_NSMAP,
             root_container_name: Optional[str] = DEFAULT_ROOT_CONTAINER,
             space_system_name: Optional[str] = None,
