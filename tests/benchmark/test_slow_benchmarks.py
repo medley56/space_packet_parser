@@ -3,9 +3,9 @@
 Each test in this suite tests a specific metric over time
 """
 import pytest
-from space_packet_parser import definitions
-from space_packet_parser.packets import CCSDSPacket
 from typing import Iterable
+
+from space_packet_parser import definitions, packets
 
 
 @pytest.mark.benchmark(
@@ -37,15 +37,15 @@ def test_benchmark_simple_packet_parsing(benchmark, jpss_test_data_dir):
             packet_generator = packet_definition.packet_generator(packet_fh)
             return (), {"generator": packet_generator}  # args, kwargs for benchmarked function
 
-        def _make_packet_list(generator: Iterable[CCSDSPacket]):
+        def _make_packet_list(generator: Iterable[packets.CCSDSPacket]):
             """Function wrapper for list that takes the generator as a kwarg"""
             return list(generator)
 
         # The setup function is run before each "round" so "iterations" is automatically set to 1 and cannot be changed
-        packets: list = benchmark.pedantic(_make_packet_list, setup=_setup, rounds=20, warmup_rounds=1)
+        packet_list: list = benchmark.pedantic(_make_packet_list, setup=_setup, rounds=20, warmup_rounds=1)
 
         # Make sure the result actually makes sense
-        assert len(packets) == 7200
+        assert len(packet_list) == 7200
     finally:
         # Ensure filehandler is closed
         packet_fh.close()
@@ -67,15 +67,15 @@ def test_benchmark_complex_packet_parsing(benchmark, idex_test_data_dir):
             packet_generator = packet_definition.packet_generator(packet_fh, show_progress=True)
             return (), {"generator": packet_generator}  # args, kwargs for benchmarked function
 
-        def _make_packet_list(generator: Iterable[CCSDSPacket]):
+        def _make_packet_list(generator: Iterable[packets.CCSDSPacket]):
             """Function wrapper for list that takes the generator as a kwarg"""
             return list(generator)
 
         # The setup function is run before each "round" so "iterations" is automatically set to 1 and cannot be changed
-        packets: list = benchmark.pedantic(_make_packet_list, setup=_setup, rounds=20, warmup_rounds=1)
+        packet_list: list = benchmark.pedantic(_make_packet_list, setup=_setup, rounds=20, warmup_rounds=1)
 
         # Make sure the result actually makes sense
-        assert len(packets) == 78
+        assert len(packet_list) == 78
     finally:
         # Ensure filehandler is closed
         packet_fh.close()

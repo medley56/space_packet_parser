@@ -76,8 +76,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.pytest.ini_options]
 filterwarnings = [
     "error",
-    "ignore:You are encoding a BooleanParameterType:UserWarning",
-    "ignore:Number of bits parsed:UserWarning"
+    "ignore:You are encoding a BooleanParameterType:UserWarning"
 ]
 
 [tool.ruff]
