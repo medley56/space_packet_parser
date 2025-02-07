@@ -1,7 +1,7 @@
 """DataEncoding definitions"""
 # Standard
-import struct
 import logging
+import struct
 import warnings
 from abc import ABCMeta, abstractmethod
 from typing import Optional, Union
