@@ -2,6 +2,14 @@
 This example demonstrates how to convert CCSDSPy CSV files to XTCE using the Space Packet Parser
 XtcePacketDefinition object and assorted Python object representations of XTCE UML objects (e.g. Parameters,
 ParameterTypes, and SequenceContainers).
+
+The overarching method is to manually create Python objects that represent XTCE UML model objects and use those
+objects to initialize an XtcePacketDefinition object, which can be used to parse data. This means you don't have
+to begin with a CCSDSPy CSV file to do this, but it's a convenient example application of the process.
+
+Reference for CCSDSPy CSV format: https://docs.ccsdspy.org/en/1.3.2/user-guide/loadfile.html
+
+This example was generated based on documention of CCSDSPy version 1.3.2
 """
 import csv
 from pathlib import Path
@@ -24,7 +32,7 @@ def generate_ccsds_header() -> list[parameters.Parameter]:
     """Create the Parameter objects necessary for a CCSDS header, in order.
 
     This is necessary because CCSDSPy internally hardcodes CCSDS header definitions so they are not included
-    in CCSDSPy-style CSV files.
+    in CCSDSPy-style CSV files but are necessary in an XTCE packet definition.
 
     Returns
     -------
@@ -91,7 +99,7 @@ def convert_ccsdspy_to_xtce(csv_path: Path) -> definitions.XtcePacketDefinition:
     """
     with csv_path.open(newline='', encoding='utf-8') as csvfile:
         reader = csv.DictReader(csvfile)
-        ccsdspy_rows = [row for row in reader]
+        ccsdspy_rows = list(reader)
 
     # Initialize our parameter list with a hard-coded generation of a CCSDS header since CCSDSPy CSVs are not
     # expected to contain the header fields.

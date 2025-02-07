@@ -1,8 +1,8 @@
 # Space Packet Parser
 
-[![Test Status](https://github.com/medley56/space_packet_parser/actions/workflows/pr_tests.yml/badge.svg)](https://github.com/medley56/space_packet_parser/actions/workflows/pr_tests.yml)
+[![Test Status](https://github.com/lasp/space_packet_parser/actions/workflows/tests.yml/badge.svg)](https://github.com/lasp/space_packet_parser/actions/workflows/tests.yml)
 [![Doc Status](https://readthedocs.org/projects/space-packet-parser/badge/?version=latest)](https://readthedocs.org/projects/space-packet-parser/)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7735001.svg)](https://doi.org/10.5281/zenodo.7735001)
+[![DOI](https://zenodo.org/badge/612253190.svg)](https://doi.org/10.5281/zenodo.7735001)
 
 Documentation: [https://space-packet-parser.readthedocs.io/en/latest/](https://space-packet-parser.readthedocs.io/en/latest/)
 
