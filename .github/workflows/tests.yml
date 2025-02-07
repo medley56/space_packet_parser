@@ -1,5 +1,13 @@
 name: Run Style Checks and Test
-on: pull_request
+on:
+  pull_request:  # Run on all PR changes
+    types: [opened, synchronize, reopened]  # This is the default, but made explicit
+  push:  # Run on all changes to main (includes PR merges)
+    branches:
+      - main
+  schedule:  # Scheduled workflows will only run on the default branch
+    - cron: '50 23 * * *'  # 11:50pm daily (to get ahead of all those midnight jobs)
+
 jobs:
 
   linting:
