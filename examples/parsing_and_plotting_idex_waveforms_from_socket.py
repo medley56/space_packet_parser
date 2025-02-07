@@ -162,11 +162,11 @@ if __name__ == "__main__":
                     for scitype, waveform in data.items()
                 }
                 plot_full_event(parsed_waveform_data)
-    except StopIteration:
+    except socket.timeout:
         parsed_waveform_data: dict[int, list] = {
             scitype: parse_waveform_data(waveform, scitype)
             for scitype, waveform in data.items()
         }
-        plot_full_event(data)
+        plot_full_event(parsed_waveform_data)
         print("\nEncountered the end of the binary file.")
         pass
