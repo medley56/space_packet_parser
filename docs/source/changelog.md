@@ -27,6 +27,7 @@ Release notes for the `space_packet_parser` library
   some common tasks and utilities.
 - Add function to directly create an `xarray.DataSet` from a packet file and XTCE definition.
   e.g. `space_packet_parser.xarr.create_dataset([packets1, packets2, ...], definition)`
+- BUGFIX: update list of allowed float encodings to match XTCE spec
 
 ### v5.0.1 (released)
 - BUGFIX: Allow raw_value representation for enums with falsy raw values. Previously these defaulted to the enum label.

@@ -48,8 +48,8 @@
             <xtce:IntegerParameterType name="D32Type" sizeInBits="32" signed="false">
                 <xtce:IntegerDataEncoding sizeInBits="32" encoding="unsigned"/>
             </xtce:IntegerParameterType>
-            <xtce:FloatParameterType name="F32Type" sizeInBits="32" encoding="IEEE-754">
-                <xtce:FloatDataEncoding sizeInBits="32" encoding="IEEE-754"/>
+            <xtce:FloatParameterType name="F32Type" sizeInBits="32" encoding="IEEE754">
+                <xtce:FloatDataEncoding sizeInBits="32" encoding="IEEE754"/>
             </xtce:FloatParameterType>
             <xtce:IntegerParameterType name="I16Type" sizeInBits="16" signed="true">
                 <xtce:IntegerDataEncoding sizeInBits="16" encoding="signed"/>

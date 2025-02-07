@@ -2,6 +2,7 @@
 # Standard
 import logging
 import struct
+import warnings
 from abc import ABCMeta, abstractmethod
 from typing import Optional, Union
 
@@ -603,14 +604,15 @@ class IntegerDataEncoding(NumericDataEncoding):
 
 class FloatDataEncoding(NumericDataEncoding):
     """<xtce:FloatDataEncoding>"""
-    _supported_encodings = ['IEEE-754', 'MIL-1750A']
+    _allowed_encodings = ['IEEE754_1985', 'IEEE754', 'MILSTD_1750A', 'DEC', 'IBM', 'TI']
+    _supported_encodings = _allowed_encodings[:3] # expand this if/when support for other float types is added
     _data_return_class = packets.FloatParameter
 
     def __init__(
             self,
             size_in_bits: int,
             *,
-            encoding: str = 'IEEE-754',
+            encoding: str = 'IEEE754',
             byte_order: str = 'mostSignificantByteFirst',
             default_calibrator: Optional[calibrators.Calibrator] = None,
             context_calibrators: Optional[list[calibrators.ContextCalibrator]] = None
@@ -622,7 +624,7 @@ class FloatDataEncoding(NumericDataEncoding):
         size_in_bits : int
             Size of the encoded value, in bits.
         encoding : str
-            Encoding method of the float data. Must be either 'IEEE-754' or 'MIL-1750A'. Defaults to IEEE-754.
+            Encoding method of the float data. Must be either 'IEEE754' or 'MILSTD_1750A'. Defaults to IEEE754.
         byte_order : str
             Description of the byte order. Default is 'mostSignificantByteFirst' (big endian).
         default_calibrator : Optional[Calibrator]
@@ -632,18 +634,29 @@ class FloatDataEncoding(NumericDataEncoding):
             List of ContextCalibrator objects, containing match criteria and corresponding calibrators to use in
             various scenarios, based on other parameters.
         """
-        if encoding not in self._supported_encodings:
+        if encoding == "IEEE-754":
+            warnings.warn("Float encoding 'IEEE-754' (with a dash) is not supported by the XTCE spec; "
+                          "use 'IEEE754' instead")
+            encoding = "IEEE754"
+        elif encoding == "MIL-1750A":
+            warnings.warn("Float encoding 'MIL-1750A' is not supported by the XTCE spec; use "
+                          "'MILSTD_1750A' instead")
+            encoding = "MILSTD_1750A"
+        if encoding not in self._allowed_encodings:
             raise ValueError(f"Invalid encoding type {encoding} for float data. "
-                             f"Must be one of {self._supported_encodings}.")
-        if encoding == 'MIL-1750A' and size_in_bits != 32:
+                             f"Must be one of {self._allowed_encodings}.")
+        if encoding not in self._supported_encodings:
+            raise NotImplementedError(f"Although the XTCE spec allows {encoding}-encoded floats, "
+                                      "parsing them is not currently supported.")
+        if encoding == 'MILSTD_1750A' and size_in_bits != 32:
             raise ValueError("MIL-1750A encoded floats must be 32 bits, per the MIL-1750A spec. See "
                              "https://www.xgc-tek.com/manuals/mil-std-1750a/c191.html#AEN324")
-        if encoding == 'IEEE-754' and size_in_bits not in (16, 32, 64):
-            raise ValueError(f"Invalid size_in_bits value for IEEE-754 FloatDataEncoding, {size_in_bits}. "
+        if encoding in ('IEEE754', 'IEEE754_1985') and size_in_bits not in (16, 32, 64):
+            raise ValueError(f"Invalid size_in_bits value for IEEE754 FloatDataEncoding, {size_in_bits}. "
                              "Must be 16, 32, or 64.")
         super().__init__(size_in_bits=size_in_bits, encoding=encoding, byte_order=byte_order,
                          default_calibrator=default_calibrator, context_calibrators=context_calibrators)
-        if self.encoding == "MIL-1750A":
+        if self.encoding == "MILSTD_1750A":
             def _mil_parse_func(mil_bytes: bytes):
                 """Parsing function for MIL-1750A floats"""
                 # MIL 1750A floats are always 32 bit
@@ -716,7 +729,7 @@ class FloatDataEncoding(NumericDataEncoding):
         : cls
         """
         size_in_bits = int(element.attrib['sizeInBits'])
-        encoding = element.get("encoding", "IEEE-754")
+        encoding = element.get("encoding", "IEEE754")
         byte_order = element.get("byteOrder", "mostSignificantByteFirst")
         default_calibrator = cls.get_default_calibrator(element, ns)
         context_calibrators = cls.get_context_calibrators(element, ns)
