@@ -19,7 +19,7 @@ import time
 # Installed
 import matplotlib.pyplot as plt
 # Local
-from space_packet_parser import definitions
+from space_packet_parser.xtce import definitions
 
 
 def send_data(sender: socket.socket, file: Path) -> None:

@@ -13,7 +13,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Optional, Union
 
-from space_packet_parser import definitions, encodings, parameters
+from space_packet_parser.xtce import definitions, encodings, parameters
 
 
 def _min_dtype_for_encoding(data_encoding: encodings.DataEncoding):

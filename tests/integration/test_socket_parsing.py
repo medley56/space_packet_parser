@@ -1,14 +1,13 @@
 """Mock socket streaming and listener that decodes on the fly"""
-# Standard
 from contextlib import closing
 from threading import Thread
 import random
 import socket
 import time
-# Installed
+
 import pytest
-# Local
-from space_packet_parser.definitions import XtcePacketDefinition
+
+from space_packet_parser.xtce.definitions import XtcePacketDefinition
 
 
 def send_data(sender: socket.socket, file: str):

@@ -22,8 +22,8 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.tree import Tree
 
-from space_packet_parser.definitions import DEFAULT_ROOT_CONTAINER, XtcePacketDefinition
 from space_packet_parser.packets import ccsds_generator
+from space_packet_parser.xtce.definitions import DEFAULT_ROOT_CONTAINER, XtcePacketDefinition
 
 # Initialize a console instance for rich output
 console = Console()

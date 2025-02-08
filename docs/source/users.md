@@ -13,11 +13,11 @@ Usage with XTCE packet definition:
 
 ```python
 from pathlib import Path
-from space_packet_parser import definitions
+from space_packet_parser.xtce import definitions
 
 packet_file = Path('my_packets.pkts')
 xtce_document = Path('my_xtce_document.xml')
-packet_definition = definitions.XtcePacketDefinition(xtce_document)
+packet_definition = definitions.XtcePacketDefinition.from_document(xtce_document)
 
 # You can introspect the packet definition to learn about what was parsed
 # Look up a type (includes unit and encoding info)

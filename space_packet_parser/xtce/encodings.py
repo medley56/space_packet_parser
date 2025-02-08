@@ -7,7 +7,8 @@ from typing import Optional, Union
 
 import lxml.etree as ElementTree
 
-from space_packet_parser import calibrators, common, comparisons, packets
+from space_packet_parser import common, packets
+from space_packet_parser.xtce import calibrators, comparisons
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +87,7 @@ class DataEncoding(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
             # Try to find each type of data encoding element. If we find one, we assume it's the only one.
             element = data_encoding_element.find(f"xtce:DefaultCalibrator/xtce:{calibrator.__name__}", ns)
             if element is not None:
-                return calibrator.from_calibrator_xml_element(element, ns)
+                return calibrator.from_xml(element, ns=ns)
         return None
 
     @staticmethod
@@ -107,7 +108,7 @@ class DataEncoding(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
             List of ContextCalibrator objects or None if there are no context calibrators
         """
         if (context_calibrators_elements := data_encoding_element.find('xtce:ContextCalibratorList', ns)) is not None:
-            return [calibrators.ContextCalibrator.from_context_calibrator_xml_element(el, ns)
+            return [calibrators.ContextCalibrator.from_xml(el, ns=ns)
                     for el in context_calibrators_elements]
         return None
 
@@ -677,12 +678,12 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
 
         if self.default_calibrator:
             default_calibrator_element = ElementTree.SubElement(element, xtce + "DefaultCalibrator", nsmap=ns)
-            default_calibrator_element.append(self.default_calibrator.to_calibrator_xml_element(ns))
+            default_calibrator_element.append(self.default_calibrator.to_xml(ns=ns))
 
         if self.context_calibrators:
             context_calibrator_list_element = ElementTree.SubElement(element, xtce + "ContextCalibratorList", nsmap=ns)
             for cal in self.context_calibrators:
-                context_calibrator_list_element.append(cal.to_context_calibrator_xml_element(ns))
+                context_calibrator_list_element.append(cal.to_xml(ns=ns))
 
         return element
 

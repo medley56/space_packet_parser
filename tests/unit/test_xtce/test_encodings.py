@@ -2,8 +2,7 @@
 import pytest
 import lxml.etree as ElementTree
 
-from space_packet_parser import encodings, comparisons, calibrators
-from space_packet_parser.xtce import XTCE_NSMAP
+from space_packet_parser.xtce import encodings, comparisons, calibrators, XTCE_NSMAP
 
 
 @pytest.mark.parametrize(

@@ -2,9 +2,9 @@
 import pytest
 import lxml.etree as ElementTree
 
-from space_packet_parser import packets, comparisons, common
+from space_packet_parser import packets
 from space_packet_parser.exceptions import ComparisonError
-from space_packet_parser.xtce import XTCE_NSMAP
+from space_packet_parser.xtce import comparisons, XTCE_NSMAP
 
 
 @pytest.mark.parametrize(
@@ -118,15 +118,15 @@ def test_comparison(xml_string, test_parsed_data, current_parsed_value, expected
     element = ElementTree.fromstring(xml_string)
     if isinstance(expected_comparison_result, Exception):
         with pytest.raises(type(expected_comparison_result)):
-            comparison = comparisons.Comparison.from_match_criteria_xml_element(element, XTCE_NSMAP)
+            comparison = comparisons.Comparison.from_xml(element, ns=XTCE_NSMAP)
             comparison.evaluate(test_parsed_data, current_parsed_value)
     else:
-        comparison = comparisons.Comparison.from_match_criteria_xml_element(element, XTCE_NSMAP)
+        comparison = comparisons.Comparison.from_xml(element, ns=XTCE_NSMAP)
         assert comparison.evaluate(test_parsed_data, current_parsed_value) == expected_comparison_result
         # Recover XML and re-parse it to check it's reproducible
-        result_string = ElementTree.tostring(comparison.to_match_criteria_xml_element(XTCE_NSMAP), pretty_print=True).decode()
-        full_circle = comparisons.Comparison.from_match_criteria_xml_element(ElementTree.fromstring(result_string),
-                                                                             ns=XTCE_NSMAP)
+        result_string = ElementTree.tostring(comparison.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
+        full_circle = comparisons.Comparison.from_xml(ElementTree.fromstring(result_string),
+                                                      ns=XTCE_NSMAP)
         assert full_circle.evaluate(test_parsed_data, current_parsed_value) == expected_comparison_result
 
 
@@ -182,12 +182,12 @@ def test_comparison(xml_string, test_parsed_data, current_parsed_value, expected
 def test_condition(xml_string, test_parsed_data, expected_condition_result):
     """Test Condition object"""
     element = ElementTree.fromstring(xml_string)
-    condition = comparisons.Condition.from_match_criteria_xml_element(element, XTCE_NSMAP)
+    condition = comparisons.Condition.from_xml(element, ns=XTCE_NSMAP)
     assert condition.evaluate(test_parsed_data, None) == expected_condition_result
     # Recover XML and re-parse it to check it's reproducible
-    result_string = ElementTree.tostring(condition.to_match_criteria_xml_element(XTCE_NSMAP), pretty_print=True).decode()
-    full_circle = comparisons.Condition.from_match_criteria_xml_element(ElementTree.fromstring(result_string),
-                                                                        ns=XTCE_NSMAP)
+    result_string = ElementTree.tostring(condition.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
+    full_circle = comparisons.Condition.from_xml(ElementTree.fromstring(result_string),
+                                                 ns=XTCE_NSMAP)
     assert full_circle.evaluate(test_parsed_data) == expected_condition_result
 
 
@@ -262,14 +262,14 @@ def test_boolean_expression(xml_string, test_parsed_data, expected_result):
     element = ElementTree.fromstring(xml_string)
     if isinstance(expected_result, Exception):
         with pytest.raises(type(expected_result)):
-            comparisons.BooleanExpression.from_match_criteria_xml_element(element, XTCE_NSMAP)
+            comparisons.BooleanExpression.from_xml(element, ns=XTCE_NSMAP)
     else:
-        expression = comparisons.BooleanExpression.from_match_criteria_xml_element(element, XTCE_NSMAP)
+        expression = comparisons.BooleanExpression.from_xml(element, ns=XTCE_NSMAP)
         assert expression.evaluate(test_parsed_data, current_parsed_value=None) == expected_result
         # Recover XML and re-parse it to check it's reproducible
-        result_string = ElementTree.tostring(expression.to_match_criteria_xml_element(XTCE_NSMAP), pretty_print=True).decode()
-        full_circle = comparisons.BooleanExpression.from_match_criteria_xml_element(ElementTree.fromstring(result_string),
-                                                                            ns=XTCE_NSMAP)
+        result_string = ElementTree.tostring(expression.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
+        full_circle = comparisons.BooleanExpression.from_xml(ElementTree.fromstring(result_string),
+                                                             ns=XTCE_NSMAP)
         assert full_circle.evaluate(test_parsed_data) == expected_result
 
 

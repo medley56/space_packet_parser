@@ -6,8 +6,8 @@ from typing import Optional, Union
 
 import lxml.etree as ElementTree
 
-from space_packet_parser import calibrators, common, encodings, packets
-from space_packet_parser.encodings import StringDataEncoding
+from space_packet_parser import common, packets
+from space_packet_parser.xtce import calibrators, encodings
 
 
 class ParameterType(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
@@ -286,7 +286,7 @@ class EnumeratedParameterType(ParameterType):
         param_type_element.append(self.encoding.to_xml(ns=ns))
         enum_list_element = ElementTree.SubElement(param_type_element, xtce + "EnumerationList", nsmap=ns)
         for value, label in self.enumeration.items():
-            if isinstance(self.encoding, StringDataEncoding):
+            if isinstance(self.encoding, encodings.StringDataEncoding):
                 # If the values are string encoded, we actually store them as bytes, but they need to be decoded
                 # with the string encoding (e.g. UTF-16) for inclusion in the XML
                 value = value.decode(self.encoding.encoding)

@@ -5,7 +5,8 @@ Each test in this suite tests a specific metric over time
 import pytest
 from typing import Iterable
 
-from space_packet_parser import definitions, packets
+from space_packet_parser import packets
+from space_packet_parser.xtce import definitions
 
 
 @pytest.mark.benchmark(

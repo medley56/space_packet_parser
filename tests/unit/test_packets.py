@@ -1,7 +1,8 @@
 """Tests for packets"""
 import pytest
 
-from space_packet_parser import definitions, packets
+from space_packet_parser import packets
+from space_packet_parser.xtce import definitions
 
 
 @pytest.mark.parametrize(("input_var", "input_value"),

@@ -9,9 +9,9 @@ from typing import BinaryIO, Optional, TextIO, Union
 
 import lxml.etree as ElementTree
 
-from space_packet_parser import containers, packets, parameters
+from space_packet_parser import packets
 from space_packet_parser.exceptions import InvalidParameterTypeError, UnrecognizedPacketTypeError
-from space_packet_parser.xtce import XTCE_NSMAP
+from space_packet_parser.xtce import XTCE_NSMAP, containers, parameters
 
 logger = logging.getLogger(__name__)
 
@@ -132,7 +132,7 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
                                                             xtce + "ContainerSet",
                                                             nsmap=self.ns)
             for _, sc in self._sequence_container_cache.items():
-                sequence_container_set.append(sc.to_xml(self.ns))
+                sequence_container_set.append(sc.to_xml(ns=self.ns))
 
         return tree
 

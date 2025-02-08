@@ -2,9 +2,9 @@
 import pytest
 import lxml.etree as ElementTree
 
-from space_packet_parser import calibrators, comparisons, packets
+from space_packet_parser import packets
 from space_packet_parser.exceptions import CalibrationError
-from space_packet_parser.xtce import XTCE_NSMAP
+from space_packet_parser.xtce import calibrators, comparisons, XTCE_NSMAP
 
 
 @pytest.mark.parametrize(
@@ -121,12 +121,12 @@ def test_context_calibrator(xml_string, expectation):
     """Test parsing a ContextCalibrator from an XML element"""
     element = ElementTree.fromstring(xml_string)
 
-    result = calibrators.ContextCalibrator.from_context_calibrator_xml_element(element, XTCE_NSMAP)
+    result = calibrators.ContextCalibrator.from_xml(element, ns=XTCE_NSMAP)
     assert result == expectation
     # Re parse the serialized form of the context calibrator to make sure we can recover it
-    result_string = ElementTree.tostring(result.to_context_calibrator_xml_element(XTCE_NSMAP), pretty_print=True).decode()
+    result_string = ElementTree.tostring(result.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
     print(result_string)
-    full_circle = calibrators.ContextCalibrator.from_context_calibrator_xml_element(ElementTree.fromstring(result_string), XTCE_NSMAP)
+    full_circle = calibrators.ContextCalibrator.from_xml(ElementTree.fromstring(result_string), ns=XTCE_NSMAP)
     assert full_circle == expectation
 
 
@@ -249,15 +249,15 @@ def test_spline_calibrator(xml_string: str, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            calibrators.SplineCalibrator.from_calibrator_xml_element(element, XTCE_NSMAP)
+            calibrators.SplineCalibrator.from_xml(element, ns=XTCE_NSMAP)
     else:
-        result = calibrators.SplineCalibrator.from_calibrator_xml_element(element, XTCE_NSMAP)
+        result = calibrators.SplineCalibrator.from_xml(element, ns=XTCE_NSMAP)
         assert result == expectation
         # Re serialize to XML and re parse it to ensure we can reproduce it
-        result_string = ElementTree.tostring(result.to_calibrator_xml_element(XTCE_NSMAP), pretty_print=True).decode()
-        full_circle = calibrators.SplineCalibrator.from_calibrator_xml_element(
+        result_string = ElementTree.tostring(result.to_xml(XTCE_NSMAP), pretty_print=True).decode()
+        full_circle = calibrators.SplineCalibrator.from_xml(
             ElementTree.fromstring(result_string),
-            XTCE_NSMAP)
+            ns=XTCE_NSMAP)
         assert full_circle == expectation
 
 
@@ -326,15 +326,15 @@ def test_polynomial_calibrator(xml_string: str, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            calibrators.PolynomialCalibrator.from_calibrator_xml_element(element, XTCE_NSMAP)
+            calibrators.PolynomialCalibrator.from_xml(element, ns=XTCE_NSMAP)
     else:
-        result = calibrators.PolynomialCalibrator.from_calibrator_xml_element(element, XTCE_NSMAP)
+        result = calibrators.PolynomialCalibrator.from_xml(element, ns=XTCE_NSMAP)
         assert result == expectation
         # Re serialize to XML and re parse it to ensure we can reproduce it
-        result_string = ElementTree.tostring(result.to_calibrator_xml_element(XTCE_NSMAP), pretty_print=True).decode()
-        full_circle = calibrators.PolynomialCalibrator.from_calibrator_xml_element(
+        result_string = ElementTree.tostring(result.to_xml(XTCE_NSMAP), pretty_print=True).decode()
+        full_circle = calibrators.PolynomialCalibrator.from_xml(
             ElementTree.fromstring(result_string),
-            XTCE_NSMAP)
+            ns=XTCE_NSMAP)
         assert full_circle == expectation
 
 @pytest.mark.parametrize(

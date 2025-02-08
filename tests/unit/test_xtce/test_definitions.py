@@ -3,10 +3,7 @@ import io
 
 from lxml import etree as ElementTree
 
-import space_packet_parser.containers
-import space_packet_parser.definitions
-from space_packet_parser import definitions, encodings, parameters, comparisons
-from space_packet_parser.xtce import XTCE_NSMAP
+from space_packet_parser.xtce import containers, definitions, encodings, parameters, comparisons, XTCE_NSMAP
 
 
 def test_parsing_xtce_document(test_data_dir):
@@ -38,7 +35,7 @@ def test_parsing_xtce_document(test_data_dir):
     scname = "SecondaryHeaderContainer"
     sc = xdef.named_containers[scname]
     assert sc.name == scname
-    assert sc == space_packet_parser.containers.SequenceContainer(
+    assert sc == containers.SequenceContainer(
         name=scname,
         entry_list=[
             parameters.Parameter(
@@ -98,7 +95,7 @@ def test_generating_xtce_from_objects():
         )
     )
 
-    apid_filtered_container = space_packet_parser.containers.SequenceContainer(
+    apid_filtered_container = containers.SequenceContainer(
         name="APID_3200",
         abstract=False,
         restriction_criteria=[
@@ -133,7 +130,7 @@ def test_generating_xtce_from_objects():
         ]
     )
 
-    root_container = space_packet_parser.containers.SequenceContainer(
+    root_container = containers.SequenceContainer(
         name="RootContainer",
         abstract=True,
         inheritors=[apid_filtered_container],

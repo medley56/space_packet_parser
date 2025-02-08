@@ -4,7 +4,7 @@ The packet definition used here is intended for IDEX, which is basically a rebui
 The data used here is SUDA data but the fields are parsed using IDEX naming conventions.
 """
 # Local
-from space_packet_parser import definitions
+from space_packet_parser.xtce import definitions
 from space_packet_parser import packets
 
 

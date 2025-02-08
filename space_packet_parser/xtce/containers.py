@@ -4,8 +4,9 @@ from typing import Optional
 
 from lxml import etree as ElementTree
 
-from space_packet_parser import common, comparisons, packets, parameters
+from space_packet_parser import common, packets
 from space_packet_parser.exceptions import ElementNotFoundError
+from space_packet_parser.xtce import comparisons, parameters
 
 
 @dataclass
@@ -135,7 +136,7 @@ class SequenceContainer(common.Parseable, common.XmlObject):
                    short_description=short_description,
                    long_description=long_description)
 
-    def to_xml(self, ns: dict) -> ElementTree.Element:
+    def to_xml(self, *, ns: dict) -> ElementTree.Element:
         """Create a SequenceContainer XML element
 
         Parameters
@@ -172,11 +173,11 @@ class SequenceContainer(common.Parseable, common.XmlObject):
                                                               xtce + "RestrictionCriteria",
                                                               nsmap=ns)
                 if len(self.restriction_criteria) == 1:
-                    restriction_criteria.append(self.restriction_criteria[0].to_match_criteria_xml_element())
+                    restriction_criteria.append(self.restriction_criteria[0].to_xml())
                 else:
                     comp_list = ElementTree.SubElement(restriction_criteria, xtce + "ComparisonList", nsmap=ns)
                     for comp in self.restriction_criteria:
-                        comp_list.append(comp.to_match_criteria_xml_element(ns))
+                        comp_list.append(comp.to_xml(ns))
 
         entry_list = ElementTree.SubElement(element, xtce + "EntryList", nsmap=ns)
         for entry in self.entry_list:
@@ -247,13 +248,13 @@ class SequenceContainer(common.Parseable, common.XmlObject):
             if comparison_list_element is not None:
                 comparison_items = comparison_list_element.findall('xtce:Comparison', ns)
                 restrictions = [
-                    comparisons.Comparison.from_match_criteria_xml_element(comp, ns) for comp in comparison_items]
+                    comparisons.Comparison.from_xml(comp, ns=ns) for comp in comparison_items]
             elif single_comparison_element is not None:
                 restrictions = [
-                    comparisons.Comparison.from_match_criteria_xml_element(single_comparison_element, ns)]
+                    comparisons.Comparison.from_xml(single_comparison_element, ns=ns)]
             elif boolean_expression_element is not None:
                 restrictions = [
-                    comparisons.BooleanExpression.from_match_criteria_xml_element(boolean_expression_element, ns)]
+                    comparisons.BooleanExpression.from_xml(boolean_expression_element, ns=ns)]
             else:
                 raise ValueError("Detected a RestrictionCriteria element containing no "
                                  "Comparison, ComparisonList, BooleanExpression or CustomAlgorithm.")

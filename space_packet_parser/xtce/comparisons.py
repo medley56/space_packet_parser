@@ -10,7 +10,7 @@ from space_packet_parser import common, packets
 from space_packet_parser.exceptions import ComparisonError
 
 
-class MatchCriteria(common.AttrComparable, metaclass=ABCMeta):
+class MatchCriteria(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
     """<xtce:MatchCriteriaType>
     This class stores criteria for performing logical operations based on parameter values
     Classes that inherit from this ABC include those that represent <xtce:Comparison>,
@@ -31,7 +31,15 @@ class MatchCriteria(common.AttrComparable, metaclass=ABCMeta):
 
     @classmethod
     @abstractmethod
-    def from_match_criteria_xml_element(cls, element: ElementTree.Element, ns: dict):
+    def from_xml(
+            cls,
+            element: ElementTree.Element,
+            *,
+            ns: dict,
+            tree: Optional[ElementTree.Element] = None,
+            parameter_lookup: Optional[dict[str, any]] = None,
+            parameter_type_lookup: Optional[dict[str, any]] = None
+    ):
         """Abstract classmethod to create a match criteria object from an XML element.
 
         Parameters
@@ -40,6 +48,12 @@ class MatchCriteria(common.AttrComparable, metaclass=ABCMeta):
             XML element
         ns : dict
             XML namespace dict
+        tree: Optional[ElementTree.Element]
+            Ignored
+        parameter_lookup: Optional[dict]
+            Ignored
+        parameter_type_lookup: Optional[dict]
+            Ignored
 
         Returns
         -------
@@ -48,7 +62,7 @@ class MatchCriteria(common.AttrComparable, metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def to_match_criteria_xml_element(self, ns: dict) -> ElementTree.Element:
+    def to_xml(self, *, ns: dict) -> ElementTree.Element:
         """Abstract method to create an XML element from this class
 
         Parameters
@@ -125,7 +139,15 @@ class Comparison(MatchCriteria):
                              f"{set(self._valid_operators.keys())}")
 
     @classmethod
-    def from_match_criteria_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'Comparison':
+    def from_xml(
+            cls,
+            element: ElementTree.Element,
+            *,
+            ns: dict,
+            tree: Optional[ElementTree.Element] = None,
+            parameter_lookup: Optional[dict[str, any]] = None,
+            parameter_type_lookup: Optional[dict[str, any]] = None
+    ) -> 'Comparison':
         """Create
 
         Parameters
@@ -134,6 +156,12 @@ class Comparison(MatchCriteria):
             XML element
         ns : dict
             XML namespace dict
+        tree: Optional[ElementTree.Element]
+            Ignored
+        parameter_lookup: Optional[dict]
+            Ignored
+        parameter_type_lookup: Optional[dict]
+            Ignored
 
         Returns
         -------
@@ -152,7 +180,7 @@ class Comparison(MatchCriteria):
 
         return cls(value, parameter_name, operator=operator, use_calibrated_value=use_calibrated_value)
 
-    def to_match_criteria_xml_element(self, ns: dict) -> ElementTree.Element:
+    def to_xml(self, *, ns: dict) -> ElementTree.Element:
         """Create a Comparison XML element
 
         Parameters
@@ -312,7 +340,15 @@ class Condition(MatchCriteria):
         return parameter_name, use_calibrated_value
 
     @classmethod
-    def from_match_criteria_xml_element(cls, element: ElementTree.Element, ns: dict):
+    def from_xml(
+            cls,
+            element: ElementTree.Element,
+            *,
+            ns: dict,
+            tree: Optional[ElementTree.Element] = None,
+            parameter_lookup: Optional[dict[str, any]] = None,
+            parameter_type_lookup: Optional[dict[str, any]] = None
+    ):
         """Classmethod to create a Condition object from an XML element.
 
         Parameters
@@ -321,6 +357,12 @@ class Condition(MatchCriteria):
             XML element
         ns : dict
             XML namespace dict
+        tree: Optional[ElementTree.Element]
+            Ignored
+        parameter_lookup: Optional[dict]
+            Ignored
+        parameter_type_lookup: Optional[dict]
+            Ignored
 
         Returns
         -------
@@ -344,7 +386,7 @@ class Condition(MatchCriteria):
         raise ValueError(f'Failed to parse a Condition element {element}. '
                          'See 3.4.3.4.2 of XTCE Green Book CCSDS 660.1-G-2')
 
-    def to_match_criteria_xml_element(self, ns: dict) -> ElementTree.Element:
+    def to_xml(self, *, ns: dict) -> ElementTree.Element:
         """Create a Condition XML element
 
         Parameters
@@ -458,7 +500,15 @@ class BooleanExpression(MatchCriteria):
         return f"BooleanExpression({self.expression})"
 
     @classmethod
-    def from_match_criteria_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'BooleanExpression':
+    def from_xml(
+            cls,
+            element: ElementTree.Element,
+            *,
+            ns: dict,
+            tree: Optional[ElementTree.Element] = None,
+            parameter_lookup: Optional[dict[str, any]] = None,
+            parameter_type_lookup: Optional[dict[str, any]] = None
+    ) -> 'BooleanExpression':
         """Abstract classmethod to create a match criteria object from an XML element.
 
         Parameters
@@ -467,6 +517,12 @@ class BooleanExpression(MatchCriteria):
            XML element
         ns : dict
            XML namespace dict
+        tree: Optional[ElementTree.Element]
+            Ignored
+        parameter_lookup: Optional[dict]
+            Ignored
+        parameter_type_lookup: Optional[dict]
+            Ignored
 
         Returns
         -------
@@ -485,7 +541,7 @@ class BooleanExpression(MatchCriteria):
             -------
             : Anded
             """
-            conditions = [Condition.from_match_criteria_xml_element(el, ns)
+            conditions = [Condition.from_xml(el, ns=ns)
                           for el in anded_el.findall('xtce:Condition', ns)]
             anded_ors = [_parse_ored(anded_or) for anded_or in anded_el.findall('xtce:ORedConditions', ns)]
             return Anded(conditions, anded_ors)
@@ -502,13 +558,13 @@ class BooleanExpression(MatchCriteria):
             -------
             : Ored
             """
-            conditions = [Condition.from_match_criteria_xml_element(el, ns)
+            conditions = [Condition.from_xml(el, ns=ns)
                           for el in ored_el.findall('xtce:Condition', ns)]
             ored_ands = [_parse_anded(ored_and) for ored_and in ored_el.findall('xtce:ANDedConditions', ns)]
             return Ored(conditions, ored_ands)
 
         if element.find('xtce:Condition', ns) is not None:
-            condition = Condition.from_match_criteria_xml_element(element.find('xtce:Condition', ns), ns)
+            condition = Condition.from_xml(element.find('xtce:Condition', ns), ns=ns)
             return cls(expression=condition)
         if element.find('xtce:ANDedConditions', ns) is not None:
             return cls(expression=_parse_anded(element.find('xtce:ANDedConditions', ns)))
@@ -561,7 +617,7 @@ class BooleanExpression(MatchCriteria):
 
         raise ValueError(f"Error evaluating an unknown expression {self.expression}.")
 
-    def to_match_criteria_xml_element(self, ns: dict) -> ElementTree.Element:
+    def to_xml(self, *, ns: dict) -> ElementTree.Element:
         """Create a Condition XML element
 
         Parameters
@@ -579,7 +635,7 @@ class BooleanExpression(MatchCriteria):
         def _serialize_anded(anded: Anded) -> ElementTree.Element:
             anded_conditions_element = ElementTree.Element(xtce + "ANDedConditions", nsmap=ns)
             for cond in anded.conditions:
-                anded_conditions_element.append(cond.to_match_criteria_xml_element(ns))
+                anded_conditions_element.append(cond.to_xml(ns=ns))
             for ored in anded.ors:
                 anded_conditions_element.append(_serialize_ored(ored))
             return anded_conditions_element
@@ -587,7 +643,7 @@ class BooleanExpression(MatchCriteria):
         def _serialize_ored(ored: Ored) -> ElementTree.Element:
             ored_conditions_element = ElementTree.SubElement(element, xtce + "ORedConditions", nsmap=ns)
             for cond in ored.conditions:
-                ored_conditions_element.append(cond.to_match_criteria_xml_element(ns))
+                ored_conditions_element.append(cond.to_xml(ns=ns))
             for anded in ored.ands:
                 ored_conditions_element.append(_serialize_anded(anded))
             return ored_conditions_element
@@ -595,7 +651,7 @@ class BooleanExpression(MatchCriteria):
         element = ElementTree.Element(xtce + "BooleanExpression", nsmap=ns)
 
         if isinstance(self.expression, Condition):
-            element.append(self.expression.to_match_criteria_xml_element(ns))
+            element.append(self.expression.to_xml(ns=ns))
         elif isinstance(self.expression, Anded):
             element.append(_serialize_anded(self.expression))
         else:
@@ -636,11 +692,11 @@ class DiscreteLookup(common.AttrComparable):
         """
         lookup_value = float(element.attrib['value'])
         if element.find('xtce:ComparisonList', ns) is not None:
-            match_criteria = [Comparison.from_match_criteria_xml_element(el, ns)
+            match_criteria = [Comparison.from_xml(el, ns=ns)
                               for el in element.findall('xtce:ComparisonList/xtce:Comparison', ns)]
         elif element.find('xtce:Comparison', ns) is not None:
-            match_criteria = [Comparison.from_match_criteria_xml_element(
-                element.find('xtce:Comparison', ns), ns)]
+            match_criteria = [Comparison.from_xml(
+                element.find('xtce:Comparison', ns), ns=ns)]
         else:
             raise NotImplementedError("Only Comparison and ComparisonList are implemented for DiscreteLookup.")
 
@@ -670,7 +726,7 @@ class DiscreteLookup(common.AttrComparable):
             comparison_parent_element = dl_element
 
         for comp in self.match_criteria:
-            comparison_parent_element.append(comp.to_match_criteria_xml_element(ns))
+            comparison_parent_element.append(comp.to_xml(ns=ns))
 
         return dl_element
 

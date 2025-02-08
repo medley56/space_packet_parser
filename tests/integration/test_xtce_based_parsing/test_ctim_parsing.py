@@ -1,7 +1,7 @@
 """Test parsing of CTIM instrument data"""
 import pytest
 # Local
-from space_packet_parser import definitions
+from space_packet_parser.xtce import definitions
 
 
 @pytest.mark.filterwarnings("ignore:Number of bits parsed")

@@ -4,8 +4,8 @@ import io
 import pytest
 import lxml.etree as ElementTree
 
-from space_packet_parser import parameters, encodings, comparisons, calibrators, packets, definitions
-from space_packet_parser.xtce import XTCE_NSMAP
+from space_packet_parser import packets
+from space_packet_parser.xtce import parameters, encodings, comparisons, calibrators, definitions, XTCE_NSMAP
 
 
 def test_invalid_parameter_type_error(test_data_dir):

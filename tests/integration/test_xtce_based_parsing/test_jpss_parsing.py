@@ -1,7 +1,6 @@
 """Integration test for parsing JPSS packets"""
-# Local
-from space_packet_parser import definitions
 from space_packet_parser import packets
+from space_packet_parser.xtce import definitions
 
 
 def test_jpss_xtce_packet_parsing(jpss_test_data_dir):
