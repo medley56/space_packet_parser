@@ -172,12 +172,12 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
             space_system_name=space_system.attrib.get("name", None)
         )
 
-        xtce_definition._parameter_type_cache = cls._create_parameter_type_cache(tree, ns)
-        xtce_definition._parameter_cache = cls._populate_parameter_cache(
+        xtce_definition._parameter_type_cache = cls._get_parameter_types(tree, ns)
+        xtce_definition._parameter_cache = cls._get_parameters(
             tree, xtce_definition._parameter_type_cache, ns
         )
-        xtce_definition._sequence_container_cache = cls._populate_sequence_container_cache(
-            tree, xtce_definition._parameter_cache, xtce_definition._parameter_type_cache, ns
+        xtce_definition._sequence_container_cache = cls._get_sequence_containers(
+            tree, xtce_definition._parameter_cache, ns
         )
 
         return xtce_definition
@@ -186,13 +186,26 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
         return self._sequence_container_cache[item]
 
     @staticmethod
-    def _populate_sequence_container_cache(
+    def _get_sequence_containers(
             tree: ElementTree.Element,
-            parameters: dict[str, parameters.Parameter],
-            parameter_types: dict[str, parameters.ParameterType],
+            parameters_lookup: dict[str, parameters.Parameter],
             ns: dict
     ) -> dict[str, packets.SequenceContainer]:
-        """Force populating sequence_container_cache by parsing all SequenceContainers"""
+        """Parse the <xtce:ContainerSet> element into a a dictionary of SequenceContainer objects
+
+        Parameters
+        ----------
+        tree : ElementTree.Element
+            Full XTCE tree
+        parameters_lookup : dict[str, parameters.Parameter]
+            Parameters that are contained in container entry lists
+        ns : dict
+            XTCE namespace dict
+
+        Returns
+        -------
+
+        """
         sequence_container_dict = {}
         for sequence_container in tree.getroot().iterfind(
                 'xtce:TelemetryMetaData/xtce:ContainerSet/xtce:SequenceContainer',
@@ -201,7 +214,7 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
             sequence_container_dict[
                 sequence_container.attrib['name']
             ] = XtcePacketDefinition.parse_sequence_container_contents(
-                tree, sequence_container, parameter_types, parameters, ns
+                tree, sequence_container, parameters_lookup, ns
             )
 
         # Back-populate the list of inheritors for each container
@@ -212,7 +225,7 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
         return sequence_container_dict
 
     @staticmethod
-    def _create_parameter_type_cache(
+    def _get_parameter_types(
             tree: ElementTree.ElementTree,
             ns: dict
     ) -> dict[str, parameters.ParameterType]:
@@ -221,7 +234,9 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
         Parameters
         ----------
         tree : ElementTree.ElementTree
+            Full XTCE tree
         ns : dict
+            XML namespace dict
 
         Returns
         -------
@@ -257,9 +272,9 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
         return parameter_type_dict
 
     @staticmethod
-    def _populate_parameter_cache(
+    def _get_parameters(
             tree: ElementTree.ElementTree,
-            parameter_types: dict[str, parameters.ParameterType],
+            parameter_type_lookup: dict[str, parameters.ParameterType],
             ns: dict
     ) -> dict[str, parameters.Parameter]:
         """Parse an <xtce:ParameterSet> object into a dictionary of Parameter objects
@@ -267,8 +282,11 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
         Parameters
         ----------
         tree : ElementTree.ElementTree
-        parameter_types : dict[str, parameters.ParameterType]
+            Full XTCE tree
+        parameter_type_lookup : dict[str, parameters.ParameterType]
+            Parameter types referenced by parameters.
         ns : dict
+            XML namespace dict
 
         Returns
         -------
@@ -284,7 +302,7 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
             parameter_type_name = parameter_element.attrib['parameterTypeRef']
 
             # Lookup from within the parameter type cache
-            parameter_type_object = parameter_types[parameter_type_name]
+            parameter_type_object = parameter_type_lookup[parameter_type_name]
 
             parameter_short_description = parameter_element.attrib['shortDescription'] if (
                     'shortDescription' in parameter_element.attrib
@@ -307,8 +325,7 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
     def parse_sequence_container_contents(
             tree: ElementTree.ElementTree,
             sequence_container_element: ElementTree.Element,
-            parameter_types: dict[str, parameters.ParameterType],
-            parameters: dict[str, parameters.Parameter],
+            parameter_lookup: dict[str, parameters.Parameter],
             ns: dict
     ) -> packets.SequenceContainer:
         """Parses the list of parameters in a SequenceContainer element, recursively parsing nested SequenceContainers
@@ -318,8 +335,14 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
 
         Parameters
         ----------
+        tree : ElementTree.ElementTree
+            Full XTCE tree
         sequence_container_element : ElementTree.Element
             The SequenceContainer element to parse.
+        parameter_lookup : dict[str, parameters.Parameter]
+            Parameters contained in the entrylists of sequence containers
+        ns : dict
+            XML namespace dict
 
         Returns
         -------
@@ -333,7 +356,7 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
                 tree, sequence_container_element, ns
             )
             base_sequence_container = XtcePacketDefinition.parse_sequence_container_contents(
-                tree, base_container, parameter_types, parameters, ns
+                tree, base_container, parameter_lookup, ns
             )
             base_container_name = base_sequence_container.name
         except ElementNotFoundError:
@@ -345,7 +368,7 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
         for entry in container_contents:
             if entry.tag == '{{{xtce}}}ParameterRefEntry'.format(**ns):
                 parameter_name = entry.attrib['parameterRef']
-                entry_list.append(parameters[parameter_name])
+                entry_list.append(parameter_lookup[parameter_name])
 
             elif entry.tag == '{{{xtce}}}ContainerRefEntry'.format(
                     **ns):
@@ -356,7 +379,7 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
                 )
                 entry_list.append(
                     XtcePacketDefinition.parse_sequence_container_contents(
-                        tree, nested_container, parameter_types, parameters, ns
+                        tree, nested_container, parameter_lookup, ns
                     )
                 )
 
