@@ -10,7 +10,7 @@ from space_packet_parser import calibrators, common, encodings, packets
 from space_packet_parser.encodings import StringDataEncoding
 
 
-class ParameterType(common.AttrComparable, metaclass=ABCMeta):
+class ParameterType(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
     """Abstract base class for XTCE parameter types"""
 
     def __init__(self, name: str, encoding: encodings.DataEncoding, unit: Optional[str] = None):
@@ -39,7 +39,15 @@ class ParameterType(common.AttrComparable, metaclass=ABCMeta):
         return f"<{module}.{qualname} {self.name}>"
 
     @classmethod
-    def from_parameter_type_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'ParameterType':
+    def from_xml(
+            cls,
+            element: ElementTree.Element,
+            *,
+            ns: dict,
+            tree: Optional[ElementTree.Element] = None,
+            parameter_lookup: Optional[dict] = None,
+            parameter_type_lookup: Optional[dict] = None,
+    ) -> 'ParameterType':
         """Create a *ParameterType* from an <xtce:ParameterType> XML element.
 
         Parameters
@@ -48,6 +56,12 @@ class ParameterType(common.AttrComparable, metaclass=ABCMeta):
             The XML element from which to create the object.
         ns: dict
             XML namespace dict
+        tree: Optional[ElementTree.Element]
+            Ignored
+        parameter_lookup: Optional[dict]
+            Ignored
+        parameter_type_lookup: Optional[dict]
+            Ignored
 
         Returns
         -------
@@ -62,7 +76,7 @@ class ParameterType(common.AttrComparable, metaclass=ABCMeta):
         encoding = cls.get_data_encoding(element, ns)
         return cls(name, encoding, unit)
 
-    def to_parameter_type_xml_element(self, ns: dict) -> ElementTree.Element:
+    def to_xml(self, *, ns: dict) -> ElementTree.Element:
         """Create a parameter type XML element
 
         Returns
@@ -79,7 +93,7 @@ class ParameterType(common.AttrComparable, metaclass=ABCMeta):
             unit_element = ElementTree.SubElement(unitset_element, xtce + "Unit", nsmap=ns)
             unit_element.text = self.unit
             param_type_element.append(unitset_element)
-        param_type_element.append(self.encoding.to_data_encoding_xml_element(ns))
+        param_type_element.append(self.encoding.to_xml(ns=ns))
         return param_type_element
 
     @staticmethod
@@ -135,7 +149,7 @@ class ParameterType(common.AttrComparable, metaclass=ABCMeta):
             # Try to find each type of data encoding element. If we find one, we assume it's the only one.
             element = parameter_type_element.find(f".//xtce:{data_encoding.__name__}", ns)
             if element is not None:
-                return data_encoding.from_data_encoding_xml_element(element, ns)
+                return data_encoding.from_xml(element, ns=ns)
         raise ValueError(f"No Data Encoding element found for Parameter Type "
                          f"{parameter_type_element.tag}: {parameter_type_element.attrib}")
 
@@ -212,7 +226,15 @@ class EnumeratedParameterType(ParameterType):
         return f"<{self.__class__.__name__} {self.name}>"
 
     @classmethod
-    def from_parameter_type_xml_element(cls, element: ElementTree.Element, ns: dict):
+    def from_xml(
+            cls,
+            element: ElementTree.Element,
+            *,
+            ns: dict,
+            tree: Optional[ElementTree.Element] = None,
+            parameter_lookup: Optional[dict[str, any]] = None,
+            parameter_type_lookup: Optional[dict[str, any]] = None
+    ) -> 'EnumeratedParameterType':
         """Create an EnumeratedParameterType from an <xtce:EnumeratedParameterType> XML element.
         Overrides ParameterType.from_parameter_type_xml_element
 
@@ -222,6 +244,12 @@ class EnumeratedParameterType(ParameterType):
             The XML element from which to create the object.
         ns: dict
             XML namespace dict
+        tree: Optional[ElementTree.Element]
+            Ignored
+        parameter_lookup: Optional[dict]
+            Ignored
+        parameter_type_lookup: Optional[dict]
+            Ignored
 
         Returns
         -------
@@ -233,7 +261,7 @@ class EnumeratedParameterType(ParameterType):
         enumeration = cls.get_enumeration_list_contents(element, encoding, ns)
         return cls(name, encoding, enumeration=enumeration, unit=unit)
 
-    def to_parameter_type_xml_element(self, ns: dict) -> ElementTree.Element:
+    def to_xml(self, *, ns: dict) -> ElementTree.Element:
         """Create a parameter type XML element
 
         Parameters
@@ -255,7 +283,7 @@ class EnumeratedParameterType(ParameterType):
             unit_element = ElementTree.SubElement(unitset_element, xtce + "Unit", nsmap=ns)
             unit_element.text = self.unit
             param_type_element.append(unitset_element)
-        param_type_element.append(self.encoding.to_data_encoding_xml_element(ns))
+        param_type_element.append(self.encoding.to_xml(ns=ns))
         enum_list_element = ElementTree.SubElement(param_type_element, xtce + "EnumerationList", nsmap=ns)
         for value, label in self.enumeration.items():
             if isinstance(self.encoding, StringDataEncoding):
@@ -443,7 +471,15 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
         self.offset_from = offset_from
 
     @classmethod
-    def from_parameter_type_xml_element(cls, element: ElementTree.Element, ns: dict):
+    def from_xml(
+            cls,
+            element: ElementTree.Element,
+            *,
+            ns: dict,
+            tree: Optional[ElementTree.ElementTree] = None,
+            parameter_lookup: Optional[dict[str, any]] = None,
+            parameter_type_lookup: Optional[dict[str, any]] = None
+    ) -> ElementTree.Element:
         """Create a *TimeParameterType* from an <xtce:TimeParameterType> XML element.
 
         Parameters
@@ -452,6 +488,12 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
             The XML element from which to create the object.
         ns: dict
             XML namespace dict
+        tree: Optional[ElementTree.Element]
+            Ignored
+        parameter_lookup: Optional[dict]
+            Ignored
+        parameter_type_lookup: Optional[dict]
+            Ignored
 
         Returns
         -------
@@ -467,7 +509,7 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
         offset_from = cls.get_offset_from(element, ns)
         return cls(name, encoding, unit=unit, epoch=epoch, offset_from=offset_from)
 
-    def to_parameter_type_xml_element(self, ns: dict) -> ElementTree.Element:
+    def to_xml(self, *, ns: dict) -> ElementTree.Element:
         """Create a TimeParameterType XML element
 
         For some reason, Time types have a really different structure than other parameter types so we
@@ -507,7 +549,7 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
         encoding = ElementTree.SubElement(element, xtce + "Encoding",
                                           attrib=encoding_attrib,
                                           nsmap=ns)
-        encoding.append(self.encoding.to_data_encoding_xml_element(ns))
+        encoding.append(self.encoding.to_xml(ns=ns))
         if self.offset_from or self.epoch:
             reference_time = ElementTree.SubElement(element, xtce + "ReferenceTime", nsmap=ns)
             if self.offset_from:

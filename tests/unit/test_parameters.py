@@ -137,14 +137,14 @@ def test_string_parameter_type(xml_string: str, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            parameters.StringParameterType.from_parameter_type_xml_element(element, XTCE_NSMAP)
+            parameters.StringParameterType.from_xml(element, ns=XTCE_NSMAP)
     else:
-        result = parameters.StringParameterType.from_parameter_type_xml_element(element, XTCE_NSMAP)
+        result = parameters.StringParameterType.from_xml(element, ns=XTCE_NSMAP)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
-        result_string = ElementTree.tostring(result.to_parameter_type_xml_element(XTCE_NSMAP), pretty_print=True).decode()
-        full_circle = parameters.StringParameterType.from_parameter_type_xml_element(ElementTree.fromstring(result_string),
-                                                                                     ns=XTCE_NSMAP)
+        result_string = ElementTree.tostring(result.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
+        full_circle = parameters.StringParameterType.from_xml(ElementTree.fromstring(result_string),
+                                                              ns=XTCE_NSMAP)
         assert full_circle == expectation
 
 
@@ -361,13 +361,13 @@ def test_integer_parameter_type(xml_string: str, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            parameters.IntegerParameterType.from_parameter_type_xml_element(element, XTCE_NSMAP)
+            parameters.IntegerParameterType.from_xml(element, ns=XTCE_NSMAP)
     else:
-        result = parameters.IntegerParameterType.from_parameter_type_xml_element(element, XTCE_NSMAP)
+        result = parameters.IntegerParameterType.from_xml(element, ns=XTCE_NSMAP)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
-        result_string = ElementTree.tostring(result.to_parameter_type_xml_element(XTCE_NSMAP), pretty_print=True).decode()
-        full_circle = parameters.IntegerParameterType.from_parameter_type_xml_element(
+        result_string = ElementTree.tostring(result.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
+        full_circle = parameters.IntegerParameterType.from_xml(
             ElementTree.fromstring(result_string),
             ns=XTCE_NSMAP)
         assert full_circle == expectation
@@ -564,13 +564,13 @@ def test_float_parameter_type(xml_string: str, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            parameters.FloatParameterType.from_parameter_type_xml_element(element, XTCE_NSMAP)
+            parameters.FloatParameterType.from_xml(element, ns=XTCE_NSMAP)
     else:
-        result = parameters.FloatParameterType.from_parameter_type_xml_element(element, XTCE_NSMAP)
+        result = parameters.FloatParameterType.from_xml(element, ns=XTCE_NSMAP)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
-        result_string = ElementTree.tostring(result.to_parameter_type_xml_element(XTCE_NSMAP), pretty_print=True).decode()
-        full_circle = parameters.FloatParameterType.from_parameter_type_xml_element(
+        result_string = ElementTree.tostring(result.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
+        full_circle = parameters.FloatParameterType.from_xml(
             ElementTree.fromstring(result_string),
             ns=XTCE_NSMAP)
         assert full_circle == expectation
@@ -783,13 +783,13 @@ def test_enumerated_parameter_type(xml_string: str, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            parameters.EnumeratedParameterType.from_parameter_type_xml_element(element, XTCE_NSMAP)
+            parameters.EnumeratedParameterType.from_xml(element, ns=XTCE_NSMAP)
     else:
-        result = parameters.EnumeratedParameterType.from_parameter_type_xml_element(element, XTCE_NSMAP)
+        result = parameters.EnumeratedParameterType.from_xml(element, ns=XTCE_NSMAP)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
-        result_string = ElementTree.tostring(result.to_parameter_type_xml_element(XTCE_NSMAP), pretty_print=True).decode()
-        full_circle = parameters.EnumeratedParameterType.from_parameter_type_xml_element(
+        result_string = ElementTree.tostring(result.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
+        full_circle = parameters.EnumeratedParameterType.from_xml(
             ElementTree.fromstring(result_string),
             ns=XTCE_NSMAP)
         assert full_circle == expectation
@@ -933,13 +933,13 @@ def test_binary_parameter_type(xml_string: str, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            parameters.BinaryParameterType.from_parameter_type_xml_element(element, XTCE_NSMAP)
+            parameters.BinaryParameterType.from_xml(element, ns=XTCE_NSMAP)
     else:
-        result = parameters.BinaryParameterType.from_parameter_type_xml_element(element, XTCE_NSMAP)
+        result = parameters.BinaryParameterType.from_xml(element, ns=XTCE_NSMAP)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
-        result_string = ElementTree.tostring(result.to_parameter_type_xml_element(XTCE_NSMAP), pretty_print=True).decode()
-        full_circle = parameters.BinaryParameterType.from_parameter_type_xml_element(
+        result_string = ElementTree.tostring(result.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
+        full_circle = parameters.BinaryParameterType.from_xml(
             ElementTree.fromstring(result_string),
             ns=XTCE_NSMAP)
         assert full_circle == expectation
@@ -1037,13 +1037,13 @@ def test_boolean_parameter_type(xml_string, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            parameters.BooleanParameterType.from_parameter_type_xml_element(element, XTCE_NSMAP)
+            parameters.BooleanParameterType.from_xml(element, ns=XTCE_NSMAP)
     else:
-        result = parameters.BooleanParameterType.from_parameter_type_xml_element(element, XTCE_NSMAP)
+        result = parameters.BooleanParameterType.from_xml(element, ns=XTCE_NSMAP)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
-        result_string = ElementTree.tostring(result.to_parameter_type_xml_element(XTCE_NSMAP), pretty_print=True).decode()
-        full_circle = parameters.BooleanParameterType.from_parameter_type_xml_element(
+        result_string = ElementTree.tostring(result.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
+        full_circle = parameters.BooleanParameterType.from_xml(
             ElementTree.fromstring(result_string),
             ns=XTCE_NSMAP)
         assert full_circle == expectation
@@ -1196,14 +1196,14 @@ def test_absolute_time_parameter_type(xml_string, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            parameters.AbsoluteTimeParameterType.from_parameter_type_xml_element(element, XTCE_NSMAP)
+            parameters.AbsoluteTimeParameterType.from_xml(element, ns=XTCE_NSMAP)
     else:
-        result = parameters.AbsoluteTimeParameterType.from_parameter_type_xml_element(element, XTCE_NSMAP)
+        result = parameters.AbsoluteTimeParameterType.from_xml(element, ns=XTCE_NSMAP)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
-        result_string = ElementTree.tostring(result.to_parameter_type_xml_element(XTCE_NSMAP), pretty_print=True).decode()
+        result_string = ElementTree.tostring(result.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
         print(result_string)
-        full_circle = parameters.AbsoluteTimeParameterType.from_parameter_type_xml_element(
+        full_circle = parameters.AbsoluteTimeParameterType.from_xml(
             ElementTree.fromstring(result_string),
             ns=XTCE_NSMAP)
         assert full_circle == expectation

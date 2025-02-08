@@ -5,7 +5,7 @@ from lxml import etree as ElementTree
 
 import space_packet_parser.containers
 import space_packet_parser.definitions
-from space_packet_parser import definitions, encodings, parameters, packets, comparisons
+from space_packet_parser import definitions, encodings, parameters, comparisons
 from space_packet_parser.xtce import XTCE_NSMAP
 
 

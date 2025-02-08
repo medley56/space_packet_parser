@@ -12,12 +12,20 @@ from space_packet_parser import calibrators, common, comparisons, packets
 logger = logging.getLogger(__name__)
 
 
-class DataEncoding(common.AttrComparable, metaclass=ABCMeta):
+class DataEncoding(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
     """Abstract base class for XTCE data encodings"""
 
     @classmethod
     @abstractmethod
-    def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'DataEncoding':
+    def from_xml(
+            cls,
+            element: ElementTree.Element,
+            *,
+            ns: dict,
+            tree: Optional[ElementTree.Element] = None,
+            parameter_lookup: Optional[dict[str, any]] = None,
+            parameter_type_lookup: Optional[dict[str, any]] = None
+    ) -> 'DataEncoding':
         """Abstract classmethod to create a data encoding object from an XML element.
 
         Parameters
@@ -26,6 +34,12 @@ class DataEncoding(common.AttrComparable, metaclass=ABCMeta):
             XML element
         ns : dict
             XML namespace dict
+        tree: Optional[ElementTree.Element]
+            Ignored
+        parameter_lookup: Optional[dict]
+            Ignored
+        parameter_type_lookup: Optional[dict]
+            Ignored
 
         Returns
         -------
@@ -34,7 +48,7 @@ class DataEncoding(common.AttrComparable, metaclass=ABCMeta):
         return NotImplemented
 
     @abstractmethod
-    def to_data_encoding_xml_element(self, ns: dict) -> ElementTree.Element:
+    def to_xml(self, *, ns: dict) -> ElementTree.Element:
         """Abstract method to create an XML element from a data encoding object.
 
         Parameters
@@ -386,7 +400,15 @@ class StringDataEncoding(DataEncoding):
         return packets.StrParameter(parsed_string, bytes(raw_string_buffer))
 
     @classmethod
-    def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'StringDataEncoding':
+    def from_xml(
+            cls,
+            element: ElementTree.Element,
+            *,
+            ns: dict,
+            tree: Optional[ElementTree.Element] = None,
+            parameter_lookup: Optional[dict[str, any]] = None,
+            parameter_type_lookup: Optional[dict[str, any]] = None
+    ) -> 'StringDataEncoding':
         """Create a data encoding object from an <xtce:StringDataEncoding> XML element.
 
         Notes
@@ -412,6 +434,12 @@ class StringDataEncoding(DataEncoding):
             XML element
         ns : dict
             XML namespace dict
+        tree: Optional[ElementTree.Element]
+            Ignored
+        parameter_lookup: Optional[dict]
+            Ignored
+        parameter_type_lookup: Optional[dict]
+            Ignored
 
         Returns
         -------
@@ -474,7 +502,7 @@ class StringDataEncoding(DataEncoding):
 
         return cls(**init_kwargs)
 
-    def to_data_encoding_xml_element(self, ns: dict) -> ElementTree.Element:
+    def to_xml(self, *, ns: dict) -> ElementTree.Element:
         """Create a data encoding XML element
 
         Returns
@@ -630,7 +658,7 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
         # No calibrations applied, we need to determine if it's an int or a float encoding calling this routine
         return self._data_return_class(parsed_value)
 
-    def to_data_encoding_xml_element(self, ns: dict) -> ElementTree.Element:
+    def to_xml(self, *, ns: dict) -> ElementTree.Element:
         """Create a data encoding XML element
 
         Returns
@@ -681,7 +709,15 @@ class IntegerDataEncoding(NumericDataEncoding):
         return self._twos_complement(val, self.size_in_bits)
 
     @classmethod
-    def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'IntegerDataEncoding':
+    def from_xml(
+            cls,
+            element: ElementTree.Element,
+            *,
+            ns: dict,
+            tree: Optional[ElementTree.Element] = None,
+            parameter_lookup: Optional[dict[str, any]] = None,
+            parameter_type_lookup: Optional[dict[str, any]] = None
+    ) -> 'IntegerDataEncoding':
         """Create a data encoding object from an <xtce:IntegerDataEncoding> XML element.
 
         Parameters
@@ -690,6 +726,12 @@ class IntegerDataEncoding(NumericDataEncoding):
             XML element
         ns : dict
             XML namespace dict
+        tree: Optional[ElementTree.Element]
+            Ignored
+        parameter_lookup: Optional[dict]
+            Ignored
+        parameter_type_lookup: Optional[dict]
+            Ignored
 
         Returns
         -------
@@ -816,7 +858,15 @@ class FloatDataEncoding(NumericDataEncoding):
         return self.parse_func(data)
 
     @classmethod
-    def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'FloatDataEncoding':
+    def from_xml(
+            cls,
+            element: ElementTree.Element,
+            *,
+            ns: dict,
+            tree: Optional[ElementTree.Element] = None,
+            parameter_lookup: Optional[dict[str, any]] = None,
+            parameter_type_lookup: Optional[dict[str, any]] = None
+    ) -> 'FloatDataEncoding':
         """Create a data encoding object from an <xtce:FloatDataEncoding> XML element.
 
         Parameters
@@ -825,6 +875,12 @@ class FloatDataEncoding(NumericDataEncoding):
             XML element
         ns : dict
             XML namespace dict
+        tree: Optional[ElementTree.Element]
+            Ignored
+        parameter_lookup: Optional[dict]
+            Ignored
+        parameter_type_lookup: Optional[dict]
+            Ignored
 
         Returns
         -------
@@ -925,7 +981,15 @@ class BinaryDataEncoding(DataEncoding):
         return packets.BinaryParameter(parsed_value)
 
     @classmethod
-    def from_data_encoding_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'BinaryDataEncoding':
+    def from_xml(
+            cls,
+            element: ElementTree.Element,
+            *,
+            ns: dict,
+            tree: Optional[ElementTree.Element] = None,
+            parameter_lookup: Optional[dict[str, any]] = None,
+            parameter_type_lookup: Optional[dict[str, any]] = None
+    ) -> 'BinaryDataEncoding':
         """Create a data encoding object from an <xtce:BinaryDataEncoding> XML element.
 
         Parameters
@@ -934,6 +998,12 @@ class BinaryDataEncoding(DataEncoding):
             XML element
         ns : dict
             XML namespace dict
+        tree: Optional[ElementTree.Element]
+            Ignored
+        parameter_lookup: Optional[dict]
+            Ignored
+        parameter_type_lookup: Optional[dict]
+            Ignored
 
         Returns
         -------
@@ -964,7 +1034,7 @@ class BinaryDataEncoding(DataEncoding):
         raise ValueError("Tried parsing a binary parameter length using Fixed, Dynamic, and DiscreteLookupList "
                          "but failed. See 3.4.5 of the XTCE Green Book CCSDS 660.1-G-2.")
 
-    def to_data_encoding_xml_element(self, ns: dict) -> ElementTree.Element:
+    def to_xml(self, *, ns: dict) -> ElementTree.Element:
         """Create a data encoding XML element
 
         Parameters

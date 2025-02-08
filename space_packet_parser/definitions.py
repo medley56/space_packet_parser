@@ -120,7 +120,7 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
                                                         xtce + "ParameterTypeSet",
                                                         nsmap=self.ns)
             for _, ptype in self._parameter_type_cache.items():
-                parameter_type_set.append(ptype.to_parameter_type_xml_element(self.ns))
+                parameter_type_set.append(ptype.to_xml(ns=self.ns))
 
             parameter_set = ElementTree.SubElement(telemetry_metadata_element,
                                                    xtce + "ParameterSet",
@@ -265,8 +265,8 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
                                                 "please open a feature request as a Github issue with a "
                                                 "reference to the XTCE element description for the "
                                                 "parameter type element.") from e
-            parameter_type_object = parameter_type_class.from_parameter_type_xml_element(
-                parameter_type_element, ns)
+            parameter_type_object = parameter_type_class.from_xml(
+                parameter_type_element, ns=ns)
             parameter_type_dict[parameter_type_name] = parameter_type_object  # Add to cache
 
         return parameter_type_dict

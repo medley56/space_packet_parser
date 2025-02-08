@@ -121,13 +121,13 @@ def test_string_data_encoding(xml_string: str, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            encodings.StringDataEncoding.from_data_encoding_xml_element(element, XTCE_NSMAP)
+            encodings.StringDataEncoding.from_xml(element, ns=XTCE_NSMAP)
     else:
-        result = encodings.StringDataEncoding.from_data_encoding_xml_element(element, XTCE_NSMAP)
+        result = encodings.StringDataEncoding.from_xml(element, ns=XTCE_NSMAP)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
-        result_string = ElementTree.tostring(result.to_data_encoding_xml_element(ns=XTCE_NSMAP), pretty_print=True).decode()
-        full_circle = encodings.StringDataEncoding.from_data_encoding_xml_element(ElementTree.fromstring(result_string), ns=XTCE_NSMAP)
+        result_string = ElementTree.tostring(result.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
+        full_circle = encodings.StringDataEncoding.from_xml(ElementTree.fromstring(result_string), ns=XTCE_NSMAP)
         assert full_circle == expectation
 
 
@@ -221,15 +221,15 @@ def test_integer_data_encoding(xml_string: str, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            encodings.IntegerDataEncoding.from_data_encoding_xml_element(element, XTCE_NSMAP)
+            encodings.IntegerDataEncoding.from_xml(element, ns=XTCE_NSMAP)
     else:
-        result = encodings.IntegerDataEncoding.from_data_encoding_xml_element(element, XTCE_NSMAP)
+        result = encodings.IntegerDataEncoding.from_xml(element, ns=XTCE_NSMAP)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
-        result_string = ElementTree.tostring(result.to_data_encoding_xml_element(XTCE_NSMAP), pretty_print=True).decode()
+        result_string = ElementTree.tostring(result.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
         print(result_string)
-        full_circle = encodings.IntegerDataEncoding.from_data_encoding_xml_element(ElementTree.fromstring(result_string),
-                                                                                  ns=XTCE_NSMAP)
+        full_circle = encodings.IntegerDataEncoding.from_xml(ElementTree.fromstring(result_string),
+                                                             ns=XTCE_NSMAP)
         assert full_circle == expectation
 
 
@@ -327,14 +327,14 @@ def test_float_data_encoding(xml_string: str, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            encodings.FloatDataEncoding.from_data_encoding_xml_element(element, XTCE_NSMAP)
+            encodings.FloatDataEncoding.from_xml(element, ns=XTCE_NSMAP)
     else:
-        result = encodings.FloatDataEncoding.from_data_encoding_xml_element(element, XTCE_NSMAP)
+        result = encodings.FloatDataEncoding.from_xml(element, ns=XTCE_NSMAP)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
-        result_string = ElementTree.tostring(result.to_data_encoding_xml_element(XTCE_NSMAP), pretty_print=True).decode()
-        full_circle = encodings.FloatDataEncoding.from_data_encoding_xml_element(ElementTree.fromstring(result_string),
-                                                                                  ns=XTCE_NSMAP)
+        result_string = ElementTree.tostring(result.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
+        full_circle = encodings.FloatDataEncoding.from_xml(ElementTree.fromstring(result_string),
+                                                           ns=XTCE_NSMAP)
         assert full_circle == expectation
 
 
@@ -388,13 +388,13 @@ def test_binary_data_encoding(xml_string: str, expectation):
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            encodings.BinaryDataEncoding.from_data_encoding_xml_element(element, XTCE_NSMAP)
+            encodings.BinaryDataEncoding.from_xml(element, ns=XTCE_NSMAP)
     else:
-        result = encodings.BinaryDataEncoding.from_data_encoding_xml_element(element, XTCE_NSMAP)
+        result = encodings.BinaryDataEncoding.from_xml(element, ns=XTCE_NSMAP)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
-        result_string = ElementTree.tostring(result.to_data_encoding_xml_element(XTCE_NSMAP), pretty_print=True).decode()
+        result_string = ElementTree.tostring(result.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
         print(result_string)
-        full_circle = encodings.BinaryDataEncoding.from_data_encoding_xml_element(ElementTree.fromstring(result_string),
-                                                                                 ns=XTCE_NSMAP)
+        full_circle = encodings.BinaryDataEncoding.from_xml(ElementTree.fromstring(result_string),
+                                                            ns=XTCE_NSMAP)
         assert full_circle == expectation
