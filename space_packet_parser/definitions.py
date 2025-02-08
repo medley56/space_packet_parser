@@ -9,8 +9,8 @@ from typing import BinaryIO, Optional, TextIO, Union
 
 import lxml.etree as ElementTree
 
-from space_packet_parser import comparisons, containers, packets, parameters
-from space_packet_parser.exceptions import ElementNotFoundError, InvalidParameterTypeError, UnrecognizedPacketTypeError
+from space_packet_parser import containers, packets, parameters
+from space_packet_parser.exceptions import InvalidParameterTypeError, UnrecognizedPacketTypeError
 from space_packet_parser.xtce import XTCE_NSMAP
 
 logger = logging.getLogger(__name__)
@@ -132,7 +132,7 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
                                                             xtce + "ContainerSet",
                                                             nsmap=self.ns)
             for _, sc in self._sequence_container_cache.items():
-                sequence_container_set.append(sc.to_sequence_container_xml_element(self.ns))
+                sequence_container_set.append(sc.to_xml(self.ns))
 
         return tree
 
@@ -188,7 +188,7 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
     @staticmethod
     def _get_sequence_containers(
             tree: ElementTree.Element,
-            parameters_lookup: dict[str, parameters.Parameter],
+            parameter_lookup: dict[str, parameters.Parameter],
             ns: dict
     ) -> dict[str, containers.SequenceContainer]:
         """Parse the <xtce:ContainerSet> element into a a dictionary of SequenceContainer objects
@@ -197,7 +197,7 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
         ----------
         tree : ElementTree.Element
             Full XTCE tree
-        parameters_lookup : dict[str, parameters.Parameter]
+        parameter_lookup : dict[str, parameters.Parameter]
             Parameters that are contained in container entry lists
         ns : dict
             XTCE namespace dict
@@ -213,8 +213,8 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
         ):
             sequence_container_dict[
                 sequence_container.attrib['name']
-            ] = XtcePacketDefinition.parse_sequence_container_contents(
-                tree, sequence_container, parameters_lookup, ns
+            ] = containers.SequenceContainer.from_xml(
+                sequence_container, tree=tree, parameter_lookup=parameter_lookup, ns=ns
             )
 
         # Back-populate the list of inheritors for each container
@@ -321,85 +321,6 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
 
         return parameter_dict
 
-    @staticmethod
-    def parse_sequence_container_contents(
-            tree: ElementTree.ElementTree,
-            sequence_container_element: ElementTree.Element,
-            parameter_lookup: dict[str, parameters.Parameter],
-            ns: dict
-    ) -> containers.SequenceContainer:
-        """Parses the list of parameters in a SequenceContainer element, recursively parsing nested SequenceContainers
-        to build an entry list of parameters that flattens the nested structure to derive a sequential ordering of
-        expected parameters for each SequenceContainer. Note that this also stores entry lists for containers that are
-        not intended to stand alone.
-
-        Parameters
-        ----------
-        tree : ElementTree.ElementTree
-            Full XTCE tree
-        sequence_container_element : ElementTree.Element
-            The SequenceContainer element to parse.
-        parameter_lookup : dict[str, parameters.Parameter]
-            Parameters contained in the entrylists of sequence containers
-        ns : dict
-            XML namespace dict
-
-        Returns
-        -------
-        : SequenceContainer
-            SequenceContainer containing an entry_list of SequenceContainers and Parameters with ParameterTypes
-            in the order expected in a packet.
-        """
-        entry_list = []  # List to house Parameters for the current SequenceContainer
-        try:
-            base_container, restriction_criteria = XtcePacketDefinition._get_container_base_container(
-                tree, sequence_container_element, ns
-            )
-            base_sequence_container = XtcePacketDefinition.parse_sequence_container_contents(
-                tree, base_container, parameter_lookup, ns
-            )
-            base_container_name = base_sequence_container.name
-        except ElementNotFoundError:
-            base_container_name = None
-            restriction_criteria = None
-
-        container_contents = sequence_container_element.find('xtce:EntryList', ns).findall('*', ns)
-
-        for entry in container_contents:
-            if entry.tag == '{{{xtce}}}ParameterRefEntry'.format(**ns):
-                parameter_name = entry.attrib['parameterRef']
-                entry_list.append(parameter_lookup[parameter_name])
-
-            elif entry.tag == '{{{xtce}}}ContainerRefEntry'.format(
-                    **ns):
-                nested_container = XtcePacketDefinition._find_container_by_name(
-                    tree,
-                    name=entry.attrib['containerRef'],
-                    ns=ns
-                )
-                entry_list.append(
-                    XtcePacketDefinition.parse_sequence_container_contents(
-                        tree, nested_container, parameter_lookup, ns
-                    )
-                )
-
-        short_description = sequence_container_element.attrib['shortDescription'] if (
-                'shortDescription' in sequence_container_element.attrib
-        ) else None
-        long_description = sequence_container_element.find('xtce:LongDescription', ns).text if (
-                sequence_container_element.find('xtce:LongDescription', ns) is not None
-        ) else None
-
-        return containers.SequenceContainer(name=sequence_container_element.attrib['name'],
-                                            entry_list=entry_list,
-                                            base_container_name=base_container_name,
-                                            restriction_criteria=restriction_criteria,
-                                            abstract=XtcePacketDefinition._is_abstract_container(
-                                                sequence_container_element
-                                            ),
-                                            short_description=short_description,
-                                            long_description=long_description)
-
     @property
     def named_containers(self) -> dict[str, containers.SequenceContainer]:
         """Property accessor that returns the dict cache of SequenceContainer objects"""
@@ -414,103 +335,6 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
     def named_parameter_types(self) -> dict[str, parameters.ParameterType]:
         """Property accessor that returns the dict cache of ParameterType objects"""
         return self._parameter_type_cache
-
-    @staticmethod
-    def _is_abstract_container(container_element: ElementTree.Element) -> bool:
-        """Determine in a SequenceContainer element is abstract
-
-        Parameters
-        ----------
-        container_element : ElementTree.Element
-            SequenceContainer element to examine
-
-        Returns
-        -------
-        : bool
-            True if SequenceContainer element has the attribute abstract=true. False otherwise.
-        """
-        if 'abstract' in container_element.attrib:
-            return container_element.attrib['abstract'].lower() == 'true'
-        return False
-
-    @staticmethod
-    def _find_container_by_name(tree: ElementTree.ElementTree, name: str, ns: dict) -> ElementTree.Element:
-        """Finds an XTCE container <xtce:SequenceContainer> by name.
-
-        Parameters
-        ----------
-        name : str
-            Name of the container to find
-
-        Returns
-        -------
-        : ElementTree.Element
-        """
-        containers = tree.getroot().findall(
-            f"xtce:TelemetryMetaData/xtce:ContainerSet/xtce:SequenceContainer[@name='{name}']",
-            ns
-        )
-        if len(containers) != 1:
-            raise ValueError(f"Found {len(containers)} matching container_set with name {name}. "
-                             f"Container names are expected to exist and be unique.")
-        return containers[0]
-
-    @staticmethod
-    def _get_container_base_container(
-            tree: ElementTree.Element,
-            container_element: ElementTree.Element,
-            ns: dict
-    ) -> tuple[ElementTree.Element, list[comparisons.MatchCriteria]]:
-        """Examines the container_element and returns information about its inheritance.
-
-        Parameters
-        ----------
-        container_element : ElementTree.Element
-            The container element for which to find its base container.
-
-        Returns
-        -------
-        : ElementTree.Element
-            The base container element of the input container_element.
-        : list
-            The restriction criteria for the inheritance.
-        """
-        base_container_element = container_element.find('xtce:BaseContainer', ns)
-        if base_container_element is None:
-            raise ElementNotFoundError(
-                f"Container element {container_element} does not have a BaseContainer child element.")
-
-        restriction_criteria_element = base_container_element.find('xtce:RestrictionCriteria', ns)
-        if restriction_criteria_element is not None:
-            comparison_list_element = restriction_criteria_element.find('xtce:ComparisonList', ns)
-            single_comparison_element = restriction_criteria_element.find('xtce:Comparison', ns)
-            boolean_expression_element = restriction_criteria_element.find('xtce:BooleanExpression', ns)
-            custom_algorithm_element = restriction_criteria_element.find('xtce:CustomAlgorithm', ns)
-            if custom_algorithm_element is not None:
-                raise NotImplementedError("Detected a CustomAlgorithm in a RestrictionCriteria element. "
-                                          "This is not implemented.")
-
-            if comparison_list_element is not None:
-                comparison_items = comparison_list_element.findall('xtce:Comparison', ns)
-                restrictions = [
-                    comparisons.Comparison.from_match_criteria_xml_element(comp, ns) for comp in comparison_items]
-            elif single_comparison_element is not None:
-                restrictions = [
-                    comparisons.Comparison.from_match_criteria_xml_element(single_comparison_element, ns)]
-            elif boolean_expression_element is not None:
-                restrictions = [
-                    comparisons.BooleanExpression.from_match_criteria_xml_element(boolean_expression_element, ns)]
-            else:
-                raise ValueError("Detected a RestrictionCriteria element containing no "
-                                 "Comparison, ComparisonList, BooleanExpression or CustomAlgorithm.")
-            # TODO: Implement NextContainer support inside RestrictionCriteria. This might make the parser much
-            #    more complicated.
-        else:
-            restrictions = []
-        return (
-            XtcePacketDefinition._find_container_by_name(tree, base_container_element.attrib['containerRef'], ns),
-            restrictions
-        )
 
     def parse_ccsds_packet(self,
                            packet: packets.CCSDSPacket,
