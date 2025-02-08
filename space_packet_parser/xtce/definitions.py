@@ -2,14 +2,14 @@
 import logging
 import socket
 import warnings
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from datetime import datetime
 from pathlib import Path
 from typing import BinaryIO, Optional, TextIO, Union
 
 import lxml.etree as ElementTree
 
-from space_packet_parser import packets
+from space_packet_parser import common, packets
 from space_packet_parser.exceptions import InvalidParameterTypeError, UnrecognizedPacketTypeError
 from space_packet_parser.xtce import XTCE_NSMAP, containers, parameters
 
@@ -29,7 +29,7 @@ TAG_TO_TYPE_TEMPLATE = {
     }
 
 
-class XtcePacketDefinition:
+class XtcePacketDefinition(common.AttrComparable):
     """Object representation of the XTCE definition of a CCSDS packet object"""
 
     def __init__(
@@ -84,6 +84,16 @@ class XtcePacketDefinition:
         self.date = date
         self.author = author
 
+    def write_xml(self, filepath: Union[str, Path]) -> None:
+        """Write out the XTCE XML for this packet definition object to the specified path
+
+        Parameters
+        ----------
+        filepath : Union[str, Path]
+            Location to write this packet definition
+        """
+        self.to_xml_tree().write(filepath.absolute(), pretty_print=True)
+
     def to_xml_tree(self) -> ElementTree.ElementTree:
         """Initializes and returns an ElementTree object based on parameter type, parameter, and container information
 
@@ -137,7 +147,7 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
         return tree
 
     @classmethod
-    def from_document(
+    def from_xtce(
             cls,
             xtce_document: Union[str, Path, TextIO],
             *,
@@ -182,8 +192,8 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
 
         return xtce_definition
 
-    def __getitem__(self, item):
-        return self._sequence_container_cache[item]
+    # def __getitem__(self, item):
+    #     return self._sequence_container_cache[item]
 
     @staticmethod
     def _get_sequence_containers(
@@ -191,7 +201,7 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
             parameter_lookup: dict[str, parameters.Parameter],
             ns: dict
     ) -> dict[str, containers.SequenceContainer]:
-        """Parse the <xtce:ContainerSet> element into a a dictionary of SequenceContainer objects
+        """Parse the <xtce:ContainerSet> element into a dictionary of SequenceContainer objects
 
         Parameters
         ----------
@@ -321,20 +331,38 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
 
         return parameter_dict
 
-    @property
-    def named_containers(self) -> dict[str, containers.SequenceContainer]:
-        """Property accessor that returns the dict cache of SequenceContainer objects"""
-        return self._sequence_container_cache
+    def get_containers(self, *names: str) -> Union[
+        containers.SequenceContainer,
+        Iterable[containers.SequenceContainer]
+    ]:
+        """Get one or more items from the dict cache of SequenceContainer objects"""
+        if len(names) == 1:
+            return self._sequence_container_cache[names[0]]
+        if len(names) == 0:
+            return self._sequence_container_cache
+        return (self._sequence_container_cache[name] for name in names)
 
-    @property
-    def named_parameters(self) -> dict[str, parameters.Parameter]:
-        """Property accessor that returns the dict cache of Parameter objects"""
-        return self._parameter_cache
+    def get_parameters(self, *names: str) -> Union[
+        parameters.Parameter,
+        Iterable[parameters.Parameter]
+    ]:
+        """Get one or more items from the dict cache of Parameter objects"""
+        if len(names) == 1:
+            return self._parameter_cache[names[0]]
+        if len(names) == 0:
+            return self._parameter_cache
+        return (self._parameter_cache[name] for name in names)
 
-    @property
-    def named_parameter_types(self) -> dict[str, parameters.ParameterType]:
-        """Property accessor that returns the dict cache of ParameterType objects"""
-        return self._parameter_type_cache
+    def get_parameter_types(self, *names: str) -> Union[
+        parameters.ParameterType,
+        Iterable[parameters.ParameterType]
+    ]:
+        """Get one or more items from the dict cache of ParameterType objects"""
+        if len(names) == 1:
+            return self._parameter_type_cache[names[0]]
+        if len(names) == 0:
+            return self._parameter_type_cache
+        return (self._parameter_type_cache[name] for name in names)
 
     def parse_ccsds_packet(self,
                            packet: packets.CCSDSPacket,

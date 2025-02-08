@@ -38,7 +38,7 @@ def test_invalid_parameter_type_error(test_data_dir):
 """
     x = io.TextIOWrapper(io.BytesIO(test_xtce_document.encode("UTF-8")))
     with pytest.raises(definitions.InvalidParameterTypeError):
-        definitions.XtcePacketDefinition.from_document(x)
+        definitions.XtcePacketDefinition.from_xtce(x)
 
 
 def test_unsupported_parameter_type_error(test_data_dir):
@@ -79,7 +79,7 @@ def test_unsupported_parameter_type_error(test_data_dir):
 """
     x = io.TextIOWrapper(io.BytesIO(test_xtce_document.encode("UTF-8")))
     with pytest.raises(NotImplementedError):
-        definitions.XtcePacketDefinition.from_document(x)
+        definitions.XtcePacketDefinition.from_xtce(x)
 
 
 @pytest.mark.parametrize(

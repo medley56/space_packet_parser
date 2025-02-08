@@ -173,18 +173,24 @@ class SequenceContainer(common.Parseable, common.XmlObject):
                                                               xtce + "RestrictionCriteria",
                                                               nsmap=ns)
                 if len(self.restriction_criteria) == 1:
-                    restriction_criteria.append(self.restriction_criteria[0].to_xml())
+                    restriction_criteria.append(self.restriction_criteria[0].to_xml(ns=ns))
                 else:
                     comp_list = ElementTree.SubElement(restriction_criteria, xtce + "ComparisonList", nsmap=ns)
                     for comp in self.restriction_criteria:
-                        comp_list.append(comp.to_xml(ns))
+                        comp_list.append(comp.to_xml(ns=ns))
 
         entry_list = ElementTree.SubElement(element, xtce + "EntryList", nsmap=ns)
         for entry in self.entry_list:
-            ElementTree.SubElement(entry_list,
-                                   xtce + "ParameterRefEntry",
-                                   attrib={"parameterRef": entry.name},
-                                   nsmap=ns)
+            if isinstance(entry, parameters.Parameter):
+                ElementTree.SubElement(entry_list,
+                                       xtce + "ParameterRefEntry",
+                                       attrib={"parameterRef": entry.name},
+                                       nsmap=ns)
+            elif isinstance(entry, SequenceContainer):
+                ElementTree.SubElement(entry_list,
+                                       xtce + "ContainerRefEntry",
+                                       attrib={"containerRef": entry.name},
+                                       nsmap=ns)
 
         return element
 

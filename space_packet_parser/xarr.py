@@ -84,7 +84,7 @@ def _get_minimum_numpy_datatype(
         The minimum numpy dtype for the parameter.
         Returns None to indicate that numpy should use default dtype inference.
     """
-    parameter_type = definition.named_parameters[name].parameter_type
+    parameter_type = definition.get_parameters(name).parameter_type
     data_encoding = parameter_type.encoding
 
     if use_raw_value:
@@ -149,7 +149,7 @@ def create_dataset(
     packet_generator_kwargs = packet_generator_kwargs or {}
 
     if not isinstance(xtce_packet_definition, definitions.XtcePacketDefinition):
-        xtce_packet_definition = definitions.XtcePacketDefinition.from_document(xtce_packet_definition)
+        xtce_packet_definition = definitions.XtcePacketDefinition.from_xtce(xtce_packet_definition)
 
     if isinstance(packet_files, (str, Path)):
         packet_files = [packet_files]

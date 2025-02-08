@@ -13,19 +13,20 @@ Usage with XTCE packet definition:
 
 ```python
 from pathlib import Path
-from space_packet_parser.xtce import definitions
+import space_packet_parser as spp
 
 packet_file = Path('my_packets.pkts')
 xtce_document = Path('my_xtce_document.xml')
-packet_definition = definitions.XtcePacketDefinition.from_document(xtce_document)
+packet_definition = spp.load_xml(xtce_document)
+packets = list(packet_definition.packet_generator(packet_file.open('rb')))
 
 # You can introspect the packet definition to learn about what was parsed
 # Look up a type (includes unit and encoding info)
-pt = packet_definition.named_parameter_types["MY_PARAM_Type"]
+pt = packet_definition.get_parameter_types["MY_PARAM_Type"]
 # Look up a parameter (includes short and long descriptions)
-p = packet_definition.named_parameters['MY_PARAM']
+p = packet_definition.parameters['MY_PARAM']
 # Look up a sequence container (includes inheritance)
-sc = packet_definition.named_containers['SecondaryHeaderContainer']
+sc = packet_definition.containers['SecondaryHeaderContainer']
 # See the API docs for more information about the ParameterType, Parameter, and SequenceContainer classes
 
 with packet_file.open("rb") as binary_data:

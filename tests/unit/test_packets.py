@@ -105,7 +105,7 @@ def test_ccsds_packet_data_lookups():
 
 def test_continuation_packets(test_data_dir):
     # This definition has 65 bytes worth of data
-    d = definitions.XtcePacketDefinition.from_document(test_data_dir / "test_xtce.xml")
+    d = definitions.XtcePacketDefinition.from_xtce(test_data_dir / "test_xtce.xml")
     # We can put that all in one unsegmented packet, just to verify this is working as expected
     raw_bytes = packets.create_ccsds_packet(data=b"0"*65, apid=11, sequence_flags=packets.SequenceFlags.UNSEGMENTED)
     orig_packets = list(d.packet_generator(raw_bytes))
@@ -147,7 +147,7 @@ def test_continuation_packets(test_data_dir):
 
 def test_continuation_packet_warnings(test_data_dir):
     # This definition has 65 bytes worth of data
-    d = definitions.XtcePacketDefinition.from_document(test_data_dir / "test_xtce.xml")
+    d = definitions.XtcePacketDefinition.from_xtce(test_data_dir / "test_xtce.xml")
 
     # CONTINUATION / LAST without FIRST
     p0 = packets.create_ccsds_packet(data=b"0"*65, apid=11, sequence_flags=packets.SequenceFlags.CONTINUATION)

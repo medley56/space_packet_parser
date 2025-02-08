@@ -41,7 +41,7 @@ def send_data(sender: socket.socket, file: str):
 
 def test_parsing_from_socket(jpss_test_data_dir):
     # Create packet def
-    xdef = XtcePacketDefinition.from_document(jpss_test_data_dir / 'jpss1_geolocation_xtce_v1.xml')
+    xdef = XtcePacketDefinition.from_xtce(jpss_test_data_dir / 'jpss1_geolocation_xtce_v1.xml')
     # Create socket
     sender, receiver = socket.socketpair()
     receiver.settimeout(3)

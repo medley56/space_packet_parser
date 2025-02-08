@@ -9,31 +9,31 @@ from space_packet_parser.xtce import containers, definitions, encodings, paramet
 def test_parsing_xtce_document(test_data_dir):
     """Tests parsing an entire XTCE document and makes assertions about the contents"""
     with open(test_data_dir / "test_xtce.xml") as x:
-        xdef = definitions.XtcePacketDefinition.from_document(x, ns=XTCE_NSMAP)
+        xdef = definitions.XtcePacketDefinition.from_xtce(x, ns=XTCE_NSMAP)
 
     # Test Parameter Types
     ptname = "USEC_Type"
-    pt = xdef.named_parameter_types[ptname]
+    pt = xdef.get_parameter_types(ptname)
     assert pt.name == ptname
     assert pt.unit == "us"
     assert isinstance(pt.encoding, encodings.IntegerDataEncoding)
 
     # Test Parameters
     pname = "ADAET1DAY"  # Named parameter
-    p = xdef.named_parameters[pname]
+    p = xdef.get_parameters(pname)
     assert p.name == pname
     assert p.short_description == "Ephemeris Valid Time, Days Since 1/1/1958"
     assert p.long_description is None
 
     pname = "USEC"
-    p = xdef.named_parameters[pname]
+    p = xdef.get_parameters(pname)
     assert p.name == pname
     assert p.short_description == "Secondary Header Fine Time (microsecond)"
     assert p.long_description == "CCSDS Packet 2nd Header Fine Time in microseconds."
 
     # Test Sequence Containers
     scname = "SecondaryHeaderContainer"
-    sc = xdef.named_containers[scname]
+    sc = xdef.get_containers(scname)
     assert sc.name == scname
     assert sc == containers.SequenceContainer(
         name=scname,
@@ -189,7 +189,7 @@ def test_generating_xtce_from_objects():
     xtce_string = ElementTree.tostring(definition.to_xml_tree(), pretty_print=True).decode()
 
     # Reparse that string into a new definition object using from_document
-    reparsed_definition = definitions.XtcePacketDefinition.from_document(
+    reparsed_definition = definitions.XtcePacketDefinition.from_xtce(
         io.StringIO(xtce_string),
         root_container_name=root_container.name
     )

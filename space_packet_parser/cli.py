@@ -75,7 +75,7 @@ def describe_xtce(
 ) -> None:
     """Describe the contents and structure of an XTCE packet definition file."""
     logging.debug(f"Describing XTCE file: {file_path}")
-    definition = XtcePacketDefinition.from_document(file_path, root_container_name=root_container)
+    definition = XtcePacketDefinition.from_xtce(file_path, root_container_name=root_container)
     tree = Tree(definition.root_container_name)
 
     # Recursively add nodes based on the inheritors of each container
@@ -171,7 +171,7 @@ def parse(
 
     with open(packet_file, "rb") as f:
         packets = list(
-            XtcePacketDefinition.from_document(
+            XtcePacketDefinition.from_xtce(
                 definition_file
             ).packet_generator(
                 f,
