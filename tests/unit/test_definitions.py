@@ -180,11 +180,14 @@ def test_generating_xtce_from_objects():
     # Create the definition object
     definition = definitions.XtcePacketDefinition(
         sequence_container_list=sequence_containers,
-        root_container_name=root_container.name
+        root_container_name=root_container.name,
+        date="2025-01-01T01:01:01",
+        author="Test Author",
+        space_system_name="Test Space System Name"
     )
 
     # Serialize it to an XML string
-    xtce_string = ElementTree.tostring(definition.tree, pretty_print=True).decode()
+    xtce_string = ElementTree.tostring(definition.to_xml_tree(), pretty_print=True).decode()
 
     # Reparse that string into a new definition object using from_document
     reparsed_definition = definitions.XtcePacketDefinition.from_document(
@@ -193,4 +196,4 @@ def test_generating_xtce_from_objects():
     )
 
     # Serialize the reparsed object and assert that the string is the same as what we started with
-    assert ElementTree.tostring(reparsed_definition.tree, pretty_print=True).decode() == xtce_string
+    assert ElementTree.tostring(reparsed_definition.to_xml_tree(), pretty_print=True).decode() == xtce_string

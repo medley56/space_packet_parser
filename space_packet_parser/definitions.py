@@ -40,6 +40,7 @@ class XtcePacketDefinition:
             root_container_name: Optional[str] = DEFAULT_ROOT_CONTAINER,
             space_system_name: Optional[str] = None,
             xtce_version: str = "1.0",
+            date: str = None,
             author: Optional[str] = None
     ):
         f"""
@@ -58,6 +59,8 @@ class XtcePacketDefinition:
             Name of space system to encode in XML when serializing.
         xtce_version : str
             Default "1.0"
+        date: Optional[str]
+            Optional header date string.
         author : Optional[str]
             Optional author name to include in XML when serializing.
         """
@@ -75,12 +78,12 @@ class XtcePacketDefinition:
         self.root_container_name = root_container_name
         self.space_system_name = space_system_name
         self.xtce_version = xtce_version
+        self.date = date
         self.author = author
         self.type_tag_to_object = {k.format(**self.ns): v for k, v in
                                    self._tag_to_type_template.items()}
-        self.tree = self._initialize_xml_tree()
 
-    def _initialize_xml_tree(self) -> ElementTree.ElementTree:
+    def to_xml_tree(self) -> ElementTree.ElementTree:
         """Initializes and returns an ElementTree object based on parameter type, parameter, and container information
 
         Returns
@@ -101,7 +104,7 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
 
             header = ElementTree.SubElement(space_system_root, xtce + "Header",
                                             attrib={
-                                                "date": datetime.now().isoformat(),
+                                                "date": self.date or datetime.now().isoformat(),
                                                 "version": self.xtce_version
                                             },
                                             nsmap=self.ns)
@@ -157,8 +160,16 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
             Optional override to the root container name. Default is 'CCSDSPacket'.
         """
         tree = ElementTree.parse(xtce_document)  # noqa: S320
+        space_system = tree.getroot()
         ns = ns or tree.getroot().nsmap
-        xtce_definition = cls(ns=ns, root_container_name=root_container_name)
+        header = space_system.find("xtce:Header", ns)
+        xtce_definition = cls(
+            ns=ns,
+            root_container_name=root_container_name,
+            author=header.attrib.get("author", None),
+            date=header.attrib.get("date", None),
+            space_system_name=space_system.attrib.get("name", None)
+        )
         xtce_definition.tree = tree  # noqa: S320
 
         xtce_definition._populate_parameter_type_cache()
