@@ -1,6 +1,9 @@
 """Common mixins"""
 import inspect
 from abc import ABCMeta
+from typing import Protocol
+
+from space_packet_parser.packets import CCSDSPacket
 
 
 # Common comparable mixin
@@ -19,3 +22,9 @@ class AttrComparable(metaclass=ABCMeta):
                 print(f'Mismatch was in {attr}. {getattr(self, attr)} != {getattr(other, attr)}')
                 return False
         return True
+
+
+class Parseable(Protocol):
+    """Defines an object that can be parsed from packet data."""
+    def parse(self, packet: CCSDSPacket) -> None:
+        """Parse this entry from the packet data and add the necessary items to the packet."""

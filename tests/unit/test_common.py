@@ -1,13 +1,13 @@
-"""Tests for mixins module"""
+"""Tests for common module"""
 import pytest
 
-from space_packet_parser import mixins
+from space_packet_parser import common
 
 
 def test_attr_comparable():
     """Test abstract class that allows comparisons based on all non-callable attributes"""
 
-    class TestClass(mixins.AttrComparable):
+    class TestClass(common.AttrComparable):
         """Test Class"""
 
         def __init__(self, public, private, dunder):

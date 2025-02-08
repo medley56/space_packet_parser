@@ -9,7 +9,7 @@ from typing import BinaryIO, Optional, TextIO, Union
 
 import lxml.etree as ElementTree
 
-from space_packet_parser import comparisons, packets, parameters
+from space_packet_parser import comparisons, containers, packets, parameters
 from space_packet_parser.exceptions import ElementNotFoundError, InvalidParameterTypeError, UnrecognizedPacketTypeError
 from space_packet_parser.xtce import XTCE_NSMAP
 
@@ -34,7 +34,7 @@ class XtcePacketDefinition:
 
     def __init__(
             self,
-            sequence_container_list: Optional[list[packets.SequenceContainer]] = None,
+            sequence_container_list: Optional[list[containers.SequenceContainer]] = None,
             *,
             ns: dict = XTCE_NSMAP,
             root_container_name: Optional[str] = DEFAULT_ROOT_CONTAINER,
@@ -47,7 +47,7 @@ class XtcePacketDefinition:
 
         Parameters
         ----------
-        sequence_container_list : Optional[list[packets.SequenceContainer]]
+        sequence_container_list : Optional[list[space_packet_parser.containers.SequenceContainer]]
             List of SequenceContainer objects, containing entry lists of Parameter objects, which contain their
             ParameterTypes. This is effectively the entire XTCE document in one list of objects.
         ns : dict
@@ -190,7 +190,7 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
             tree: ElementTree.Element,
             parameters_lookup: dict[str, parameters.Parameter],
             ns: dict
-    ) -> dict[str, packets.SequenceContainer]:
+    ) -> dict[str, containers.SequenceContainer]:
         """Parse the <xtce:ContainerSet> element into a a dictionary of SequenceContainer objects
 
         Parameters
@@ -327,7 +327,7 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
             sequence_container_element: ElementTree.Element,
             parameter_lookup: dict[str, parameters.Parameter],
             ns: dict
-    ) -> packets.SequenceContainer:
+    ) -> containers.SequenceContainer:
         """Parses the list of parameters in a SequenceContainer element, recursively parsing nested SequenceContainers
         to build an entry list of parameters that flattens the nested structure to derive a sequential ordering of
         expected parameters for each SequenceContainer. Note that this also stores entry lists for containers that are
@@ -390,18 +390,18 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
                 sequence_container_element.find('xtce:LongDescription', ns) is not None
         ) else None
 
-        return packets.SequenceContainer(name=sequence_container_element.attrib['name'],
-                                         entry_list=entry_list,
-                                         base_container_name=base_container_name,
-                                         restriction_criteria=restriction_criteria,
-                                         abstract=XtcePacketDefinition._is_abstract_container(
-                                             sequence_container_element
-                                         ),
-                                         short_description=short_description,
-                                         long_description=long_description)
+        return containers.SequenceContainer(name=sequence_container_element.attrib['name'],
+                                            entry_list=entry_list,
+                                            base_container_name=base_container_name,
+                                            restriction_criteria=restriction_criteria,
+                                            abstract=XtcePacketDefinition._is_abstract_container(
+                                                sequence_container_element
+                                            ),
+                                            short_description=short_description,
+                                            long_description=long_description)
 
     @property
-    def named_containers(self) -> dict[str, packets.SequenceContainer]:
+    def named_containers(self) -> dict[str, containers.SequenceContainer]:
         """Property accessor that returns the dict cache of SequenceContainer objects"""
         return self._sequence_container_cache
 
@@ -533,7 +533,7 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
             A Packet object containing header and data attributes.
         """
         root_container_name = root_container_name or self.root_container_name
-        current_container: packets.SequenceContainer = self._sequence_container_cache[root_container_name]
+        current_container: containers.SequenceContainer = self._sequence_container_cache[root_container_name]
         while True:
             current_container.parse(packet)
 
@@ -551,8 +551,8 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
             if len(valid_inheritors) == 0:
                 if current_container.abstract:
                     raise UnrecognizedPacketTypeError(
-                        f"Detected an abstract container with no valid inheritors by restriction criteria. This might "
-                        f"mean this packet type is not accounted for in the provided packet definition. "
+                        f"Detected an abstract container with no valid inheritors by restriction criteria. "
+                        f"This might mean this packet type is not accounted for in the provided packet definition. "
                         f"APID={packet['PKT_APID']}.",
                         partial_data=packet)
                 break

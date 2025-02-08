@@ -2,7 +2,7 @@
 import pytest
 import lxml.etree as ElementTree
 
-from space_packet_parser import packets, comparisons, mixins
+from space_packet_parser import packets, comparisons, common
 from space_packet_parser.exceptions import ComparisonError
 from space_packet_parser.xtce import XTCE_NSMAP
 

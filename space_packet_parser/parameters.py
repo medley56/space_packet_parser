@@ -6,11 +6,11 @@ from typing import Optional, Union
 
 import lxml.etree as ElementTree
 
-from space_packet_parser import calibrators, encodings, mixins, packets
+from space_packet_parser import calibrators, common, encodings, packets
 from space_packet_parser.encodings import StringDataEncoding
 
 
-class ParameterType(mixins.AttrComparable, metaclass=ABCMeta):
+class ParameterType(common.AttrComparable, metaclass=ABCMeta):
     """Abstract base class for XTCE parameter types"""
 
     def __init__(self, name: str, encoding: encodings.DataEncoding, unit: Optional[str] = None):
@@ -643,7 +643,7 @@ class RelativeTimeParameterType(TimeParameterType):
 
 
 @dataclass
-class Parameter(packets.Parseable):
+class Parameter(common.Parseable):
     """<xtce:Parameter>
 
     Parameters

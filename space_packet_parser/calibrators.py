@@ -5,10 +5,10 @@ from typing import Union
 
 import lxml.etree as ElementTree
 
-from space_packet_parser import comparisons, exceptions, mixins
+from space_packet_parser import common, comparisons, exceptions
 
 
-class Calibrator(mixins.AttrComparable, metaclass=ABCMeta):
+class Calibrator(common.AttrComparable, metaclass=ABCMeta):
     """Abstract base class for XTCE calibrators"""
 
     @classmethod
@@ -346,7 +346,7 @@ class MathOperationCalibrator(Calibrator):
         raise NotImplementedError(self.err_msg)
 
 
-class ContextCalibrator(mixins.AttrComparable):
+class ContextCalibrator(common.AttrComparable):
     """<xtce:ContextCalibrator>"""
 
     def __init__(self, match_criteria: list, calibrator: Calibrator):

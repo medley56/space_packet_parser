@@ -16,6 +16,8 @@ from pathlib import Path
 import re
 import warnings
 
+import space_packet_parser.containers
+import space_packet_parser.definitions
 from space_packet_parser import definitions, encodings, packets, parameters
 
 # This regex is for detecting a dynamically sized field where its bit_length is
@@ -194,7 +196,8 @@ def convert_ccsdspy_to_xtce(csv_path: Path) -> definitions.XtcePacketDefinition:
 
         packet_parameters.append(parameter)
 
-    sequence_containers = [packets.SequenceContainer(name="CCSDSPacket", entry_list=packet_parameters)]
+    sequence_containers = [
+        space_packet_parser.containers.SequenceContainer(name="CCSDSPacket", entry_list=packet_parameters)]
 
     return definitions.XtcePacketDefinition(
         sequence_containers,

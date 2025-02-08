@@ -7,12 +7,12 @@ from typing import Optional, Union
 
 import lxml.etree as ElementTree
 
-from space_packet_parser import calibrators, comparisons, mixins, packets
+from space_packet_parser import calibrators, common, comparisons, packets
 
 logger = logging.getLogger(__name__)
 
 
-class DataEncoding(mixins.AttrComparable, metaclass=ABCMeta):
+class DataEncoding(common.AttrComparable, metaclass=ABCMeta):
     """Abstract base class for XTCE data encodings"""
 
     @classmethod

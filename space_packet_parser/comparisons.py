@@ -6,11 +6,11 @@ from typing import Any, Optional, Union
 
 import lxml.etree as ElementTree
 
-from space_packet_parser import mixins, packets
+from space_packet_parser import common, packets
 from space_packet_parser.exceptions import ComparisonError
 
 
-class MatchCriteria(mixins.AttrComparable, metaclass=ABCMeta):
+class MatchCriteria(common.AttrComparable, metaclass=ABCMeta):
     """<xtce:MatchCriteriaType>
     This class stores criteria for performing logical operations based on parameter values
     Classes that inherit from this ABC include those that represent <xtce:Comparison>,
@@ -603,7 +603,7 @@ class BooleanExpression(MatchCriteria):
 
         return element
 
-class DiscreteLookup(mixins.AttrComparable):
+class DiscreteLookup(common.AttrComparable):
     """<xtce:DiscreteLookup>"""
 
     def __init__(self, match_criteria: list[Comparison], lookup_value: Union[int, float]):
