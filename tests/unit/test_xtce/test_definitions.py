@@ -1,9 +1,10 @@
 """Tests for space_packet_parser.xtcedef"""
 import io
 
+import pytest
 from lxml import etree as ElementTree
 
-from space_packet_parser.xtce import containers, definitions, encodings, parameters, comparisons, XTCE_NSMAP
+from space_packet_parser.xtce import containers, definitions, encodings, parameters, comparisons, XTCE_NSMAP, XTCE_URI
 
 
 def test_parsing_xtce_document(test_data_dir):
@@ -196,3 +197,104 @@ def test_generating_xtce_from_objects():
 
     # Serialize the reparsed object and assert that the string is the same as what we started with
     assert ElementTree.tostring(reparsed_definition.to_xml_tree(), pretty_print=True).decode() == xtce_string
+
+
+@pytest.mark.parametrize(
+    ("xml", "ns_label", "ns", "new_ns_label", "new_ns"),
+    [
+        # Custom namespace to new custom namespace
+        ("""
+<custom:SpaceSystem xmlns:custom="http://www.fake-test.org/space/xtce" name="Space Packet Parser">
+    <custom:Header date="2024-03-05T13:36:00MST" version="1.0" author="Gavin Medley"/>
+    <custom:TelemetryMetaData>
+        <custom:ParameterTypeSet/>
+        <custom:ParameterSet/>
+        <custom:ContainerSet/>
+    </custom:TelemetryMetaData>
+</custom:SpaceSystem>
+""", 
+         "custom", {"custom": "http://www.fake-test.org/space/xtce"},
+         "xtcenew", {"xtcenew": "http://www.fake-test.org/space/xtce"}),
+        # No namespace to custom namespace
+        ("""
+<SpaceSystem xmlns="http://www.fake-test.org/space/xtce" name="Space Packet Parser">
+    <Header date="2024-03-05T13:36:00MST" version="1.0" author="Gavin Medley"/>
+    <TelemetryMetaData>
+        <ParameterTypeSet/>
+        <ParameterSet/>
+        <ContainerSet/>
+    </TelemetryMetaData>
+</SpaceSystem>
+""", 
+         None, {None: "http://www.fake-test.org/space/xtce"},
+         "xtce", {"xtce": "http://www.fake-test.org/space/xtce"}),
+        ("""
+<custom:SpaceSystem xmlns:custom="http://www.fake-test.org/space/xtce" name="Space Packet Parser">
+    <custom:Header date="2024-03-05T13:36:00MST" version="1.0" author="Gavin Medley"/>
+    <custom:TelemetryMetaData>
+        <custom:ParameterTypeSet/>
+        <custom:ParameterSet/>
+        <custom:ContainerSet/>
+    </custom:TelemetryMetaData>
+</custom:SpaceSystem>
+""",
+         "custom", {"custom": "http://www.fake-test.org/space/xtce"},
+         None, {None: "http://www.fake-test.org/space/xtce"}),
+        # TODO: This fails due to the way we are handling namespace mappings and finding the XTCE namespace mapping
+#         ("""
+# <SpaceSystem name="Space Packet Parser">
+#     <Header date="2024-03-05T13:36:00MST" version="1.0" author="Gavin Medley"/>
+#     <TelemetryMetaData>
+#         <ParameterTypeSet/>
+#         <ParameterSet/>
+#         <ContainerSet/>
+#     </TelemetryMetaData>
+# </SpaceSystem>
+# """,
+#          None, {},
+#          "xtcenew", {"xtcenew": "http://www.fake-test.org/space/xtce"}),
+    ]
+)
+def test_custom_namespacing(test_data_dir, xml, ns_label, ns, new_ns_label, new_ns):
+    """Test parsing XTCE with various namespace configurations"""
+    # Parse directly from string, inferring the namespace mapping
+    xdef = definitions.XtcePacketDefinition.from_xtce(io.StringIO(xml))
+    default_tree = xdef.to_xml_tree()
+    # Assert that we know what the inferred mapping is
+    assert default_tree.getroot().nsmap == ns
+    print(ElementTree.tostring(default_tree.getroot(), pretty_print=True).decode())
+    # Prove we can find an element using the ns label prefix
+    prefix = f"{ns_label}:" if ns_label else ""
+    assert default_tree.find(f"{prefix}TelemetryMetaData", ns) is not None
+    # And also using the URI literal
+    assert default_tree.find(f"{{{ns[ns_label]}}}TelemetryMetaData", ns) is not None
+    
+    # Create the XML tree using a custom namespace label for the XTCE schema
+    new_tree = xdef.to_xml_tree(ns=new_ns)
+    # Assert the new mapping was applied
+    assert new_tree.getroot().nsmap == new_ns
+    # Prove we can find an element using the ns label prefix
+    prefix = f"{new_ns_label}:" if new_ns_label else ""
+    assert new_tree.find(f"{prefix}TelemetryMetaData", new_ns) is not None
+    # And also using the URI literal
+    assert new_tree.find(f"{{{new_ns[new_ns_label]}}}TelemetryMetaData", new_ns) is not None
+
+
+@pytest.mark.xfail
+def test_no_namespace_at_all_definition_parsing():
+    """Test using no namespace prefix"""
+    custom_namespaced_xtce = """
+    <SpaceSystem name="Space Packet Parser">
+        <Header date="2024-03-05T13:36:00MST" version="1.0" author="Gavin Medley"/>
+        <TelemetryMetaData>
+            <ParameterTypeSet/>
+            <ParameterSet/>
+            <ContainerSet/>
+        </TelemetryMetaData>
+    </SpaceSystem>
+    """
+    # Prove we can parse the same definition from an XML string without a namespace prefix
+    no_namespace_def = definitions.XtcePacketDefinition.from_xtce(
+        io.StringIO(custom_namespaced_xtce))
+    assert no_namespace_def.ns == {}
+    assert no_namespace_def.to_xml_tree().find("TelemetryMetaData") is not None

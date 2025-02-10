@@ -11,32 +11,38 @@ import lxml.etree as ElementTree
 
 from space_packet_parser import common, packets
 from space_packet_parser.exceptions import InvalidParameterTypeError, UnrecognizedPacketTypeError
-from space_packet_parser.xtce import XTCE_NSMAP, containers, parameters
+from space_packet_parser.xtce import XTCE_NSMAP, XTCE_URI, containers, parameters
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_ROOT_CONTAINER = "CCSDSPacket"
 
 TAG_TO_TYPE_TEMPLATE = {
-        '{{{xtce}}}StringParameterType': parameters.StringParameterType,
-        '{{{xtce}}}IntegerParameterType': parameters.IntegerParameterType,
-        '{{{xtce}}}FloatParameterType': parameters.FloatParameterType,
-        '{{{xtce}}}EnumeratedParameterType': parameters.EnumeratedParameterType,
-        '{{{xtce}}}BinaryParameterType': parameters.BinaryParameterType,
-        '{{{xtce}}}BooleanParameterType': parameters.BooleanParameterType,
-        '{{{xtce}}}AbsoluteTimeParameterType': parameters.AbsoluteTimeParameterType,
-        '{{{xtce}}}RelativeTimeParameterType': parameters.RelativeTimeParameterType,
+        'StringParameterType': parameters.StringParameterType,
+        'IntegerParameterType': parameters.IntegerParameterType,
+        'FloatParameterType': parameters.FloatParameterType,
+        'EnumeratedParameterType': parameters.EnumeratedParameterType,
+        'BinaryParameterType': parameters.BinaryParameterType,
+        'BooleanParameterType': parameters.BooleanParameterType,
+        'AbsoluteTimeParameterType': parameters.AbsoluteTimeParameterType,
+        'RelativeTimeParameterType': parameters.RelativeTimeParameterType,
     }
 
 
 class XtcePacketDefinition(common.AttrComparable):
     """Object representation of the XTCE definition of a CCSDS packet object"""
 
+    # TODO: Allow user to specify the XML schema instance for the XTCE XSD as well
+    #  e.g.
+    #                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    #                   xsi:schemaLocation="http://www.omg.org/spec/XTCE/20180204/SpaceSystem.xsd"
+    #  This will require an additional namespace dict entry for xsi (in this example)
     def __init__(
             self,
             sequence_container_list: Optional[list[containers.SequenceContainer]] = None,
             *,
             ns: dict = XTCE_NSMAP,
+            xtce_schema_uri: str = XTCE_URI,
             root_container_name: Optional[str] = DEFAULT_ROOT_CONTAINER,
             space_system_name: Optional[str] = None,
             xtce_version: str = "1.0",
@@ -52,7 +58,10 @@ class XtcePacketDefinition(common.AttrComparable):
             ParameterTypes. This is effectively the entire XTCE document in one list of objects.
         ns : dict
             XML namespace, expected as a single entry dictionary with the key being the namespace label and the
-            value being the namespace URI. Default {XTCE_NSMAP}
+            value being the namespace URI. Default {XTCE_NSMAP}.
+        xtce_schema_uri : str
+            XTCE schema URI. This is required in addition to the ns in order to know _which_ ns key corresponds to XTCE.
+            Default {XTCE_URI}. When creating XTCE elements from objects, this is the namespace that is used.
         root_container_name : Optional[str]
             Name of root sequence container (where to start parsing)
         space_system_name : Optional[str]
@@ -69,15 +78,14 @@ class XtcePacketDefinition(common.AttrComparable):
         self._sequence_container_cache = {}
 
         # Populate the three caches for easy lookup later.
-        # TODO: The parameter_type_cache and parameter_cache should be refactored into cached properties that simply
-        #  iterate through the sequence container cache and pull out the parameters and parameter types
         if sequence_container_list:
             for sc in sequence_container_list:
                 self._parameter_type_cache.update({p.parameter_type.name: p.parameter_type for p in sc.entry_list})
                 self._parameter_cache.update({p.name: p for p in sc.entry_list})
             self._sequence_container_cache.update({sc.name: sc for sc in sequence_container_list})
 
-        self.ns = ns
+        self.ns = ns  # Default ns dict used when creating XML elements
+        self.xtce_schema_uri = xtce_schema_uri  # XTCE schema URI
         self.root_container_name = root_container_name
         self.space_system_name = space_system_name
         self.xtce_version = xtce_version
@@ -92,57 +100,60 @@ class XtcePacketDefinition(common.AttrComparable):
         filepath : Union[str, Path]
             Location to write this packet definition
         """
-        self.to_xml_tree().write(filepath.absolute(), pretty_print=True)
+        self.to_xml_tree().write(filepath.absolute(), pretty_print=True, xml_declaration=True, encoding="utf-8")
 
-    def to_xml_tree(self) -> ElementTree.ElementTree:
+    def to_xml_tree(self, ns: Optional[dict] = None) -> ElementTree.ElementTree:
         """Initializes and returns an ElementTree object based on parameter type, parameter, and container information
+
+        Parameters
+        ----------
+        ns : Optional[dict]
+            XML namespace dictionary. Defaults to internal namespace dict, provided on initialization.
 
         Returns
         -------
         : ElementTree.ElementTree
         """
-        xtce_label, xtce_uri = next(iter(self.ns.items()))
+        if not ns:
+            ns = self.ns
+        xtce_label, xtce_uri = next(iter(ns.items()))
         xtce = f"{{{xtce_uri}}}"
-        tree = ElementTree.ElementTree(ElementTree.XML(
-f"""<?xml version='1.0' encoding='UTF-8'?>
-<xtce:SpaceSystem xmlns:{xtce_label}="{xtce_uri}"/>""".encode()
-        ))
+        tree = ElementTree.ElementTree(ElementTree.Element(xtce + "SpaceSystem", nsmap=ns))
 
-        if self._sequence_container_cache and self._parameter_type_cache and self._parameter_cache:
-            space_system_root = tree.getroot()
-            if self.space_system_name:
-                space_system_root.attrib["name"] = self.space_system_name
+        space_system_root = tree.getroot()
+        if self.space_system_name:
+            space_system_root.attrib["name"] = self.space_system_name
 
-            header = ElementTree.SubElement(space_system_root, xtce + "Header",
-                                            attrib={
-                                                "date": self.date or datetime.now().isoformat(),
-                                                "version": self.xtce_version
-                                            },
-                                            nsmap=self.ns)
-            if self.author:
-                header.attrib["author"] = self.author
+        header = ElementTree.SubElement(space_system_root, xtce + "Header",
+                                        attrib={
+                                            "date": self.date or datetime.now().isoformat(),
+                                            "version": self.xtce_version
+                                        },
+                                        nsmap=ns)
+        if self.author:
+            header.attrib["author"] = self.author
 
-            telemetry_metadata_element = ElementTree.SubElement(space_system_root,
-                                                                xtce + "TelemetryMetaData",
-                                                                nsmap=self.ns)
+        telemetry_metadata_element = ElementTree.SubElement(space_system_root,
+                                                            xtce + "TelemetryMetaData",
+                                                            nsmap=ns)
 
-            parameter_type_set = ElementTree.SubElement(telemetry_metadata_element,
-                                                        xtce + "ParameterTypeSet",
-                                                        nsmap=self.ns)
-            for _, ptype in self._parameter_type_cache.items():
-                parameter_type_set.append(ptype.to_xml(ns=self.ns))
+        parameter_type_set = ElementTree.SubElement(telemetry_metadata_element,
+                                                    xtce + "ParameterTypeSet",
+                                                    nsmap=ns)
+        for _, ptype in self._parameter_type_cache.items():
+            parameter_type_set.append(ptype.to_xml(ns=ns))
 
-            parameter_set = ElementTree.SubElement(telemetry_metadata_element,
-                                                   xtce + "ParameterSet",
-                                                   nsmap=self.ns)
-            for _, param in self._parameter_cache.items():
-                parameter_set.append(param.to_parameter_xml_element(self.ns))
+        parameter_set = ElementTree.SubElement(telemetry_metadata_element,
+                                               xtce + "ParameterSet",
+                                               nsmap=ns)
+        for _, param in self._parameter_cache.items():
+            parameter_set.append(param.to_parameter_xml_element(ns))
 
-            sequence_container_set = ElementTree.SubElement(telemetry_metadata_element,
-                                                            xtce + "ContainerSet",
-                                                            nsmap=self.ns)
-            for _, sc in self._sequence_container_cache.items():
-                sequence_container_set.append(sc.to_xml(ns=self.ns))
+        sequence_container_set = ElementTree.SubElement(telemetry_metadata_element,
+                                                        xtce + "ContainerSet",
+                                                        nsmap=ns)
+        for _, sc in self._sequence_container_cache.items():
+            sequence_container_set.append(sc.to_xml(ns=ns))
 
         return tree
 
@@ -173,7 +184,12 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
         tree = ElementTree.parse(xtce_document)  # noqa: S320
         space_system = tree.getroot()
         ns = ns or tree.getroot().nsmap
-        header = space_system.find("xtce:Header", ns)
+        if ns:
+            xtce_label, xtce_uri = next(iter(ns.items()))
+        else:
+            xtce_uri = ""
+        xtce = f"{{{xtce_uri}}}"
+        header = space_system.find(xtce + "Header", ns)
         xtce_definition = cls(
             ns=ns,
             root_container_name=root_container_name,
@@ -216,9 +232,14 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
         -------
 
         """
+        if ns:
+            xtce_label, xtce_uri = next(iter(ns.items()))
+        else:
+            xtce_uri = ""
+        xtce = f"{{{xtce_uri}}}"
         sequence_container_dict = {}
         for sequence_container in tree.getroot().iterfind(
-                'xtce:TelemetryMetaData/xtce:ContainerSet/xtce:SequenceContainer',
+                f'{xtce}TelemetryMetaData/{xtce}ContainerSet/{xtce}SequenceContainer',
                 ns
         ):
             sequence_container_dict[
@@ -252,10 +273,15 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
         -------
         : dict[str, parameters.ParameterType]
         """
-        type_tag_to_object = {k.format(**ns): v for k, v in TAG_TO_TYPE_TEMPLATE.items()}
+        if ns:
+            xtce_label, xtce_uri = next(iter(ns.items()))
+        else:
+            xtce_uri = ""
+        xtce = f"{{{xtce_uri}}}"
+        type_tag_to_object = {xtce + k: v for k, v in TAG_TO_TYPE_TEMPLATE.items()}
 
         parameter_type_dict = {}
-        for parameter_type_element in tree.getroot().iterfind('xtce:TelemetryMetaData/xtce:ParameterTypeSet/*', ns):
+        for parameter_type_element in tree.getroot().iterfind(f'{xtce}TelemetryMetaData/{xtce}ParameterTypeSet/*', ns):
             parameter_type_name = parameter_type_element.attrib['name']
             if parameter_type_name in parameter_type_dict:
                 raise ValueError(f"Found duplicate parameter type {parameter_type_name}. "
@@ -303,8 +329,13 @@ f"""<?xml version='1.0' encoding='UTF-8'?>
         : dict[str, parameters.Parameter]
         """
         parameter_dict = {}
-
-        for parameter_element in tree.getroot().iterfind('xtce:TelemetryMetaData/xtce:ParameterSet/xtce:Parameter', ns):
+        if ns:
+            xtce_label, xtce_uri = next(iter(ns.items()))
+        else:
+            xtce_uri = ""
+        xtce = f"{{{xtce_uri}}}"
+        for parameter_element in tree.getroot().iterfind(
+                f'{xtce}TelemetryMetaData/{xtce}ParameterSet/{xtce}Parameter', ns):
             parameter_name = parameter_element.attrib['name']
             if parameter_name in parameter_dict:
                 raise ValueError(f"Found duplicate parameter name {parameter_name}. "

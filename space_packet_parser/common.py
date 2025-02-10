@@ -86,6 +86,9 @@ class XmlObject(metaclass=ABCMeta):
         raise NotImplementedError()
 
 
+
+
+
 class Parseable(Protocol):
     """Defines an object that can be parsed from packet data."""
     def parse(self, packet: packets.CCSDSPacket) -> None:
