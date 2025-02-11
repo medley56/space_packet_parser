@@ -122,12 +122,12 @@ class SequenceContainer(common.Parseable, common.XmlObject):
                     )
                 )
 
-        short_description = element.attrib['shortDescription'] if (
-                'shortDescription' in element.attrib
-        ) else None
-        long_description = element.find('xtce:LongDescription', ns).text if (
-                element.find('xtce:LongDescription', ns) is not None
-        ) else None
+        short_description = element.attrib.get('shortDescription', None)
+
+        if (long_description_element := element.find('xtce:LongDescription', ns)) is not None:
+            long_description = long_description_element.text
+        else:
+            long_description = None
 
         return cls(name=element.attrib['name'],
                    entry_list=entry_list,

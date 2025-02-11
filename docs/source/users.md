@@ -22,7 +22,7 @@ packets = list(packet_definition.packet_generator(packet_file.open('rb')))
 
 # You can introspect the packet definition to learn about what was parsed
 # Look up a type (includes unit and encoding info)
-pt = packet_definition.get_parameter_types["MY_PARAM_Type"]
+pt = packet_definition.parameter_types["MY_PARAM_Type"]
 # Look up a parameter (includes short and long descriptions)
 p = packet_definition.parameters['MY_PARAM']
 # Look up a sequence container (includes inheritance)
