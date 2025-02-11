@@ -1,8 +1,8 @@
 """Tests for packets"""
-# Standard
 import pytest
-# Local
-from space_packet_parser import definitions, packets
+
+from space_packet_parser import packets
+from space_packet_parser.xtce import definitions
 
 
 @pytest.mark.parametrize(("input_var", "input_value"),
@@ -105,7 +105,7 @@ def test_ccsds_packet_data_lookups():
 
 def test_continuation_packets(test_data_dir):
     # This definition has 65 bytes worth of data
-    d = definitions.XtcePacketDefinition(test_data_dir / "test_xtce.xml")
+    d = definitions.XtcePacketDefinition.from_xtce(test_data_dir / "test_xtce.xml")
     # We can put that all in one unsegmented packet, just to verify this is working as expected
     raw_bytes = packets.create_ccsds_packet(data=b"0"*65, apid=11, sequence_flags=packets.SequenceFlags.UNSEGMENTED)
     orig_packets = list(d.packet_generator(raw_bytes))
@@ -147,7 +147,7 @@ def test_continuation_packets(test_data_dir):
 
 def test_continuation_packet_warnings(test_data_dir):
     # This definition has 65 bytes worth of data
-    d = definitions.XtcePacketDefinition(test_data_dir / "test_xtce.xml")
+    d = definitions.XtcePacketDefinition.from_xtce(test_data_dir / "test_xtce.xml")
 
     # CONTINUATION / LAST without FIRST
     p0 = packets.create_ccsds_packet(data=b"0"*65, apid=11, sequence_flags=packets.SequenceFlags.CONTINUATION)
@@ -166,3 +166,16 @@ def test_continuation_packet_warnings(test_data_dir):
     with pytest.warns(match="not in sequence"):
         # Nothing expected to be returned
         assert len(list(d.packet_generator(raw_bytes, combine_segmented_packets=True))) == 0
+
+
+@pytest.mark.parametrize("start, nbits", [(0, 1), (0, 16), (0, 8), (0, 9),
+                                          (3, 5), (3, 8), (3, 13),
+                                          (7, 1), (7, 2), (7, 8),
+                                          (8, 1), (8, 8), (15, 1)])
+def test__extract_bits(start, nbits):
+    """Test the _extract_bits function with various start and nbits values"""
+    # Test extracting bits from a bitstream
+    s = '0000111100001111'
+    data = int(s, 2).to_bytes(2, byteorder="big")
+
+    assert packets._extract_bits(data, start, nbits) == int(s[start:start + nbits], 2)

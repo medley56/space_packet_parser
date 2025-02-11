@@ -3,6 +3,7 @@
    :caption: Contents:
 
    users.md
+   examples.md
    developers.md
    changelog.md
    browser-demo.rst

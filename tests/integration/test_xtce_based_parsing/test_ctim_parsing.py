@@ -1,7 +1,7 @@
 """Test parsing of CTIM instrument data"""
 import pytest
 # Local
-from space_packet_parser import definitions
+from space_packet_parser.xtce import definitions
 
 
 @pytest.mark.filterwarnings("ignore:Number of bits parsed")
@@ -9,7 +9,7 @@ def test_ctim_parsing(ctim_test_data_dir):
     """Test parsing CTIM data"""
     print("Loading and parsing packet definition")
     test_xtce = ctim_test_data_dir / 'ctim_xtce_v1.xml'
-    pkt_def = definitions.XtcePacketDefinition(test_xtce)
+    pkt_def = definitions.XtcePacketDefinition.from_xtce(test_xtce)
     print("Done")
 
     print("Loading and parsing data")

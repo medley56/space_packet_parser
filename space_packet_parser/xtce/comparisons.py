@@ -1,39 +1,21 @@
 """Matching logical objects"""
-import inspect
 import warnings
 from abc import ABCMeta, abstractmethod
 from collections import namedtuple
 from typing import Any, Optional, Union
 
 import lxml.etree as ElementTree
+from lxml.builder import ElementMaker
 
-from space_packet_parser import packets
+from space_packet_parser import common, packets
 from space_packet_parser.exceptions import ComparisonError
 
 
-# Common comparable mixin
-class AttrComparable(metaclass=ABCMeta):
-    """Generic class that provides a notion of equality based on all non-callable, non-dunder attributes"""
-
-    def __eq__(self, other):
-        if not isinstance(other, self.__class__):
-            raise NotImplementedError(f"No method to compare {type(other)} with {self.__class__}")
-
-        compare = inspect.getmembers(self, lambda a: not inspect.isroutine(a))
-        compare = [attr[0] for attr in compare
-                   if not (attr[0].startswith('__') or attr[0].startswith(f'_{self.__class__.__name__}__'))]
-        for attr in compare:
-            if getattr(self, attr) != getattr(other, attr):
-                print(f'Mismatch was in {attr}. {getattr(self, attr)} != {getattr(other, attr)}')
-                return False
-        return True
-
-
-class MatchCriteria(AttrComparable, metaclass=ABCMeta):
+class MatchCriteria(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
     """<xtce:MatchCriteriaType>
     This class stores criteria for performing logical operations based on parameter values
-    Classes that inherit from this ABC include those that represent <xtce:Comparison>, <xtce:ComparisonList>,
-    <xtce:BooleanExpression> (not supported), and <xtce:CustomAlgorithm> (not supported)
+    Classes that inherit from this ABC include those that represent <xtce:Comparison>,
+    <xtce:BooleanExpression>, and <xtce:CustomAlgorithm> (not supported)
     """
 
     # Valid operator representations in XML. Note: the XTCE spec only allows for &gt; style representations of < and >
@@ -47,24 +29,6 @@ class MatchCriteria(AttrComparable, metaclass=ABCMeta):
         "&lt;=": "__le__", "leq": "__le__", "<=": "__le__",  # less than or equal to
         "&gt;=": "__ge__", "geq": "__ge__", ">=": "__ge__",  # greater than or equal to
     }
-
-    @classmethod
-    @abstractmethod
-    def from_match_criteria_xml_element(cls, element: ElementTree.Element, ns: dict):
-        """Abstract classmethod to create a match criteria object from an XML element.
-
-        Parameters
-        ----------
-        element : ElementTree.Element
-            XML element
-        ns : dict
-            XML namespace dict
-
-        Returns
-        -------
-        : cls
-        """
-        raise NotImplementedError()
 
     @abstractmethod
     def evaluate(self,
@@ -129,7 +93,15 @@ class Comparison(MatchCriteria):
                              f"{set(self._valid_operators.keys())}")
 
     @classmethod
-    def from_match_criteria_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'Comparison':
+    def from_xml(
+            cls,
+            element: ElementTree.Element,
+            *,
+            ns: dict,
+            tree: Optional[ElementTree.Element] = None,
+            parameter_lookup: Optional[dict[str, any]] = None,
+            parameter_type_lookup: Optional[dict[str, any]] = None
+    ) -> 'Comparison':
         """Create
 
         Parameters
@@ -138,6 +110,12 @@ class Comparison(MatchCriteria):
             XML element
         ns : dict
             XML namespace dict
+        tree: Optional[ElementTree.Element]
+            Ignored
+        parameter_lookup: Optional[dict]
+            Ignored
+        parameter_type_lookup: Optional[dict]
+            Ignored
 
         Returns
         -------
@@ -155,6 +133,25 @@ class Comparison(MatchCriteria):
             operator = element.attrib['comparisonOperator']
 
         return cls(value, parameter_name, operator=operator, use_calibrated_value=use_calibrated_value)
+
+    def to_xml(self, *, elmaker: ElementMaker) -> ElementTree.Element:
+        """Create a Comparison XML element
+
+        Parameters
+        ----------
+        elmaker : ElementMaker
+            Element factory with predefined namespace
+
+        Returns
+        -------
+        : ElementTree.Element
+        """
+        return elmaker.Comparison(
+            parameterRef=self.referenced_parameter,
+            useCalibratedValue=str(self.use_calibrated_value).lower(),
+            comparisonOperator=self.operator,
+            value=str(self.required_value)
+        )
 
     def evaluate(self,
                  packet: packets.CCSDSPacket,
@@ -213,7 +210,7 @@ class Comparison(MatchCriteria):
 
 class Condition(MatchCriteria):
     """<xtce:Condition>
-    Note: This xtce model doesn't actually inherit from MatchCriteria in the UML model
+    Note: This xtce model doesn't actually inherit from MatchCriteria in the UML model,
     but it's functionally close enough that we inherit the class here.
     """
 
@@ -292,7 +289,15 @@ class Condition(MatchCriteria):
         return parameter_name, use_calibrated_value
 
     @classmethod
-    def from_match_criteria_xml_element(cls, element: ElementTree.Element, ns: dict):
+    def from_xml(
+            cls,
+            element: ElementTree.Element,
+            *,
+            ns: dict,
+            tree: Optional[ElementTree.Element] = None,
+            parameter_lookup: Optional[dict[str, any]] = None,
+            parameter_type_lookup: Optional[dict[str, any]] = None
+    ) -> 'Condition':
         """Classmethod to create a Condition object from an XML element.
 
         Parameters
@@ -301,6 +306,12 @@ class Condition(MatchCriteria):
             XML element
         ns : dict
             XML namespace dict
+        tree: Optional[ElementTree.Element]
+            Ignored
+        parameter_lookup: Optional[dict]
+            Ignored
+        parameter_type_lookup: Optional[dict]
+            Ignored
 
         Returns
         -------
@@ -309,6 +320,7 @@ class Condition(MatchCriteria):
         operator = element.find('xtce:ComparisonOperator', ns).text
         params = element.findall('xtce:ParameterInstanceRef', ns)
         if len(params) == 1:
+            # XTCE green book Figure 3-5 specifies if only one ParameterInstanceRef, it is the LHS of the operator
             left_param, use_calibrated_value = cls._parse_parameter_instance_ref(params[0])
             right_value = element.find('xtce:Value', ns).text
             return cls(left_param, operator, right_value=right_value,
@@ -322,6 +334,40 @@ class Condition(MatchCriteria):
                        right_use_calibrated_value=right_use_calibrated_value)
         raise ValueError(f'Failed to parse a Condition element {element}. '
                          'See 3.4.3.4.2 of XTCE Green Book CCSDS 660.1-G-2')
+
+    def to_xml(self, *, elmaker: ElementMaker) -> ElementTree.Element:
+        """Create a Condition XML element
+
+        Parameters
+        ----------
+        elmaker : ElementMaker
+            Element factory with predefined namespace
+
+        Returns
+        -------
+        : ElementTree.Element
+        """
+        condition = elmaker.Condition(
+            elmaker.ParameterInstanceRef(
+                parameterRef=self.left_param,
+                useCalibratedValue=str(self.left_use_calibrated_value).lower(),
+            ),
+            elmaker.ComparisonOperator(self.operator)
+        )
+
+        if self.right_param:
+            condition.append(
+                elmaker.ParameterInstanceRef(
+                    parameterRef=self.right_param,
+                    useCalibratedValue=str(self.right_use_calibrated_value).lower(),
+                )
+            )
+        else:
+            condition.append(
+                elmaker.Value(str(self.right_value))
+            )
+
+        return condition
 
     def evaluate(self,
                  packet: packets.CCSDSPacket,
@@ -398,7 +444,15 @@ class BooleanExpression(MatchCriteria):
         return f"BooleanExpression({self.expression})"
 
     @classmethod
-    def from_match_criteria_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'BooleanExpression':
+    def from_xml(
+            cls,
+            element: ElementTree.Element,
+            *,
+            ns: dict,
+            tree: Optional[ElementTree.Element] = None,
+            parameter_lookup: Optional[dict[str, any]] = None,
+            parameter_type_lookup: Optional[dict[str, any]] = None
+    ) -> 'BooleanExpression':
         """Abstract classmethod to create a match criteria object from an XML element.
 
         Parameters
@@ -407,6 +461,12 @@ class BooleanExpression(MatchCriteria):
            XML element
         ns : dict
            XML namespace dict
+        tree: Optional[ElementTree.Element]
+            Ignored
+        parameter_lookup: Optional[dict]
+            Ignored
+        parameter_type_lookup: Optional[dict]
+            Ignored
 
         Returns
         -------
@@ -425,7 +485,7 @@ class BooleanExpression(MatchCriteria):
             -------
             : Anded
             """
-            conditions = [Condition.from_match_criteria_xml_element(el, ns)
+            conditions = [Condition.from_xml(el, ns=ns)
                           for el in anded_el.findall('xtce:Condition', ns)]
             anded_ors = [_parse_ored(anded_or) for anded_or in anded_el.findall('xtce:ORedConditions', ns)]
             return Anded(conditions, anded_ors)
@@ -442,13 +502,13 @@ class BooleanExpression(MatchCriteria):
             -------
             : Ored
             """
-            conditions = [Condition.from_match_criteria_xml_element(el, ns)
+            conditions = [Condition.from_xml(el, ns=ns)
                           for el in ored_el.findall('xtce:Condition', ns)]
             ored_ands = [_parse_anded(ored_and) for ored_and in ored_el.findall('xtce:ANDedConditions', ns)]
             return Ored(conditions, ored_ands)
 
         if element.find('xtce:Condition', ns) is not None:
-            condition = Condition.from_match_criteria_xml_element(element.find('xtce:Condition', ns), ns)
+            condition = Condition.from_xml(element.find('xtce:Condition', ns), ns=ns)
             return cls(expression=condition)
         if element.find('xtce:ANDedConditions', ns) is not None:
             return cls(expression=_parse_anded(element.find('xtce:ANDedConditions', ns)))
@@ -501,16 +561,50 @@ class BooleanExpression(MatchCriteria):
 
         raise ValueError(f"Error evaluating an unknown expression {self.expression}.")
 
+    def to_xml(self, *, elmaker: ElementMaker) -> ElementTree.Element:
+        """Create a Condition XML element
 
-class DiscreteLookup(AttrComparable):
+        Parameters
+        ----------
+        elmaker : ElementMaker
+            Element factory with predefined namespace
+
+        Returns
+        -------
+        : ElementTree.Element
+        """
+        def _serialize_anded(anded: Anded) -> ElementTree.Element:
+            return elmaker.ANDedConditions(
+                *(cond.to_xml(elmaker=elmaker) for cond in anded.conditions),
+                *(_serialize_ored(ored) for ored in anded.ors)
+            )
+
+        def _serialize_ored(ored: Ored) -> ElementTree.Element:
+            return elmaker.ORedConditions(
+                *(cond.to_xml(elmaker=elmaker) for cond in ored.conditions),
+                *(_serialize_anded(anded) for anded in ored.ands)
+            )
+
+        element = elmaker.BooleanExpression()
+
+        if isinstance(self.expression, Condition):
+            element.append(self.expression.to_xml(elmaker=elmaker))
+        elif isinstance(self.expression, Anded):
+            element.append(_serialize_anded(self.expression))
+        else:
+            element.append(_serialize_ored(self.expression))
+
+        return element
+
+class DiscreteLookup(common.AttrComparable, common.XmlObject):
     """<xtce:DiscreteLookup>"""
 
-    def __init__(self, match_criteria: list, lookup_value: Union[int, float]):
+    def __init__(self, match_criteria: list[Comparison], lookup_value: Union[int, float]):
         """Constructor
 
         Parameters
         ----------
-        match_criteria : list
+        match_criteria : list[Comparison]
             List of criteria to determine if the lookup value should be returned during evaluation.
         lookup_value : Union[int, float]
             Value to return from the lookup if the criteria evaluate true
@@ -519,7 +613,15 @@ class DiscreteLookup(AttrComparable):
         self.lookup_value = lookup_value
 
     @classmethod
-    def from_discrete_lookup_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'DiscreteLookup':
+    def from_xml(
+            cls,
+            element: ElementTree.Element,
+            *,
+            ns: dict,
+            tree: Optional[ElementTree.ElementTree] = None,
+            parameter_lookup: Optional[dict[str, any]] = None,
+            parameter_type_lookup: Optional[dict[str, any]] = None,
+    ) -> 'DiscreteLookup':
         """Create a DiscreteLookup object from an <xtce:DiscreteLookup> XML element
 
         Parameters
@@ -528,6 +630,12 @@ class DiscreteLookup(AttrComparable):
             <xtce:DiscreteLookup> XML element from which to parse the DiscreteLookup object.
         ns : dict
             Namespace dict for XML parsing
+        tree: Optional[ElementTree.Element]
+            Ignored
+        parameter_lookup: Optional[dict]
+            Ignored
+        parameter_type_lookup: Optional[dict]
+            Ignored
 
         Returns
         -------
@@ -535,15 +643,39 @@ class DiscreteLookup(AttrComparable):
         """
         lookup_value = float(element.attrib['value'])
         if element.find('xtce:ComparisonList', ns) is not None:
-            match_criteria = [Comparison.from_match_criteria_xml_element(el, ns)
+            match_criteria = [Comparison.from_xml(el, ns=ns)
                               for el in element.findall('xtce:ComparisonList/xtce:Comparison', ns)]
         elif element.find('xtce:Comparison', ns) is not None:
-            match_criteria = [Comparison.from_match_criteria_xml_element(
-                element.find('xtce:Comparison', ns), ns)]
+            match_criteria = [Comparison.from_xml(
+                element.find('xtce:Comparison', ns), ns=ns)]
         else:
             raise NotImplementedError("Only Comparison and ComparisonList are implemented for DiscreteLookup.")
 
         return cls(match_criteria, lookup_value)
+
+    def to_xml(self, *, elmaker: ElementMaker) -> ElementTree.Element:
+        """Create a DiscreteLookup XML element
+
+        Parameters
+        ----------
+        elmaker : ElementMaker
+            ElementMaker factory
+
+        Returns
+        -------
+        : ElementTree.Element
+        """
+        match_criteria = (c.to_xml(elmaker=elmaker) for c in self.match_criteria)
+
+        if len(self.match_criteria) > 1:
+            dl_contents = (elmaker.ComparisonList(*match_criteria), )
+        else:
+            dl_contents = match_criteria
+
+        return elmaker.DiscreteLookup(
+            *dl_contents,
+            value=str(self.lookup_value)
+        )
 
     def evaluate(self, packet: packets.CCSDSPacket, current_parsed_value: Optional[Union[int, float]] = None) -> Any:
         """Evaluate the lookup to determine if it is valid.

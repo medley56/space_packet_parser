@@ -7,14 +7,13 @@ except ImportError as ie:
     raise ImportError(
         "Failed to import dependencies for xarray extra. Did you install the [xarray] extras package?"
     ) from ie
-# Standard
+
 import collections
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Optional, Union
 
-# Local
-from space_packet_parser import definitions, encodings, parameters
+from space_packet_parser.xtce import definitions, encodings, parameter_types
 
 
 def _min_dtype_for_encoding(data_encoding: encodings.DataEncoding):
@@ -85,7 +84,7 @@ def _get_minimum_numpy_datatype(
         The minimum numpy dtype for the parameter.
         Returns None to indicate that numpy should use default dtype inference.
     """
-    parameter_type = definition.named_parameters[name].parameter_type
+    parameter_type = definition.parameters[name].parameter_type
     data_encoding = parameter_type.encoding
 
     if use_raw_value:
@@ -104,7 +103,7 @@ def _get_minimum_numpy_datatype(
     if isinstance(data_encoding, encodings.BinaryDataEncoding):
         return "bytes"
 
-    if isinstance(parameter_type, parameters.EnumeratedParameterType):
+    if isinstance(parameter_type, parameter_types.EnumeratedParameterType):
         # Enums are always strings in their derived state
         return "str"
 
@@ -150,7 +149,7 @@ def create_dataset(
     packet_generator_kwargs = packet_generator_kwargs or {}
 
     if not isinstance(xtce_packet_definition, definitions.XtcePacketDefinition):
-        xtce_packet_definition = definitions.XtcePacketDefinition(xtce_packet_definition)
+        xtce_packet_definition = definitions.XtcePacketDefinition.from_xtce(xtce_packet_definition)
 
     if isinstance(packet_files, (str, Path)):
         packet_files = [packet_files]

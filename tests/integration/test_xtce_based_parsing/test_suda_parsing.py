@@ -4,7 +4,7 @@ The packet definition used here is intended for IDEX, which is basically a rebui
 The data used here is SUDA data but the fields are parsed using IDEX naming conventions.
 """
 # Local
-from space_packet_parser import definitions
+from space_packet_parser.xtce import definitions
 from space_packet_parser import packets
 
 
@@ -45,7 +45,7 @@ def parse_waveform_data(waveform: str, scitype: int):
 def test_suda_xtce_packet_parsing(suda_test_data_dir):
     """Test parsing a real XTCE document"""
     suda_xtce = suda_test_data_dir / 'suda_combined_science_definition.xml'
-    suda_definition = definitions.XtcePacketDefinition(xtce_document=suda_xtce)
+    suda_definition = definitions.XtcePacketDefinition.from_xtce(xtce_document=suda_xtce)
     assert isinstance(suda_definition, definitions.XtcePacketDefinition)
     suda_packet_file = suda_test_data_dir / 'sciData_2022_130_17_41_53.spl'
 

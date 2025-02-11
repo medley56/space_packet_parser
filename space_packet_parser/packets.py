@@ -1,4 +1,3 @@
-
 """Packet containers and parsing utilities for space packets.
 
 The parsing begins with binary data representing CCSDS Packets. A user can then create a generator
@@ -8,17 +7,15 @@ class can be used to inspect the CCSDS header fields of the packet, but it does 
 parsed content from the data field. This generator is useful for debugging and passing off
 to other parsing functions.
 """
-
 import datetime as dt
 import io
 import logging
 import socket
 import time
 from collections.abc import Iterator
-from dataclasses import dataclass, field
 from enum import IntEnum
 from functools import cached_property
-from typing import BinaryIO, Optional, Protocol, Union
+from typing import BinaryIO, Optional, Union
 
 BuiltinDataTypes = Union[bytes, float, int, str]
 logger = logging.getLogger(__name__)
@@ -307,58 +304,6 @@ class CCSDSPacket(dict):
     def user_data(self) -> dict:
         """The user data content of the packet."""
         return dict(list(self.items())[7:])
-
-
-class Parseable(Protocol):
-    """Defines an object that can be parsed from packet data."""
-    def parse(self, packet: CCSDSPacket) -> None:
-        """Parse this entry from the packet data and add the necessary items to the packet."""
-
-
-@dataclass
-class SequenceContainer(Parseable):
-    """<xtce:SequenceContainer>
-
-    Parameters
-    ----------
-    name : str
-        Container name
-    entry_list : list
-        List of Parameter objects
-    long_description : str
-        Long description of the container
-    base_container_name : str
-        Name of the base container from which this may inherit if restriction criteria are met.
-    restriction_criteria : list
-        A list of MatchCriteria elements that evaluate to determine whether the SequenceContainer should
-        be included.
-    abstract : bool
-        True if container has abstract=true attribute. False otherwise.
-    inheritors : list, Optional
-        List of SequenceContainer objects that may inherit this one's entry list if their restriction criteria
-        are met. Any SequenceContainers with this container as base_container_name should be listed here.
-    """
-    name: str
-    entry_list: list  # List of Parameter objects, found by reference
-    short_description: Optional[str] = None
-    long_description: Optional[str] = None
-    base_container_name: Optional[str] = None
-    restriction_criteria: Optional[list] = field(default_factory=lambda: [])
-    abstract: bool = False
-    inheritors: Optional[list['SequenceContainer']] = field(default_factory=lambda: [])
-
-    def __post_init__(self):
-        # Handle the explicit None passing for default values
-        self.restriction_criteria = self.restriction_criteria or []
-        self.inheritors = self.inheritors or []
-
-    def parse(self, packet: CCSDSPacket) -> None:
-        """Parse the entry list of parameters/containers in the order they are expected in the packet.
-
-        This could be recursive if the entry list contains SequenceContainers.
-        """
-        for entry in self.entry_list:
-            entry.parse(packet=packet)
 
 
 def ccsds_generator(
