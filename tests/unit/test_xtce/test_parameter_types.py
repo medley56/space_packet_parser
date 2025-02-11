@@ -2,14 +2,14 @@
 import pytest
 import lxml.etree as ElementTree
 
-from space_packet_parser.xtce import XTCE_NSMAP, parameter_types, encodings, calibrators
+from space_packet_parser.xtce import XTCE_1_2_XMLNS, parameter_types, encodings, calibrators
 
 
 @pytest.mark.parametrize(
     ('xml_string', 'expectation'),
     [
-        ("""
-<xtce:StringParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_STRING_Type">
+        (f"""
+<xtce:StringParameterType xmlns:xtce="{XTCE_1_2_XMLNS}" name="TEST_STRING_Type">
     <xtce:UnitSet/>
     <xtce:StringDataEncoding>
         <xtce:SizeInBits>
@@ -22,8 +22,8 @@ from space_packet_parser.xtce import XTCE_NSMAP, parameter_types, encodings, cal
 """,
          parameter_types.StringParameterType(name='TEST_STRING_Type',
                                                                       encoding=encodings.StringDataEncoding(fixed_raw_length=40))),
-        ("""
-<xtce:StringParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_STRING_Type">
+        (f"""
+<xtce:StringParameterType xmlns:xtce="{XTCE_1_2_XMLNS}" name="TEST_STRING_Type">
     <xtce:StringDataEncoding>
         <xtce:SizeInBits>
             <xtce:Fixed>
@@ -37,8 +37,8 @@ from space_packet_parser.xtce import XTCE_NSMAP, parameter_types, encodings, cal
          parameter_types.StringParameterType(name='TEST_STRING_Type',
                                                                       encoding=encodings.StringDataEncoding(fixed_raw_length=40,
                                                                               leading_length_size=17))),
-        ("""
-<xtce:StringParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_STRING_Type">
+        (f"""
+<xtce:StringParameterType xmlns:xtce="{XTCE_1_2_XMLNS}" name="TEST_STRING_Type">
     <xtce:StringDataEncoding>
         <xtce:SizeInBits>
             <xtce:Fixed>
@@ -54,28 +54,27 @@ from space_packet_parser.xtce import XTCE_NSMAP, parameter_types, encodings, cal
                                                                               termination_character='00'))),
     ]
 )
-def test_string_parameter_type(elmaker, xml_string: str, expectation):
+def test_string_parameter_type(elmaker, xtce_parser, xml_string: str, expectation):
     """Test parsing an StringParameterType from an XML string"""
-    element = ElementTree.fromstring(xml_string)
+    element = ElementTree.fromstring(xml_string, xtce_parser)
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            parameter_types.StringParameterType.from_xml(element, ns=XTCE_NSMAP)
+            parameter_types.StringParameterType.from_xml(element)
     else:
-        result = parameter_types.StringParameterType.from_xml(element, ns=XTCE_NSMAP)
+        result = parameter_types.StringParameterType.from_xml(element)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
         result_string = ElementTree.tostring(result.to_xml(elmaker=elmaker), pretty_print=True).decode()
-        full_circle = parameter_types.StringParameterType.from_xml(ElementTree.fromstring(result_string),
-                                                                                            ns=XTCE_NSMAP)
+        full_circle = parameter_types.StringParameterType.from_xml(ElementTree.fromstring(result_string, parser=xtce_parser))
         assert full_circle == expectation
 
 
 @pytest.mark.parametrize(
     ('xml_string', 'expectation'),
     [
-        ("""
-<xtce:IntegerParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_INT_Type">
+        (f"""
+<xtce:IntegerParameterType xmlns:xtce="{XTCE_1_2_XMLNS}" name="TEST_INT_Type">
     <xtce:UnitSet>
         <xtce:Unit>m/s</xtce:Unit>
     </xtce:UnitSet>
@@ -84,8 +83,8 @@ def test_string_parameter_type(elmaker, xml_string: str, expectation):
 """,
          parameter_types.IntegerParameterType(name='TEST_INT_Type', unit='m/s',
                                                                        encoding=encodings.IntegerDataEncoding(size_in_bits=16, encoding='unsigned'))),
-        ("""
-<xtce:IntegerParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_INT_Type">
+        (f"""
+<xtce:IntegerParameterType xmlns:xtce="{XTCE_1_2_XMLNS}" name="TEST_INT_Type">
     <xtce:UnitSet>
         <xtce:Unit>m/s</xtce:Unit>
     </xtce:UnitSet>
@@ -109,8 +108,8 @@ def test_string_parameter_type(elmaker, xml_string: str, expectation):
                                                  calibrators.PolynomialCoefficient(-0.185486, 2)
                                              ])
                                          ))),
-        ("""
-<xtce:IntegerParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_INT_Type">
+        (f"""
+<xtce:IntegerParameterType xmlns:xtce="{XTCE_1_2_XMLNS}" name="TEST_INT_Type">
     <xtce:UnitSet>
         <xtce:Unit>m/s</xtce:Unit>
     </xtce:UnitSet>
@@ -138,29 +137,28 @@ def test_string_parameter_type(elmaker, xml_string: str, expectation):
                                              )))),
     ]
 )
-def test_integer_parameter_type(elmaker, xml_string: str, expectation):
+def test_integer_parameter_type(elmaker, xtce_parser, xml_string: str, expectation):
     """Test parsing an IntegerParameterType from an XML string"""
-    element = ElementTree.fromstring(xml_string)
+    element = ElementTree.fromstring(xml_string, xtce_parser)
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            parameter_types.IntegerParameterType.from_xml(element, ns=XTCE_NSMAP)
+            parameter_types.IntegerParameterType.from_xml(element)
     else:
-        result = parameter_types.IntegerParameterType.from_xml(element, ns=XTCE_NSMAP)
+        result = parameter_types.IntegerParameterType.from_xml(element)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
         result_string = ElementTree.tostring(result.to_xml(elmaker=elmaker), pretty_print=True).decode()
         full_circle = parameter_types.IntegerParameterType.from_xml(
-            ElementTree.fromstring(result_string),
-            ns=XTCE_NSMAP)
+            ElementTree.fromstring(result_string, parser=xtce_parser))
         assert full_circle == expectation
 
 
 @pytest.mark.parametrize(
     ('xml_string', 'expectation'),
     [
-        ("""
-<xtce:FloatParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_INT_Type">
+        (f"""
+<xtce:FloatParameterType xmlns:xtce="{XTCE_1_2_XMLNS}" name="TEST_INT_Type">
     <xtce:UnitSet>
         <xtce:Unit>m/s</xtce:Unit>
     </xtce:UnitSet>
@@ -169,8 +167,8 @@ def test_integer_parameter_type(elmaker, xml_string: str, expectation):
 """,
          parameter_types.FloatParameterType(name='TEST_INT_Type', unit='m/s',
                                                                      encoding=encodings.FloatDataEncoding(size_in_bits=16, encoding='IEEE754'))),
-        ("""
-<xtce:FloatParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_INT_Type">
+        (f"""
+<xtce:FloatParameterType xmlns:xtce="{XTCE_1_2_XMLNS}" name="TEST_INT_Type">
     <xtce:UnitSet>
         <xtce:Unit>m/s</xtce:Unit>
     </xtce:UnitSet>
@@ -179,8 +177,8 @@ def test_integer_parameter_type(elmaker, xml_string: str, expectation):
 """,
          parameter_types.FloatParameterType(name='TEST_INT_Type', unit='m/s',
                                                                      encoding=encodings.IntegerDataEncoding(size_in_bits=16, encoding='unsigned'))),
-        ("""
-<xtce:FloatParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_INT_Type">
+        (f"""
+<xtce:FloatParameterType xmlns:xtce="{XTCE_1_2_XMLNS}" name="TEST_INT_Type">
     <xtce:UnitSet>
         <xtce:Unit>m/s</xtce:Unit>
     </xtce:UnitSet>
@@ -204,8 +202,8 @@ def test_integer_parameter_type(elmaker, xml_string: str, expectation):
                                                calibrators.PolynomialCoefficient(-0.185486, 2)
                                            ])
                                        ))),
-        ("""
-<xtce:FloatParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_INT_Type">
+        (f"""
+<xtce:FloatParameterType xmlns:xtce="{XTCE_1_2_XMLNS}" name="TEST_INT_Type">
     <xtce:UnitSet>
         <xtce:Unit>m/s</xtce:Unit>
     </xtce:UnitSet>
@@ -233,29 +231,28 @@ def test_integer_parameter_type(elmaker, xml_string: str, expectation):
                                            )))),
     ]
 )
-def test_float_parameter_type(elmaker, xml_string: str, expectation):
+def test_float_parameter_type(elmaker, xtce_parser, xml_string: str, expectation):
     """Test parsing an FloatParameterType from an XML string"""
-    element = ElementTree.fromstring(xml_string)
+    element = ElementTree.fromstring(xml_string, xtce_parser)
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            parameter_types.FloatParameterType.from_xml(element, ns=XTCE_NSMAP)
+            parameter_types.FloatParameterType.from_xml(element)
     else:
-        result = parameter_types.FloatParameterType.from_xml(element, ns=XTCE_NSMAP)
+        result = parameter_types.FloatParameterType.from_xml(element)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
         result_string = ElementTree.tostring(result.to_xml(elmaker=elmaker), pretty_print=True).decode()
         full_circle = parameter_types.FloatParameterType.from_xml(
-            ElementTree.fromstring(result_string),
-            ns=XTCE_NSMAP)
+            ElementTree.fromstring(result_string, parser=xtce_parser))
         assert full_circle == expectation
 
 
 @pytest.mark.parametrize(
     ('xml_string', 'expectation'),
     [
-        ("""
-<xtce:EnumeratedParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_ENUM_Type">
+        (f"""
+<xtce:EnumeratedParameterType xmlns:xtce="{XTCE_1_2_XMLNS}" name="TEST_ENUM_Type">
     <xtce:UnitSet/>
     <xtce:IntegerDataEncoding sizeInBits="2" encoding="unsigned"/>
     <xtce:EnumerationList>
@@ -272,8 +269,8 @@ def test_float_parameter_type(elmaker, xml_string: str, expectation):
                                                                           # NOTE: Duplicate final value is on purpose to make sure we handle that case
                                                                           enumeration={0: 'BOOT_POR', 1: 'BOOT_RETURN', 2: 'OP_LOW', 3: 'OP_HIGH',
                                                          4: 'OP_HIGH'})),
-        ("""
-<xtce:EnumeratedParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_ENUM_Type">
+        (f"""
+<xtce:EnumeratedParameterType xmlns:xtce="{XTCE_1_2_XMLNS}" name="TEST_ENUM_Type">
     <xtce:UnitSet/>
     <xtce:FloatDataEncoding sizeInBits="32" encoding="IEEE754"/>
     <xtce:EnumerationList>
@@ -290,8 +287,8 @@ def test_float_parameter_type(elmaker, xml_string: str, expectation):
                                                                           # NOTE: Duplicate final value is on purpose to make sure we handle that case
                                                                           enumeration={0.0: 'BOOT_POR', 1.1: 'BOOT_RETURN', 2.2: 'OP_LOW', 3.3: 'OP_HIGH',
                                                          4.4: 'OP_HIGH'})),
-        ("""
-<xtce:EnumeratedParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_ENUM_Type">
+        (f"""
+<xtce:EnumeratedParameterType xmlns:xtce="{XTCE_1_2_XMLNS}" name="TEST_ENUM_Type">
     <xtce:UnitSet/>
     <xtce:StringDataEncoding>
         <xtce:SizeInBits>
@@ -317,8 +314,8 @@ def test_float_parameter_type(elmaker, xml_string: str, expectation):
                                                          b"CC": 'OP_LOW',
                                                          b"DD": 'OP_HIGH',
                                                          b"EE": 'OP_HIGH'})),
-        ("""
-<xtce:EnumeratedParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_ENUM_Type">
+        (f"""
+<xtce:EnumeratedParameterType xmlns:xtce="{XTCE_1_2_XMLNS}" name="TEST_ENUM_Type">
     <xtce:UnitSet/>
     <xtce:StringDataEncoding encoding="UTF-16BE">
         <xtce:SizeInBits>
@@ -346,29 +343,28 @@ def test_float_parameter_type(elmaker, xml_string: str, expectation):
                                                          b"\x00E\x00E": 'OP_HIGH'})),
     ]
 )
-def test_enumerated_parameter_type(elmaker, xml_string: str, expectation):
+def test_enumerated_parameter_type(elmaker, xtce_parser, xml_string: str, expectation):
     """Test parsing an EnumeratedParameterType from an XML string"""
-    element = ElementTree.fromstring(xml_string)
+    element = ElementTree.fromstring(xml_string, xtce_parser)
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            parameter_types.EnumeratedParameterType.from_xml(element, ns=XTCE_NSMAP)
+            parameter_types.EnumeratedParameterType.from_xml(element)
     else:
-        result = parameter_types.EnumeratedParameterType.from_xml(element, ns=XTCE_NSMAP)
+        result = parameter_types.EnumeratedParameterType.from_xml(element)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
         result_string = ElementTree.tostring(result.to_xml(elmaker=elmaker), pretty_print=True).decode()
         full_circle = parameter_types.EnumeratedParameterType.from_xml(
-            ElementTree.fromstring(result_string),
-            ns=XTCE_NSMAP)
+            ElementTree.fromstring(result_string, parser=xtce_parser))
         assert full_circle == expectation
 
 
 @pytest.mark.parametrize(
     ('xml_string', 'expectation'),
     [
-        ("""
-<xtce:BinaryParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
+        (f"""
+<xtce:BinaryParameterType xmlns:xtce="{XTCE_1_2_XMLNS}" name="TEST_PARAM_Type">
     <xtce:UnitSet>
         <xtce:Unit>m/s</xtce:Unit>
     </xtce:UnitSet>
@@ -381,8 +377,8 @@ def test_enumerated_parameter_type(elmaker, xml_string: str, expectation):
 """,
          parameter_types.BinaryParameterType(name='TEST_PARAM_Type', unit='m/s',
                                                                       encoding=encodings.BinaryDataEncoding(fixed_size_in_bits=256))),
-        ("""
-<xtce:BinaryParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
+        (f"""
+<xtce:BinaryParameterType xmlns:xtce="{XTCE_1_2_XMLNS}" name="TEST_PARAM_Type">
     <xtce:UnitSet/>
     <xtce:BinaryDataEncoding>
         <xtce:SizeInBits>
@@ -393,8 +389,8 @@ def test_enumerated_parameter_type(elmaker, xml_string: str, expectation):
 """,
          parameter_types.BinaryParameterType(name='TEST_PARAM_Type', unit=None,
                                                                       encoding=encodings.BinaryDataEncoding(fixed_size_in_bits=128))),
-        ("""
-<xtce:BinaryParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
+        (f"""
+<xtce:BinaryParameterType xmlns:xtce="{XTCE_1_2_XMLNS}" name="TEST_PARAM_Type">
     <xtce:UnitSet/>
     <xtce:BinaryDataEncoding>
         <xtce:SizeInBits>
@@ -411,8 +407,8 @@ def test_enumerated_parameter_type(elmaker, xml_string: str, expectation):
                                             size_reference_parameter='SizeFromThisParameter',
                                             use_calibrated_value=False,
                                             linear_adjuster=lambda x: x))),
-        ("""
-<xtce:BinaryParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
+        (f"""
+<xtce:BinaryParameterType xmlns:xtce="{XTCE_1_2_XMLNS}" name="TEST_PARAM_Type">
     <xtce:UnitSet/>
     <xtce:BinaryDataEncoding>
         <xtce:SizeInBits>
@@ -428,29 +424,28 @@ def test_enumerated_parameter_type(elmaker, xml_string: str, expectation):
                                             size_reference_parameter='SizeFromThisParameter'))),
     ]
 )
-def test_binary_parameter_type(elmaker, xml_string: str, expectation):
+def test_binary_parameter_type(elmaker, xtce_parser, xml_string: str, expectation):
     """Test parsing an BinaryParameterType from an XML string"""
-    element = ElementTree.fromstring(xml_string)
+    element = ElementTree.fromstring(xml_string, xtce_parser)
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            parameter_types.BinaryParameterType.from_xml(element, ns=XTCE_NSMAP)
+            parameter_types.BinaryParameterType.from_xml(element)
     else:
-        result = parameter_types.BinaryParameterType.from_xml(element, ns=XTCE_NSMAP)
+        result = parameter_types.BinaryParameterType.from_xml(element)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
         result_string = ElementTree.tostring(result.to_xml(elmaker=elmaker), pretty_print=True).decode()
         full_circle = parameter_types.BinaryParameterType.from_xml(
-            ElementTree.fromstring(result_string),
-            ns=XTCE_NSMAP)
+            ElementTree.fromstring(result_string, parser=xtce_parser))
         assert full_circle == expectation
 
 
 @pytest.mark.parametrize(
     ('xml_string', 'expectation'),
     [
-        ("""
-<xtce:BooleanParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
+        (f"""
+<xtce:BooleanParameterType xmlns:xtce="{XTCE_1_2_XMLNS}" name="TEST_PARAM_Type">
     <xtce:UnitSet>
         <xtce:Unit>m/s</xtce:Unit>
     </xtce:UnitSet>
@@ -463,8 +458,8 @@ def test_binary_parameter_type(elmaker, xml_string: str, expectation):
 """,
          parameter_types.BooleanParameterType(name='TEST_PARAM_Type', unit='m/s',
                                                                        encoding=encodings.BinaryDataEncoding(fixed_size_in_bits=1))),
-        ("""
-<xtce:BooleanParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
+        (f"""
+<xtce:BooleanParameterType xmlns:xtce="{XTCE_1_2_XMLNS}" name="TEST_PARAM_Type">
     <xtce:UnitSet>
         <xtce:Unit>m/s</xtce:Unit>
     </xtce:UnitSet>
@@ -473,8 +468,8 @@ def test_binary_parameter_type(elmaker, xml_string: str, expectation):
 """,
          parameter_types.BooleanParameterType(name='TEST_PARAM_Type', unit='m/s',
                                                                        encoding=encodings.IntegerDataEncoding(size_in_bits=1, encoding="unsigned"))),
-        ("""
-<xtce:BooleanParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
+        (f"""
+<xtce:BooleanParameterType xmlns:xtce="{XTCE_1_2_XMLNS}" name="TEST_PARAM_Type">
     <xtce:UnitSet>
         <xtce:Unit>m/s</xtce:Unit>
     </xtce:UnitSet>
@@ -493,29 +488,28 @@ def test_binary_parameter_type(elmaker, xml_string: str, expectation):
                                                                                termination_character='00'))),
     ]
 )
-def test_boolean_parameter_type(elmaker, xml_string, expectation):
+def test_boolean_parameter_type(elmaker, xtce_parser, xml_string, expectation):
     """Test parsing a BooleanParameterType from an XML string"""
-    element = ElementTree.fromstring(xml_string)
+    element = ElementTree.fromstring(xml_string, xtce_parser)
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            parameter_types.BooleanParameterType.from_xml(element, ns=XTCE_NSMAP)
+            parameter_types.BooleanParameterType.from_xml(element)
     else:
-        result = parameter_types.BooleanParameterType.from_xml(element, ns=XTCE_NSMAP)
+        result = parameter_types.BooleanParameterType.from_xml(element)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
         result_string = ElementTree.tostring(result.to_xml(elmaker=elmaker), pretty_print=True).decode()
         full_circle = parameter_types.BooleanParameterType.from_xml(
-            ElementTree.fromstring(result_string),
-            ns=XTCE_NSMAP)
+            ElementTree.fromstring(result_string, parser=xtce_parser))
         assert full_circle == expectation
 
 
 @pytest.mark.parametrize(
     ('xml_string', 'expectation'),
     [
-        ("""
-<xtce:AbsoluteTimeParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
+        (f"""
+<xtce:AbsoluteTimeParameterType xmlns:xtce="{XTCE_1_2_XMLNS}" name="TEST_PARAM_Type">
     <xtce:Encoding units="seconds">
         <xtce:IntegerDataEncoding sizeInBits="32"/>
     </xtce:Encoding>
@@ -529,8 +523,8 @@ def test_boolean_parameter_type(elmaker, xml_string, expectation):
                                                                             encoding=encodings.IntegerDataEncoding(size_in_bits=32,
                                                                                      encoding="unsigned"),
                                                                             epoch="TAI", offset_from="MilliSeconds")),
-        ("""
-<xtce:AbsoluteTimeParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
+        (f"""
+<xtce:AbsoluteTimeParameterType xmlns:xtce="{XTCE_1_2_XMLNS}" name="TEST_PARAM_Type">
     <xtce:Encoding scale="1E-6" offset="0" units="s">
         <xtce:IntegerDataEncoding sizeInBits="32"/>
     </xtce:Encoding>
@@ -550,8 +544,8 @@ def test_boolean_parameter_type(elmaker, xml_string, expectation):
                          calibrators.PolynomialCoefficient(1E-6, 1)
                      ])),
              epoch="2009-10-10T12:00:00-05:00", offset_from="MilliSeconds")),
-        ("""
-<xtce:AbsoluteTimeParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
+        (f"""
+<xtce:AbsoluteTimeParameterType xmlns:xtce="{XTCE_1_2_XMLNS}" name="TEST_PARAM_Type">
     <xtce:Encoding scale="1.31E-6" units="s">
         <xtce:IntegerDataEncoding sizeInBits="32"/>
     </xtce:Encoding>
@@ -566,8 +560,8 @@ def test_boolean_parameter_type(elmaker, xml_string, expectation):
                          calibrators.PolynomialCoefficient(1.31E-6, 1)
                      ]))
          )),
-        ("""
-<xtce:AbsoluteTimeParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
+        (f"""
+<xtce:AbsoluteTimeParameterType xmlns:xtce="{XTCE_1_2_XMLNS}" name="TEST_PARAM_Type">
     <xtce:Encoding offset="147.884" units="s">
         <xtce:IntegerDataEncoding sizeInBits="32"/>
     </xtce:Encoding>
@@ -583,8 +577,8 @@ def test_boolean_parameter_type(elmaker, xml_string, expectation):
                          calibrators.PolynomialCoefficient(1, 1)
                      ]))
          )),
-        ("""
-<xtce:AbsoluteTimeParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
+        (f"""
+<xtce:AbsoluteTimeParameterType xmlns:xtce="{XTCE_1_2_XMLNS}" name="TEST_PARAM_Type">
     <xtce:Encoding offset="147.884" units="s">
         <xtce:FloatDataEncoding sizeInBits="32"/>
     </xtce:Encoding>
@@ -602,21 +596,20 @@ def test_boolean_parameter_type(elmaker, xml_string, expectation):
          )),
     ]
 )
-def test_absolute_time_parameter_type(elmaker, xml_string, expectation):
+def test_absolute_time_parameter_type(elmaker, xtce_parser, xml_string, expectation):
     """Test parsing an AbsoluteTimeParameterType from an XML string."""
-    element = ElementTree.fromstring(xml_string)
+    element = ElementTree.fromstring(xml_string, xtce_parser)
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            parameter_types.AbsoluteTimeParameterType.from_xml(element, ns=XTCE_NSMAP)
+            parameter_types.AbsoluteTimeParameterType.from_xml(element)
     else:
-        result = parameter_types.AbsoluteTimeParameterType.from_xml(element, ns=XTCE_NSMAP)
+        result = parameter_types.AbsoluteTimeParameterType.from_xml(element)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
         result_string = ElementTree.tostring(result.to_xml(elmaker=elmaker), pretty_print=True).decode()
         full_circle = parameter_types.AbsoluteTimeParameterType.from_xml(
-            ElementTree.fromstring(result_string),
-            ns=XTCE_NSMAP)
+            ElementTree.fromstring(result_string, parser=xtce_parser))
         assert full_circle == expectation
 
 

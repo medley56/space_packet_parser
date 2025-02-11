@@ -2,7 +2,7 @@
 import logging
 import socket
 import warnings
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from datetime import datetime
 from pathlib import Path
 from typing import BinaryIO, Optional, TextIO, Union
@@ -12,13 +12,19 @@ from lxml.builder import ElementMaker
 
 from space_packet_parser import common, packets
 from space_packet_parser.exceptions import InvalidParameterTypeError, UnrecognizedPacketTypeError
-from space_packet_parser.xtce import XTCE_NSMAP, XTCE_URI, containers, parameter_types, parameters
+from space_packet_parser.xtce import (
+    DEFAULT_XTCE_NS_PREFIX,
+    DEFAULT_XTCE_NSMAP,
+    containers,
+    parameter_types,
+    parameters,
+)
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_ROOT_CONTAINER = "CCSDSPacket"
 
-TAG_TO_TYPE_TEMPLATE = {
+TAG_NAME_TO_PARAMETER_TYPE_OBJECT = {
         'StringParameterType': parameter_types.StringParameterType,
         'IntegerParameterType': parameter_types.IntegerParameterType,
         'FloatParameterType': parameter_types.FloatParameterType,
@@ -40,12 +46,13 @@ class XtcePacketDefinition(common.AttrComparable):
     #  This will require an additional namespace dict entry for xsi (in this example)
     def __init__(
             self,
-            container_list: Optional[list[containers.SequenceContainer]] = None,
+            container_set: Optional[Iterable[containers.SequenceContainer]] = None,
             *,
-            ns: dict = XTCE_NSMAP,
-            xtce_schema_uri: str = XTCE_URI,
+            ns: dict = DEFAULT_XTCE_NSMAP,
+            xtce_ns_prefix: Optional[str] = DEFAULT_XTCE_NS_PREFIX,
             root_container_name: Optional[str] = DEFAULT_ROOT_CONTAINER,
             space_system_name: Optional[str] = None,
+            validation_status: str = "Unknown",
             xtce_version: str = "1.0",
             date: str = None
     ):
@@ -53,69 +60,71 @@ class XtcePacketDefinition(common.AttrComparable):
 
         Parameters
         ----------
-        container_list : Optional[list[space_packet_parser.containers.SequenceContainer]]
-            List of SequenceContainer objects, containing entry lists of Parameter objects, which contain their
-            ParameterTypes. This is effectively the entire XTCE document in one list of objects.
+        container_set : Optional[Iterable[containers.SequenceContainer]]
+            Iterable of SequenceContainer objects, containing entry lists of Parameter objects, which contain their
+            ParameterTypes. This is effectively the entire XTCE document in one list of objects. Every equivalent
+            object in this object and its nested Parameter and ParameterType objects is expected to be the same object
+            reference, which also requires all ParameterTypes, Parameters, and SequenceContainers to be unique by name.
+            e.g. every Parameter object named `MY_PARAM` must be the same class instance.
         ns : dict
-            XML namespace, expected as a single entry dictionary with the key being the namespace label and the
-            value being the namespace URI. Default {XTCE_NSMAP}.
-        xtce_schema_uri : str
-            XTCE schema URI. This is required in addition to the ns in order to know _which_ ns key corresponds to XTCE.
-            Default {XTCE_URI}. When creating XTCE elements from objects, this is the namespace that is used.
+            XML namespace mapping, expected as a dictionary with the keys being namespace labels and
+            values being namespace URIs. Default {DEFAULT_XTCE_NSMAP}. An empty dictionary indicates no namespace
+            awareness, in which case `xtce_ns_prefix` must be None.
+        xtce_ns_prefix : str
+            XTCE namespace prefix. Default {DEFAULT_XTCE_NS_PREFIX}. This is the key for the XTCE namespace in the
+            namespace mapping dictionary, `ns` and is used to write XML output when necessary.
         root_container_name : Optional[str]
             Name of root sequence container (where to start parsing)
         space_system_name : Optional[str]
             Name of space system to encode in XML when serializing.
+        validation_status : str
+            One of ["Unknown", "Working", "Draft", "Test", "Validated", "Released", "Withdrawn"].
         xtce_version : str
             Default "1.0"
         date: Optional[str]
             Optional header date string.
         """
+        if xtce_ns_prefix is not None and xtce_ns_prefix not in ns:
+            raise ValueError(f"XTCE namespace prefix {xtce_ns_prefix=} not in namespace mapping {ns=}. If the "
+                             f"namespace prefix is not 'None', it must appear as a key in the namespace mapping dict.")
+
         self.parameter_types = {}
         self.parameters = {}
         self.containers = {}
 
         def _update_caches(sc: containers.SequenceContainer) -> None:
-            if sc.name in self.containers and self.containers[sc.name] is not sc:
-                raise ValueError(f"Got two different SequenceContainer objects: "
-                                 f"{sc}, {self.parameter_types[sc.name]}, "
-                                 f"for SequenceContainer with name {sc.name}. If you reuse a "
-                                 f"SequenceContainer, you must pass in the same object for each instance. Note: "
-                                 f"these SequenceContainer objects may be __eq__ equal but they "
-                                 f"are not the same object ")
+            """Iterate through a SequenceContainer, updating internal caches with all Parameter, ParameterType,
+            and SequenceContainer objects, ensuring that a key (object name) only references a single object.
+
+            Notes
+            -----
+            This catches cases where, e.g. a Parameter element has been parsed twice, resulting in two Parameter
+            objects which are "equal" but not the same memory reference.
+
+            Parameters
+            ----------
+            sc : containers.SequenceContainer
+                The SequenceContainer to iterate through.
+            """
             self.containers[sc.name] = sc
             for entry in sc.entry_list:
                 if isinstance(entry, containers.SequenceContainer):
                     _update_caches(entry)  # recurse
                 elif isinstance(entry, parameters.Parameter):
-                    if entry.name in self.parameters and self.parameters[entry.name] is not entry:
-                        raise ValueError(f"Got two different Parameter objects: "
-                                         f"{entry}, {self.parameters[entry.name]}, "
-                                         f"for Parameter with name {entry.name}. If you reuse a Parameter, you must "
-                                         f"pass in the same object for each instance. Note: these Parameter objects "
-                                         f"may be __eq__ equal but they are not the same object and they should be.")
                     self.parameters[entry.name] = entry
-                    if (entry.parameter_type.name in self.parameter_types and
-                            self.parameter_types[entry.parameter_type.name] is not entry.parameter_type):
-                        raise ValueError(f"Got two different ParameterType objects: "
-                                         f"{entry.parameter_type}, {self.parameter_types[entry.parameter_type.name]}, "
-                                         f"for ParameterType with name {entry.parameter_type.name}. If you reuse a "
-                                         f"ParameterType, you must pass in the same object for each instance. Note: "
-                                         f"these ParameterType objects may be __eq__ equal but they "
-                                         f"are not the same object ")
                     self.parameter_types[entry.parameter_type.name] = entry.parameter_type
-                else:
-                    raise ValueError(f"Unrecognized element type in SequenceContainer entry list: {entry}")
 
         # Populate the three caches for easy lookup later.
-        if container_list:
-            for sequence_container in container_list:
+        if container_set:
+            for sequence_container in container_set:
                 _update_caches(sequence_container)
 
         self.ns = ns  # Default ns dict used when creating XML elements
-        self.xtce_schema_uri = xtce_schema_uri  # XTCE schema URI
+        self.xtce_schema_uri = ns[xtce_ns_prefix] if ns else None  # XTCE schema URI
+        self.xtce_ns_prefix = xtce_ns_prefix
         self.root_container_name = root_container_name
         self.space_system_name = space_system_name
+        self.validation_status = validation_status
         self.xtce_version = xtce_version
         self.date = date
 
@@ -148,9 +157,11 @@ class XtcePacketDefinition(common.AttrComparable):
 
         header_attrib = {
             "date": self.date or datetime.now().isoformat(),
-            "version": self.xtce_version
+            "version": self.xtce_version,
+            "validationStatus": self.validation_status
         }
 
+        # TODO: Ensure XSI namespace and XSD reference are written to the root element
         tree = ElementTree.ElementTree(
             elmaker.SpaceSystem(
                 elmaker.Header(**header_attrib),
@@ -176,58 +187,75 @@ class XtcePacketDefinition(common.AttrComparable):
             cls,
             xtce_document: Union[str, Path, TextIO],
             *,
-            xtce_schema_uri: Optional[str] = XTCE_URI,
+            xtce_ns_prefix: Optional[str] = DEFAULT_XTCE_NS_PREFIX,
             root_container_name: Optional[str] = DEFAULT_ROOT_CONTAINER
     ) -> 'XtcePacketDefinition':
         f"""Instantiate an object representation of a CCSDS packet definition,
-        according to a format specified in an XTCE
-        XML document. The parser iteratively builds sequences of parameters according to the
-        SequenceContainers specified in the XML document's ContainerSet element. The notions of container inheritance
-        (via BaseContainer) and nested container (by including a SequenceContainer within a SequenceContainer) are
-        supported. Exclusion of containers based on topLevelPacket in AncillaryData is not supported, so all
-        containers are examined and returned.
+        according to a format specified in an XTCE XML document.
+
+        Notes
+        -----
+        This classmethod first parses the ParameterTypeSet element to build a dict of all ParameterType objects,
+        keyed on the name of the parameter type.
+        Then it parses the ParameterSet element to build a dict of all named Parameter objects, keyed on the
+        name of the parameter.
+        Lastly, it parses each SequenceContainer element in ContainerSet element to build a dict of all
+        SequenceContainer objects, keyed on the name of the sequence container.
+        Extensive checking during parsing ensures that there is only a single object reference for each ParameterType,
+        Parameter, and SequenceContainer.
 
         Parameters
         ----------
         xtce_document : TextIO
             Path to XTCE XML document containing packet definition.
-        xtce_schema_uri : Optional[str]
-            The URI associated with XTCE. Default is {XTCE_URI}. None means no namespace awareness.
+        xtce_ns_prefix : Optional[str]
+            The namespace prefix associated with the XTCE xmlns attribute. Default is {DEFAULT_XTCE_NS_PREFIX}.
+            None means XTCE is the default namespace for elements with no prefix. The namespace mapping itself is
+            parsed out of the XML automatically.
         root_container_name : Optional[str]
             Optional override to the root container name. Default is {DEFAULT_ROOT_CONTAINER}.
         """
-        tree = ElementTree.parse(xtce_document)  # noqa: S320
+        # Define a namespace and prefix aware Element subclass so that we don't have to pass the namespace
+        # into every from_xml method
+        xtce_element_class = common.NamespaceAwareElement
+        xtce_element_lookup = ElementTree.ElementDefaultClassLookup(element=common.NamespaceAwareElement)
+        xtce_parser = ElementTree.XMLParser()
+        xtce_parser.set_element_class_lookup(xtce_element_lookup)
+
+        tree = ElementTree.parse(xtce_document, parser=xtce_parser)  # noqa: S320
+
+        xtce_element_class.set_ns_prefix(xtce_ns_prefix)
+        xtce_element_class.set_nsmap(tree.getroot().nsmap)
+
         space_system = tree.getroot()
         ns = tree.getroot().nsmap
-        header = space_system.find(f"{{{xtce_schema_uri}}}" + "Header")
+
+        header = space_system.find("Header")
+
         if header is not None:
             date = header.attrib.get("date", None)
         else:
             date = None
 
+        parameter_type_lookup = cls._parse_parameter_type_set(tree)
+        parameters_lookup = cls._parse_parameter_set(tree, parameter_type_lookup)
+        container_lookup = cls._parse_container_set(tree, parameters_lookup)
+
         xtce_definition = cls(
+            container_set=list(container_lookup.values()),
             ns=ns,
-            xtce_schema_uri=xtce_schema_uri,
+            xtce_ns_prefix=xtce_ns_prefix,
             root_container_name=root_container_name,
             date=date,
             space_system_name=space_system.attrib.get("name", None)
         )
 
-        xtce_definition.parameter_types = cls._get_parameter_types(tree, ns)
-        xtce_definition.parameters = cls._get_parameters(
-            tree, xtce_definition.parameter_types, ns
-        )
-        xtce_definition.containers = cls._get_sequence_containers(
-            tree, xtce_definition.parameters, ns
-        )
-
         return xtce_definition
 
     @staticmethod
-    def _get_sequence_containers(
+    def _parse_container_set(
             tree: ElementTree.Element,
-            parameter_lookup: dict[str, parameters.Parameter],
-            ns: dict
+            parameter_lookup: dict[str, parameters.Parameter]
     ) -> dict[str, containers.SequenceContainer]:
         """Parse the <xtce:ContainerSet> element into a dictionary of SequenceContainer objects
 
@@ -237,36 +265,29 @@ class XtcePacketDefinition(common.AttrComparable):
             Full XTCE tree
         parameter_lookup : dict[str, parameters.Parameter]
             Parameters that are contained in container entry lists
-        ns : dict
-            XTCE namespace dict
 
         Returns
         -------
-
+        : dict[str, containers.SequenceContainer]
         """
-        if ns:
-            xtce_label, xtce_uri = next(iter(ns.items()))
-        else:
-            xtce_uri = ""
-        xtce = f"{{{xtce_uri}}}"
-        container_lookup = {}
-        for sequence_container_element in tree.getroot().iterfind(
-                f'{xtce}TelemetryMetaData/{xtce}ContainerSet/{xtce}SequenceContainer',
-                ns
-        ):
+        container_lookup = {}  # This lookup dict is mutated as a side effect by SequenceContainer parsing methods
+        container_set_element = tree.getroot().find("TelemetryMetaData/ContainerSet")
+        for sequence_container_element in container_set_element.iterfind('*'):
             sequence_container = containers.SequenceContainer.from_xml(
                 sequence_container_element,
                 tree=tree,
                 parameter_lookup=parameter_lookup,
-                container_lookup=container_lookup,
-                ns=ns
+                container_lookup=container_lookup
             )
 
-            if sequence_container.name in container_lookup:
-                raise ValueError(f"Found duplicate sequence container name {sequence_container.name}. "
-                                 "Sequence container names are expected to be unique")
-
-            container_lookup[sequence_container.name] = sequence_container
+            if sequence_container.name not in container_lookup:
+                container_lookup[sequence_container.name] = sequence_container
+            elif container_lookup[sequence_container.name] == sequence_container:
+                continue
+            else:
+                raise ValueError(f"Found duplicate sequence container name "
+                                 f"{sequence_container.name} for two non-equal "
+                                 f"sequence containers. Sequence container names are expected to be unique.")
 
         # Back-populate the list of inheritors for each container
         for name, sc in container_lookup.items():
@@ -276,9 +297,8 @@ class XtcePacketDefinition(common.AttrComparable):
         return container_lookup
 
     @staticmethod
-    def _get_parameter_types(
-            tree: ElementTree.ElementTree,
-            ns: dict
+    def _parse_parameter_type_set(
+            tree: ElementTree.ElementTree
     ) -> dict[str, parameter_types.ParameterType]:
         """Parse the <xtce:ParameterTypeSet> into a dictionary of ParameterType objects
 
@@ -286,24 +306,18 @@ class XtcePacketDefinition(common.AttrComparable):
         ----------
         tree : ElementTree.ElementTree
             Full XTCE tree
-        ns : dict
-            XML namespace dict
 
         Returns
         -------
         : dict[str, parameters.ParameterType]
         """
-        if ns:
-            xtce_label, xtce_uri = next(iter(ns.items()))
-        else:
-            xtce_uri = ""
-        xtce = f"{{{xtce_uri}}}"
-        type_tag_to_object = {xtce + k: v for k, v in TAG_TO_TYPE_TEMPLATE.items()}
-
         parameter_type_dict = {}
-        for parameter_type_element in tree.getroot().iterfind(f'{xtce}TelemetryMetaData/{xtce}ParameterTypeSet/*', ns):
+        parameter_type_set_element = tree.getroot().find("TelemetryMetaData/ParameterTypeSet")
+        for parameter_type_element in parameter_type_set_element.iterfind('*'):
             try:
-                parameter_type_class = type_tag_to_object[parameter_type_element.tag]
+                parameter_type_class = TAG_NAME_TO_PARAMETER_TYPE_OBJECT[
+                    ElementTree.QName(parameter_type_element).localname
+                ]
             except KeyError as e:
                 if (
                         "ArrayParameterType" in parameter_type_element.tag or
@@ -317,8 +331,7 @@ class XtcePacketDefinition(common.AttrComparable):
                                                 "please open a feature request as a Github issue with a "
                                                 "reference to the XTCE element description for the "
                                                 "parameter type element.") from e
-            parameter_type_object = parameter_type_class.from_xml(
-                parameter_type_element, ns=ns)
+            parameter_type_object = parameter_type_class.from_xml(parameter_type_element)
             if parameter_type_object.name in parameter_type_dict:
                 raise ValueError(f"Found duplicate parameter type {parameter_type_object.name}. "
                                  f"Parameter types names are expected to be unique")
@@ -327,10 +340,9 @@ class XtcePacketDefinition(common.AttrComparable):
         return parameter_type_dict
 
     @staticmethod
-    def _get_parameters(
+    def _parse_parameter_set(
             tree: ElementTree.ElementTree,
-            parameter_type_lookup: dict[str, parameter_types.ParameterType],
-            ns: dict
+            parameter_type_lookup: dict[str, parameter_types.ParameterType]
     ) -> dict[str, parameters.Parameter]:
         """Parse an <xtce:ParameterSet> object into a dictionary of Parameter objects
 
@@ -340,22 +352,15 @@ class XtcePacketDefinition(common.AttrComparable):
             Full XTCE tree
         parameter_type_lookup : dict[str, parameter_types.ParameterType]
             Parameter types referenced by parameters.
-        ns : dict
-            XML namespace dict
 
         Returns
         -------
         : dict[str, parameters.Parameter]
         """
         parameter_lookup = {}
-        if ns:
-            xtce_label, xtce_uri = next(iter(ns.items()))
-        else:
-            xtce_uri = ""
-        xtce = f"{{{xtce_uri}}}"
-        for parameter_element in tree.getroot().iterfind(
-                f'{xtce}TelemetryMetaData/{xtce}ParameterSet/{xtce}Parameter', ns):
-            parameter_object = parameters.Parameter.from_xml(parameter_element, ns=ns,
+        parameter_set_element = tree.getroot().find("TelemetryMetaData/ParameterSet")
+        for parameter_element in parameter_set_element.iterfind('*'):
+            parameter_object = parameters.Parameter.from_xml(parameter_element,
                                                              parameter_type_lookup=parameter_type_lookup)
 
             if parameter_object.name in parameter_lookup:

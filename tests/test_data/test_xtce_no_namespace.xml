@@ -1,0 +1,209 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SpaceSystem name="SpacePacketParser"
+             xmlns="http://www.omg.org/spec/XTCE/20180204"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://www.omg.org/spec/XTCE/20180204
+                                 https://www.omg.org/spec/XTCE/20180204/SpaceSystem.xsd">
+    <Header date="2024-03-05T13:36:00MST" version="1.0" validationStatus="Working"/>
+    <TelemetryMetaData>
+        <ParameterTypeSet>
+            <IntegerParameterType name="VERSION_Type" signed="false">
+                <UnitSet/>
+                <IntegerDataEncoding sizeInBits="3"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="TYPE_Type" signed="false">
+                <UnitSet/>
+                <IntegerDataEncoding sizeInBits="1"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="SEC_HDR_FLG_Type" signed="false">
+                <UnitSet/>
+                <IntegerDataEncoding sizeInBits="1" encoding="unsigned"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="PKT_APID_Type" signed="false">
+                <UnitSet/>
+                <IntegerDataEncoding sizeInBits="11" encoding="unsigned"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="SEQ_FLGS_Type" signed="false">
+                <UnitSet/>
+                <IntegerDataEncoding sizeInBits="2" encoding="unsigned"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="SRC_SEQ_CTR_Type" signed="false">
+                <UnitSet/>
+                <IntegerDataEncoding sizeInBits="14" encoding="unsigned"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="PKT_LEN_Type" signed="false">
+                <UnitSet/>
+                <IntegerDataEncoding sizeInBits="16" encoding="unsigned"/>
+            </IntegerParameterType>
+            <FloatParameterType name="DOY_Type">
+                <UnitSet>
+                    <Unit>day</Unit>
+                </UnitSet>
+                <IntegerDataEncoding sizeInBits="16" encoding="unsigned"/>
+            </FloatParameterType>
+            <FloatParameterType name="MSEC_Type">
+                <UnitSet>
+                    <Unit>ms</Unit>
+                </UnitSet>
+                <IntegerDataEncoding sizeInBits="32" encoding="unsigned"/>
+            </FloatParameterType>
+            <FloatParameterType name="USEC_Type">
+                <UnitSet>
+                    <Unit>us</Unit>
+                </UnitSet>
+                <IntegerDataEncoding sizeInBits="16" encoding="unsigned"/>
+            </FloatParameterType>
+            <IntegerParameterType name="ADASCID_Type" signed="false">
+                <UnitSet/>
+                <IntegerDataEncoding sizeInBits="8" encoding="unsigned"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="ADAETDAY_Type" signed="false">
+                <UnitSet>
+                    <Unit>day</Unit>
+                </UnitSet>
+                <IntegerDataEncoding sizeInBits="16" encoding="unsigned"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="ADAETMS_Type" signed="false">
+                <UnitSet>
+                    <Unit>ms</Unit>
+                </UnitSet>
+                <IntegerDataEncoding sizeInBits="32" encoding="unsigned"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="ADAETUS_Type" signed="false">
+                <UnitSet>
+                    <Unit>us</Unit>
+                </UnitSet>
+                <IntegerDataEncoding sizeInBits="16" encoding="unsigned"/>
+            </IntegerParameterType>
+            <FloatParameterType name="ADGPSPOS_Type">
+                <UnitSet>
+                    <Unit>m</Unit>
+                </UnitSet>
+                <FloatDataEncoding sizeInBits="32" encoding="IEEE754"/>
+            </FloatParameterType>
+            <FloatParameterType name="ADGPSVEL_Type">
+                <UnitSet>
+                    <Unit>m/s</Unit>
+                </UnitSet>
+                <FloatDataEncoding sizeInBits="32" encoding="IEEE754"/>
+            </FloatParameterType>
+            <FloatParameterType name="ADCFAQ_Type">
+                <UnitSet/>
+                <FloatDataEncoding sizeInBits="32" encoding="IEEE754"/>
+            </FloatParameterType>
+        </ParameterTypeSet>
+        <ParameterSet>
+            <Parameter name="VERSION" parameterTypeRef="VERSION_Type">
+                <LongDescription>Not really used. We aren't changing the version of CCSDS that we use.</LongDescription>
+            </Parameter>
+            <Parameter name="TYPE" parameterTypeRef="TYPE_Type">
+                <LongDescription>Indicates whether this packet is CMD or TLM. TLM is 0.</LongDescription>
+            </Parameter>
+            <Parameter name="SEC_HDR_FLG" parameterTypeRef="SEC_HDR_FLG_Type">
+                <LongDescription>Always 1 - indicates that there is a secondary header.</LongDescription>
+            </Parameter>
+            <Parameter name="PKT_APID" parameterTypeRef="PKT_APID_Type">
+                <LongDescription>Unique to each packet type.</LongDescription>
+            </Parameter>
+            <Parameter name="SEQ_FLGS" parameterTypeRef="SEQ_FLGS_Type">
+                <LongDescription>Always set to 1.</LongDescription>
+            </Parameter>
+            <Parameter name="SRC_SEQ_CTR" parameterTypeRef="SRC_SEQ_CTR_Type">
+                <LongDescription>Increments from 0 at reset for each packet issued of that APID. Rolls over at 14b.</LongDescription>
+            </Parameter>
+            <Parameter name="PKT_LEN" parameterTypeRef="PKT_LEN_Type">
+                <LongDescription>Number of bytes of the data field following the primary header -1. (To get the length of the whole packet, add 7)</LongDescription>
+            </Parameter>
+            <Parameter name="DOY" parameterTypeRef="DOY_Type" shortDescription="Secondary Header Day of Year">
+                <LongDescription>CCSDS Packet 2nd Header Day of Year in days.</LongDescription>
+            </Parameter>
+            <Parameter name="MSEC" parameterTypeRef="MSEC_Type" shortDescription="Secondary Header Coarse Time (millisecond)">
+                <LongDescription>CCSDS Packet 2nd Header Coarse Time in milliseconds.</LongDescription>
+            </Parameter>
+            <Parameter name="USEC" parameterTypeRef="USEC_Type" shortDescription="Secondary Header Fine Time (microsecond)">
+                <LongDescription>CCSDS Packet 2nd Header Fine Time in microseconds.</LongDescription>
+            </Parameter>
+            <Parameter name="ADAESCID" parameterTypeRef="ADASCID_Type" shortDescription="Spacecraft ID"/>
+            <Parameter name="ADAET1DAY" parameterTypeRef="ADAETDAY_Type" shortDescription="Ephemeris Valid Time, Days Since 1/1/1958"/>
+            <Parameter name="ADAET1MS" parameterTypeRef="ADAETMS_Type" shortDescription="Ephemeris Valid Time, Milliseconds of Day"/>
+            <Parameter name="ADAET1US" parameterTypeRef="ADAETUS_Type" shortDescription="Ephemeris Valid Time, Microseconds of Milliseconds"/>
+            <Parameter name="ADGPSPOSX" parameterTypeRef="ADGPSPOS_Type" shortDescription="Ephemeris Position (ECEF) X"/>
+            <Parameter name="ADGPSPOSY" parameterTypeRef="ADGPSPOS_Type" shortDescription="Ephemeris Position (ECEF) Y"/>
+            <Parameter name="ADGPSPOSZ" parameterTypeRef="ADGPSPOS_Type" shortDescription="Ephemeris Position (ECEF) Z"/>
+            <Parameter name="ADGPSVELX" parameterTypeRef="ADGPSVEL_Type" shortDescription="Ephemeris Velocity (ECEF) X"/>
+            <Parameter name="ADGPSVELY" parameterTypeRef="ADGPSVEL_Type" shortDescription="Ephemeris Velocity (ECEF) Y"/>
+            <Parameter name="ADGPSVELZ" parameterTypeRef="ADGPSVEL_Type" shortDescription="Ephemeris Velocity (ECEF) Z"/>
+            <Parameter name="ADAET2DAY" parameterTypeRef="ADAETDAY_Type" shortDescription="Attitude Valid Time, Days Since 1/1/1958"/>
+            <Parameter name="ADAET2MS" parameterTypeRef="ADAETMS_Type" shortDescription="Attitude Valid Time, Milliseconds of Day"/>
+            <Parameter name="ADAET2US" parameterTypeRef="ADAETUS_Type" shortDescription="Attitude Valid Time, Microseconds of Milliseconds"/>
+            <Parameter name="ADCFAQ1" parameterTypeRef="ADCFAQ_Type" shortDescription="Control Frame Attitude Q1 (i)"/>
+            <Parameter name="ADCFAQ2" parameterTypeRef="ADCFAQ_Type" shortDescription="Control Frame Attitude Q2 (j)"/>
+            <Parameter name="ADCFAQ3" parameterTypeRef="ADCFAQ_Type" shortDescription="Control Frame Attitude Q3 (k)"/>
+            <Parameter name="ADCFAQ4" parameterTypeRef="ADCFAQ_Type" shortDescription="Control Frame Attitude Q4 (scalar)"/>
+        </ParameterSet>
+        <ContainerSet>
+            <SequenceContainer name="CCSDSPacket" abstract="true">
+                <LongDescription>Super-container for telemetry and command packets</LongDescription>
+                <EntryList>
+                    <ParameterRefEntry parameterRef="VERSION"/>
+                    <ParameterRefEntry parameterRef="TYPE"/>
+                    <ParameterRefEntry parameterRef="SEC_HDR_FLG"/>
+                    <ParameterRefEntry parameterRef="PKT_APID"/>
+                    <ParameterRefEntry parameterRef="SEQ_FLGS"/>
+                    <ParameterRefEntry parameterRef="SRC_SEQ_CTR"/>
+                    <ParameterRefEntry parameterRef="PKT_LEN"/>
+                </EntryList>
+            </SequenceContainer>
+            <SequenceContainer name="CCSDSTelemetryPacket" abstract="true">
+                <LongDescription>Super-container for all telemetry packets</LongDescription>
+                <EntryList/>
+                <BaseContainer containerRef="CCSDSPacket">
+                    <RestrictionCriteria>
+                        <ComparisonList>
+                            <Comparison parameterRef="VERSION" value="0" useCalibratedValue="false"/>
+                            <Comparison parameterRef="TYPE" value="0" useCalibratedValue="false"/>
+                        </ComparisonList>
+                    </RestrictionCriteria>
+                </BaseContainer>
+            </SequenceContainer>
+            <SequenceContainer name="SecondaryHeaderContainer" abstract="true">
+                <LongDescription>Container for telemetry secondary header items</LongDescription>
+                <EntryList>
+                    <ParameterRefEntry parameterRef="DOY"/>
+                    <ParameterRefEntry parameterRef="MSEC"/>
+                    <ParameterRefEntry parameterRef="USEC"/>
+                </EntryList>
+            </SequenceContainer>
+            <SequenceContainer name="JPSS_ATT_EPHEM" shortDescription="Spacecraft Attitude and Ephemeris">
+                <LongDescription>Spacecraft Attitude and Ephemeris packet used to geolocate mission data</LongDescription>
+                <EntryList>
+                    <ContainerRefEntry containerRef="SecondaryHeaderContainer"/>
+                    <ParameterRefEntry parameterRef="ADAESCID"/>
+                    <ParameterRefEntry parameterRef="ADAET1DAY"/>
+                    <ParameterRefEntry parameterRef="ADAET1MS"/>
+                    <ParameterRefEntry parameterRef="ADAET1US"/>
+                    <ParameterRefEntry parameterRef="ADGPSPOSX"/>
+                    <ParameterRefEntry parameterRef="ADGPSPOSY"/>
+                    <ParameterRefEntry parameterRef="ADGPSPOSZ"/>
+                    <ParameterRefEntry parameterRef="ADGPSVELX"/>
+                    <ParameterRefEntry parameterRef="ADGPSVELY"/>
+                    <ParameterRefEntry parameterRef="ADGPSVELZ"/>
+                    <ParameterRefEntry parameterRef="ADAET2DAY"/>
+                    <ParameterRefEntry parameterRef="ADAET2MS"/>
+                    <ParameterRefEntry parameterRef="ADAET2US"/>
+                    <ParameterRefEntry parameterRef="ADCFAQ1"/>
+                    <ParameterRefEntry parameterRef="ADCFAQ2"/>
+                    <ParameterRefEntry parameterRef="ADCFAQ3"/>
+                    <ParameterRefEntry parameterRef="ADCFAQ4"/>
+                </EntryList>
+                <BaseContainer containerRef="CCSDSTelemetryPacket">
+                    <RestrictionCriteria>
+                        <ComparisonList>
+                            <Comparison parameterRef="PKT_APID" value="11" useCalibratedValue="false"/>
+                        </ComparisonList>
+                    </RestrictionCriteria>
+                </BaseContainer>
+            </SequenceContainer>
+        </ContainerSet>
+    </TelemetryMetaData>
+</SpaceSystem>

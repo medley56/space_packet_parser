@@ -41,7 +41,6 @@ class Parameter(common.Parseable, common.XmlObject):
             cls,
             element: ElementTree.Element,
             *,
-            ns: dict,
             parameter_type_lookup: dict[str, parameter_types.ParameterType],
             tree: Optional[ElementTree.ElementTree] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
@@ -53,8 +52,6 @@ class Parameter(common.Parseable, common.XmlObject):
         ----------
         element : ElementTree.Element
             XML element
-        ns : dict
-            XML namespace dict
         tree: Optional[ElementTree.Element]
             Ignored
         parameter_lookup: Optional[dict]
@@ -78,8 +75,8 @@ class Parameter(common.Parseable, common.XmlObject):
         parameter_short_description = element.attrib['shortDescription'] if (
                 'shortDescription' in element.attrib
         ) else None
-        parameter_long_description = element.find('xtce:LongDescription', ns).text if (
-                element.find('xtce:LongDescription', ns) is not None
+        parameter_long_description = element.find('LongDescription').text if (
+                element.find('LongDescription') is not None
         ) else None
 
         return cls(

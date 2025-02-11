@@ -11,9 +11,9 @@ on:
 jobs:
   ci-tests:
     runs-on: ${{ matrix.os }}
-    permissions:
-      # For codecov OIDC verifications
-      id-token: write
+#    permissions:
+#      # For codecov OIDC verifications
+#      id-token: write
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
@@ -21,7 +21,7 @@ jobs:
     defaults:
       run:
         shell: bash
-
+    environment: ci-testing
     steps:
       - uses: actions/checkout@v4
         with:
@@ -40,8 +40,10 @@ jobs:
 
       - name: Testing
         run: |
-          pytest --color=yes --cov
+          pytest --color=yes --cov --cov-report=xml
 
       - uses: codecov/codecov-action@v5
-        with:
-          use_oidc: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+#        with:
+#          use_oidc: true

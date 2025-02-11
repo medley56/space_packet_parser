@@ -19,7 +19,6 @@ class Calibrator(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
             cls,
             element: ElementTree.Element,
             *,
-            ns: dict,
             tree: Optional[ElementTree.Element] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
             parameter_type_lookup: Optional[dict[str, any]] = None,
@@ -31,8 +30,6 @@ class Calibrator(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
         ----------
         element : ElementTree.Element
             XML element
-        ns : dict
-            XML namespace dict
         tree: Optional[ElementTree.Element]
             Ignored
         parameter_lookup: Optional[dict]
@@ -97,7 +94,6 @@ class SplineCalibrator(Calibrator):
             cls,
             element: ElementTree.Element,
             *,
-            ns: dict,
             tree: Optional[ElementTree.Element] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
             parameter_type_lookup: Optional[dict[str, any]] = None,
@@ -109,8 +105,6 @@ class SplineCalibrator(Calibrator):
         ----------
         element : ElementTree.Element
             The XML element from which to create the object.
-        ns: dict
-            XML namespace dict
         tree: Optional[ElementTree.Element]
             Ignored
         parameter_lookup: Optional[dict]
@@ -124,10 +118,9 @@ class SplineCalibrator(Calibrator):
         -------
 
         """
-        point_elements = element.findall('xtce:SplinePoint', ns)
         spline_points = [
             SplinePoint(raw=float(p.attrib['raw']), calibrated=float(p.attrib['calibrated']))
-            for p in point_elements
+            for p in element.iterfind('*')
         ]
         order = int(element.attrib['order']) if 'order' in element.attrib else 0
         extrapolate = element.attrib['extrapolate'].lower() == 'true' if 'extrapolate' in element.attrib else False
@@ -267,7 +260,6 @@ class PolynomialCalibrator(Calibrator):
             cls,
             element: ElementTree.Element,
             *,
-            ns: dict,
             tree: Optional[ElementTree.Element] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
             parameter_type_lookup: Optional[dict[str, any]] = None,
@@ -279,8 +271,6 @@ class PolynomialCalibrator(Calibrator):
         ----------
         element : ElementTree.Element
             <xtce:PolynomialCalibrator> XML element
-        ns : dict
-            Namespace dict
         tree: Optional[ElementTree.Element]
             Ignored
         parameter_lookup: Optional[dict]
@@ -294,10 +284,9 @@ class PolynomialCalibrator(Calibrator):
         -------
 
         """
-        terms = element.findall('xtce:Term', ns)
         coefficients = [
             PolynomialCoefficient(coefficient=float(term.attrib['coefficient']), exponent=int(term.attrib['exponent']))
-            for term in terms
+            for term in element.findall('*')
         ]
         return cls(coefficients=coefficients)
 
@@ -350,7 +339,6 @@ class MathOperationCalibrator(Calibrator):
             cls,
             element: ElementTree.Element,
             *,
-            ns: dict,
             tree: Optional[ElementTree.Element] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
             parameter_type_lookup: Optional[dict[str, any]] = None,
@@ -362,8 +350,6 @@ class MathOperationCalibrator(Calibrator):
         ----------
         element : ElementTree.Element
             The XML element from which to create the object.
-        ns: dict
-            XML namespace dict
         tree: Optional[ElementTree.Element]
             Ignored
         parameter_lookup: Optional[dict]
@@ -426,31 +412,27 @@ class ContextCalibrator(common.AttrComparable, common.XmlObject):
         self.calibrator = calibrator
 
     @staticmethod
-    def get_context_match_criteria(element: ElementTree.Element, ns: dict) -> list[comparisons.MatchCriteria]:
+    def get_context_match_criteria(element: ElementTree.Element) -> list[comparisons.MatchCriteria]:
         """Parse contextual requirements from a Comparison, ComparisonList, or BooleanExpression
 
         Parameters
         ----------
         element : ElementTree.Element
             <xtce:ContextCalibrator> XML element from which to parse the ContextCalibrator object.
-        ns : dict
-            Namespace dict for XML parsing
 
         Returns
         -------
         : List[MatchCriteria]
             List of Comparisons that can be evaluated to determine whether this calibrator should be used.
         """
-        context_match_element = element.find('xtce:ContextMatch', ns)
-        if context_match_element.find('xtce:ComparisonList', ns) is not None:
-            return [comparisons.Comparison.from_xml(el, ns=ns)
-                    for el in context_match_element.findall('xtce:ComparisonList/xtce:Comparison', ns)]
-        if context_match_element.find('xtce:Comparison', ns) is not None:
-            return [comparisons.Comparison.from_xml(
-                context_match_element.find('xtce:Comparison', ns), ns=ns)]
-        if context_match_element.find('xtce:BooleanExpression', ns) is not None:
-            return [comparisons.BooleanExpression.from_xml(
-                context_match_element.find('xtce:BooleanExpression', ns), ns=ns)]
+        context_match_element = element.find('ContextMatch')
+        if (comparison_list_element := context_match_element.find('ComparisonList')) is not None:
+            return [comparisons.Comparison.from_xml(el)
+                    for el in comparison_list_element.iterfind('Comparison')]
+        if (comparison_element := context_match_element.find('Comparison')) is not None:
+            return [comparisons.Comparison.from_xml(comparison_element)]
+        if (boolean_expression_element := context_match_element.find('BooleanExpression')) is not None:
+            return [comparisons.BooleanExpression.from_xml(boolean_expression_element)]
         raise NotImplementedError("ContextCalibrator doesn't contain Comparison, ComparisonList, or BooleanExpression. "
                                   "This probably means the match criteria is an unsupported type "
                                   "(CustomAlgorithm).")
@@ -460,7 +442,6 @@ class ContextCalibrator(common.AttrComparable, common.XmlObject):
             cls,
             element: ElementTree.Element,
             *,
-            ns: dict,
             tree: Optional[ElementTree.Element] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
             parameter_type_lookup: Optional[dict[str, any]] = None,
@@ -472,8 +453,6 @@ class ContextCalibrator(common.AttrComparable, common.XmlObject):
         ----------
         element : ElementTree.Element
             <xtce:ContextCalibrator> XML element from which to parse the ContextCalibrator object.
-        ns : dict
-            Namespace dict for XML parsing
         tree: Optional[ElementTree.Element]
             Ignored
         parameter_lookup: Optional[dict]
@@ -487,12 +466,12 @@ class ContextCalibrator(common.AttrComparable, common.XmlObject):
         -------
         : cls
         """
-        match_criteria = cls.get_context_match_criteria(element, ns)
+        match_criteria = cls.get_context_match_criteria(element)
 
-        if (cal_element := element.find('xtce:Calibrator/xtce:SplineCalibrator', ns)) is not None:
-            calibrator = SplineCalibrator.from_xml(cal_element, ns=ns)
-        elif (cal_element := element.find('xtce:Calibrator/xtce:PolynomialCalibrator', ns)) is not None:
-            calibrator = PolynomialCalibrator.from_xml(cal_element, ns=ns)
+        if (cal_element := element.find('Calibrator/SplineCalibrator')) is not None:
+            calibrator = SplineCalibrator.from_xml(cal_element)
+        elif (cal_element := element.find('Calibrator/PolynomialCalibrator')) is not None:
+            calibrator = PolynomialCalibrator.from_xml(cal_element)
         else:
             raise NotImplementedError(
                 "Unsupported default_calibrator type. space_packet_parser only supports Polynomial and Spline"
