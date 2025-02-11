@@ -12,21 +12,21 @@ from lxml.builder import ElementMaker
 
 from space_packet_parser import common, packets
 from space_packet_parser.exceptions import InvalidParameterTypeError, UnrecognizedPacketTypeError
-from space_packet_parser.xtce import XTCE_NSMAP, XTCE_URI, containers, parameters
+from space_packet_parser.xtce import XTCE_NSMAP, XTCE_URI, containers, parameter_types, parameters
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_ROOT_CONTAINER = "CCSDSPacket"
 
 TAG_TO_TYPE_TEMPLATE = {
-        'StringParameterType': parameters.StringParameterType,
-        'IntegerParameterType': parameters.IntegerParameterType,
-        'FloatParameterType': parameters.FloatParameterType,
-        'EnumeratedParameterType': parameters.EnumeratedParameterType,
-        'BinaryParameterType': parameters.BinaryParameterType,
-        'BooleanParameterType': parameters.BooleanParameterType,
-        'AbsoluteTimeParameterType': parameters.AbsoluteTimeParameterType,
-        'RelativeTimeParameterType': parameters.RelativeTimeParameterType,
+        'StringParameterType': parameter_types.StringParameterType,
+        'IntegerParameterType': parameter_types.IntegerParameterType,
+        'FloatParameterType': parameter_types.FloatParameterType,
+        'EnumeratedParameterType': parameter_types.EnumeratedParameterType,
+        'BinaryParameterType': parameter_types.BinaryParameterType,
+        'BooleanParameterType': parameter_types.BooleanParameterType,
+        'AbsoluteTimeParameterType': parameter_types.AbsoluteTimeParameterType,
+        'RelativeTimeParameterType': parameter_types.RelativeTimeParameterType,
     }
 
 
@@ -132,7 +132,6 @@ class XtcePacketDefinition(common.AttrComparable):
                 elmaker.Header(**header_attrib),
                 elmaker.TelemetryMetaData(
                     elmaker.ParameterTypeSet(
-                        # TODO: Pass elmaker instead of self.ns to to_xml
                         *(ptype.to_xml(elmaker=elmaker) for ptype in self._parameter_type_cache.values()),
                     ),
                     elmaker.ParameterSet(
@@ -251,7 +250,7 @@ class XtcePacketDefinition(common.AttrComparable):
     def _get_parameter_types(
             tree: ElementTree.ElementTree,
             ns: dict
-    ) -> dict[str, parameters.ParameterType]:
+    ) -> dict[str, parameter_types.ParameterType]:
         """Parse the <xtce:ParameterTypeSet> into a dictionary of ParameterType objects
 
         Parameters
@@ -274,12 +273,6 @@ class XtcePacketDefinition(common.AttrComparable):
 
         parameter_type_dict = {}
         for parameter_type_element in tree.getroot().iterfind(f'{xtce}TelemetryMetaData/{xtce}ParameterTypeSet/*', ns):
-            # TODO: This should really be a call to a ParameterType.from_xml() method. Adding a ParameterType class
-            #  will also make it more feasible to add array parameter types and aggregate parameter types
-            parameter_type_name = parameter_type_element.attrib['name']
-            if parameter_type_name in parameter_type_dict:
-                raise ValueError(f"Found duplicate parameter type {parameter_type_name}. "
-                                 f"Parameter types names are expected to be unique")
             try:
                 parameter_type_class = type_tag_to_object[parameter_type_element.tag]
             except KeyError as e:
@@ -297,14 +290,17 @@ class XtcePacketDefinition(common.AttrComparable):
                                                 "parameter type element.") from e
             parameter_type_object = parameter_type_class.from_xml(
                 parameter_type_element, ns=ns)
-            parameter_type_dict[parameter_type_name] = parameter_type_object  # Add to cache
+            if parameter_type_object.name in parameter_type_dict:
+                raise ValueError(f"Found duplicate parameter type {parameter_type_object.name}. "
+                                 f"Parameter types names are expected to be unique")
+            parameter_type_dict[parameter_type_object.name] = parameter_type_object  # Add to cache
 
         return parameter_type_dict
 
     @staticmethod
     def _get_parameters(
             tree: ElementTree.ElementTree,
-            parameter_type_lookup: dict[str, parameters.ParameterType],
+            parameter_type_lookup: dict[str, parameter_types.ParameterType],
             ns: dict
     ) -> dict[str, parameters.Parameter]:
         """Parse an <xtce:ParameterSet> object into a dictionary of Parameter objects
@@ -313,7 +309,7 @@ class XtcePacketDefinition(common.AttrComparable):
         ----------
         tree : ElementTree.ElementTree
             Full XTCE tree
-        parameter_type_lookup : dict[str, parameters.ParameterType]
+        parameter_type_lookup : dict[str, parameter_types.ParameterType]
             Parameter types referenced by parameters.
         ns : dict
             XML namespace dict
@@ -362,8 +358,8 @@ class XtcePacketDefinition(common.AttrComparable):
         return (self._parameter_cache[name] for name in names)
 
     def get_parameter_types(self, *names: str) -> Union[
-        parameters.ParameterType,
-        Iterable[parameters.ParameterType]
+        parameter_types.ParameterType,
+        Iterable[parameter_types.ParameterType]
     ]:
         """Get one or more items from the dict cache of ParameterType objects"""
         if len(names) == 1:

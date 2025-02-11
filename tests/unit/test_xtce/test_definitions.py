@@ -4,6 +4,7 @@ import io
 import pytest
 from lxml import etree as ElementTree
 
+import space_packet_parser.xtce.parameter_types
 from space_packet_parser.xtce import containers, definitions, encodings, parameters, comparisons
 
 
@@ -41,7 +42,7 @@ def test_parsing_xtce_document(test_data_dir):
         entry_list=[
             parameters.Parameter(
                 name="DOY",
-                parameter_type=parameters.FloatParameterType(
+                parameter_type=space_packet_parser.xtce.parameter_types.FloatParameterType(
                     name="DOY_Type",
                     encoding=encodings.IntegerDataEncoding(
                         size_in_bits=16, encoding="unsigned"
@@ -53,7 +54,7 @@ def test_parsing_xtce_document(test_data_dir):
             ),
             parameters.Parameter(
                 name="MSEC",
-                parameter_type=parameters.FloatParameterType(
+                parameter_type=space_packet_parser.xtce.parameter_types.FloatParameterType(
                     name="MSEC_Type",
                     encoding=encodings.IntegerDataEncoding(
                         size_in_bits=32, encoding="unsigned"
@@ -65,7 +66,7 @@ def test_parsing_xtce_document(test_data_dir):
             ),
             parameters.Parameter(
                 name="USEC",
-                parameter_type=parameters.FloatParameterType(
+                parameter_type=space_packet_parser.xtce.parameter_types.FloatParameterType(
                     name="USEC_Type",
                     encoding=encodings.IntegerDataEncoding(
                         size_in_bits=16, encoding="unsigned"
@@ -88,7 +89,7 @@ def test_parsing_xtce_document(test_data_dir):
 def test_generating_xtce_from_objects():
     """Tests our ability to create an XTCE definition directly from Python objects"""
     def _uint_type(bits: int):
-        return parameters.IntegerParameterType(
+        return space_packet_parser.xtce.parameter_types.IntegerParameterType(
         name=f"UINT{bits}_Type",
         encoding=encodings.IntegerDataEncoding(
             size_in_bits=bits,
@@ -110,7 +111,7 @@ def test_generating_xtce_from_objects():
         entry_list=[
             parameters.Parameter(
                 name="SCI_DATA_LEN_BYTES",
-                parameter_type=parameters.IntegerParameterType(
+                parameter_type=space_packet_parser.xtce.parameter_types.IntegerParameterType(
                     name="SCI_DATA_LEN_BYTES_Type",
                     encoding=encodings.IntegerDataEncoding(
                         size_in_bits=8,
@@ -120,7 +121,7 @@ def test_generating_xtce_from_objects():
             ),
             parameters.Parameter(
                 name="VAR_SCI_DATA",
-                parameter_type=parameters.BinaryParameterType(
+                parameter_type=space_packet_parser.xtce.parameter_types.BinaryParameterType(
                     name="VAR_SCI_DATA_Type",
                     encoding=encodings.BinaryDataEncoding(
                         size_reference_parameter="SCI_DATA_LEN_BYTES",

@@ -7,7 +7,7 @@ from lxml.builder import ElementMaker
 
 from space_packet_parser import common, packets
 from space_packet_parser.exceptions import ElementNotFoundError
-from space_packet_parser.xtce import comparisons, parameters
+from space_packet_parser.xtce import comparisons, parameter_types, parameters
 
 
 @dataclass
@@ -63,7 +63,7 @@ class SequenceContainer(common.Parseable, common.XmlObject):
             ns: dict,
             tree: ElementTree.ElementTree,
             parameter_lookup: dict[str, parameters.Parameter],
-            parameter_type_lookup: Optional[dict[str, parameters.ParameterType]] = None
+            parameter_type_lookup: Optional[dict[str, parameter_types.ParameterType]] = None
     ) -> 'SequenceContainer':
         """Parses the list of parameters in a SequenceContainer element, recursively parsing nested SequenceContainers
         to build an entry list of parameters that flattens the nested structure to derive a sequential ordering of
@@ -80,7 +80,7 @@ class SequenceContainer(common.Parseable, common.XmlObject):
             XML namespace dict
         parameter_lookup : dict[str, parameters.Parameter]
             Parameters contained in the entrylists of sequence containers
-        parameter_type_lookup : Optional[dict[str, parameters.ParameterType]]
+        parameter_type_lookup : Optional[dict[str, parameter_types.ParameterType]]
             Ignored.
 
         Returns

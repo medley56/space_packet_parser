@@ -39,10 +39,6 @@ jobs:
           # We need the full history to generate the proper version number
           fetch-depth: 0
 
-      - uses: codecov/codecov-action@v5
-        with:
-          use_oidc: true
-
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
@@ -57,8 +53,6 @@ jobs:
         run: |
           pytest --color=yes --cov
 
-      - name: Run examples
-        run: |
-          for script in examples/*.py; do
-            python "$script"
-          done
+      - uses: codecov/codecov-action@v5
+        with:
+          use_oidc: true

@@ -16,7 +16,7 @@ from pathlib import Path
 import re
 import warnings
 
-from space_packet_parser.xtce import definitions, encodings, parameters, containers
+from space_packet_parser.xtce import definitions, encodings, parameters, containers, parameter_types
 
 # This regex is for detecting a dynamically sized field where its bit_length is
 # the integer value of another field. If you need byte -> bit conversion consider manually editing the
@@ -41,7 +41,7 @@ def generate_ccsds_header() -> list[parameters.Parameter]:
     """
 
     def _uint_type(bits: int):
-        return parameters.IntegerParameterType(
+        return parameter_types.IntegerParameterType(
         name=f"UINT{bits}_Type",
         encoding=encodings.IntegerDataEncoding(
             size_in_bits=bits,
@@ -126,7 +126,7 @@ def convert_ccsdspy_to_xtce(csv_path: Path) -> definitions.XtcePacketDefinition:
         if row["data_type"] == "uint":
             parameter = parameters.Parameter(
                 name=row["name"],
-                parameter_type=parameters.IntegerParameterType(
+                parameter_type=parameter_types.IntegerParameterType(
                     name=f"{row['name']}_Type",
                     encoding=encodings.IntegerDataEncoding(
                         size_in_bits=int(row["bit_length"]),
@@ -137,7 +137,7 @@ def convert_ccsdspy_to_xtce(csv_path: Path) -> definitions.XtcePacketDefinition:
         elif row["data_type"] == "int":
             parameter = parameters.Parameter(
                 name=row["name"],
-                parameter_type=parameters.IntegerParameterType(
+                parameter_type=parameter_types.IntegerParameterType(
                     name=f"{row['name']}_Type",
                     encoding=encodings.IntegerDataEncoding(
                         size_in_bits=int(row["bit_length"]),
@@ -157,7 +157,7 @@ def convert_ccsdspy_to_xtce(csv_path: Path) -> definitions.XtcePacketDefinition:
 
             parameter = parameters.Parameter(
                 name=row["name"],
-                parameter_type=parameters.BinaryParameterType(
+                parameter_type=parameter_types.BinaryParameterType(
                     name=f"{row['name']}_Type",
                     encoding=encoding
                 )
@@ -174,7 +174,7 @@ def convert_ccsdspy_to_xtce(csv_path: Path) -> definitions.XtcePacketDefinition:
 
             parameter = parameters.Parameter(
                 name=row["name"],
-                parameter_type=parameters.StringParameterType(
+                parameter_type=parameter_types.StringParameterType(
                     name=f"{row['name']}_Type",
                     encoding=encoding
                 )
@@ -182,7 +182,7 @@ def convert_ccsdspy_to_xtce(csv_path: Path) -> definitions.XtcePacketDefinition:
         elif row["data_type"] == "float":
             parameter = parameters.Parameter(
                 name=row["name"],
-                parameter_type=parameters.FloatParameterType(
+                parameter_type=parameter_types.FloatParameterType(
                     name=f"{row['name']}_Type",
                     encoding=encodings.FloatDataEncoding(
                         size_in_bits=int(row["bit_length"])

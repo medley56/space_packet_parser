@@ -13,7 +13,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Optional, Union
 
-from space_packet_parser.xtce import definitions, encodings, parameters
+from space_packet_parser.xtce import definitions, encodings, parameter_types
 
 
 def _min_dtype_for_encoding(data_encoding: encodings.DataEncoding):
@@ -103,7 +103,7 @@ def _get_minimum_numpy_datatype(
     if isinstance(data_encoding, encodings.BinaryDataEncoding):
         return "bytes"
 
-    if isinstance(parameter_type, parameters.EnumeratedParameterType):
+    if isinstance(parameter_type, parameter_types.EnumeratedParameterType):
         # Enums are always strings in their derived state
         return "str"
 
