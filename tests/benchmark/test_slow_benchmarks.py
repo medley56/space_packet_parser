@@ -18,8 +18,6 @@ def test_benchmark_complex_xtce_definition_parsing(benchmark, suda_test_data_dir
         definitions.XtcePacketDefinition.from_xtce,
         suda_test_data_dir / "suda_combined_science_definition.xml"
     )
-    print(definition.get_parameters)
-    print(definition.get_parameter_types)
 
 
 @pytest.mark.benchmark

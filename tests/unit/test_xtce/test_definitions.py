@@ -15,27 +15,27 @@ def test_parsing_xtce_document(test_data_dir):
 
     # Test Parameter Types
     ptname = "USEC_Type"
-    pt = xdef.get_parameter_types(ptname)
+    pt = xdef.parameter_types[ptname]
     assert pt.name == ptname
     assert pt.unit == "us"
     assert isinstance(pt.encoding, encodings.IntegerDataEncoding)
 
     # Test Parameters
     pname = "ADAET1DAY"  # Named parameter
-    p = xdef.get_parameters(pname)
+    p = xdef.parameters[pname]
     assert p.name == pname
     assert p.short_description == "Ephemeris Valid Time, Days Since 1/1/1958"
     assert p.long_description is None
 
     pname = "USEC"
-    p = xdef.get_parameters(pname)
+    p = xdef.parameters[pname]
     assert p.name == pname
     assert p.short_description == "Secondary Header Fine Time (microsecond)"
     assert p.long_description == "CCSDS Packet 2nd Header Fine Time in microseconds."
 
     # Test Sequence Containers
     scname = "SecondaryHeaderContainer"
-    sc = xdef.get_containers(scname)
+    sc = xdef.containers[scname]
     assert sc.name == scname
     assert sc == containers.SequenceContainer(
         name=scname,

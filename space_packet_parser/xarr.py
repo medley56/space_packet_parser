@@ -84,7 +84,7 @@ def _get_minimum_numpy_datatype(
         The minimum numpy dtype for the parameter.
         Returns None to indicate that numpy should use default dtype inference.
     """
-    parameter_type = definition.get_parameters(name).parameter_type
+    parameter_type = definition.parameters[name].parameter_type
     data_encoding = parameter_type.encoding
 
     if use_raw_value:

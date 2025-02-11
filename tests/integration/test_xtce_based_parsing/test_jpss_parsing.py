@@ -8,8 +8,8 @@ def test_jpss_xtce_packet_parsing(jpss_test_data_dir):
     jpss_xtce = jpss_test_data_dir / 'jpss1_geolocation_xtce_v1.xml'
     jpss_definition = definitions.XtcePacketDefinition.from_xtce(xtce_document=jpss_xtce)
     assert isinstance(jpss_definition, definitions.XtcePacketDefinition)
-    assert jpss_definition.get_parameters('USEC').short_description == "Secondary Header Fine Time (microsecond)"
-    assert jpss_definition.get_parameters('USEC').long_description == "CCSDS Packet 2nd Header Fine Time in microseconds."
+    assert jpss_definition.parameters['USEC'].short_description == "Secondary Header Fine Time (microsecond)"
+    assert jpss_definition.parameters['USEC'].long_description == "CCSDS Packet 2nd Header Fine Time in microseconds."
 
     jpss_packet_file = jpss_test_data_dir / 'J01_G011_LZ_2021-04-09T00-00-00Z_V01.DAT1'
 

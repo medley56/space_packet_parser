@@ -2,7 +2,7 @@
 import logging
 import socket
 import warnings
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterator
 from datetime import datetime
 from pathlib import Path
 from typing import BinaryIO, Optional, TextIO, Union
@@ -335,38 +335,20 @@ class XtcePacketDefinition(common.AttrComparable):
 
         return parameter_dict
 
-    def get_containers(self, *names: str) -> Union[
-        containers.SequenceContainer,
-        Iterable[containers.SequenceContainer]
-    ]:
-        """Get one or more items from the dict cache of SequenceContainer objects"""
-        if len(names) == 1:
-            return self._sequence_container_cache[names[0]]
-        if len(names) == 0:
-            return self._sequence_container_cache
-        return (self._sequence_container_cache[name] for name in names)
+    @property
+    def containers(self) -> dict[str, containers.SequenceContainer]:
+        """Property accessor that returns the dict cache of SequenceContainer objects keyed by container name"""
+        return self._sequence_container_cache
 
-    def get_parameters(self, *names: str) -> Union[
-        parameters.Parameter,
-        Iterable[parameters.Parameter]
-    ]:
-        """Get one or more items from the dict cache of Parameter objects"""
-        if len(names) == 1:
-            return self._parameter_cache[names[0]]
-        if len(names) == 0:
-            return self._parameter_cache
-        return (self._parameter_cache[name] for name in names)
+    @property
+    def parameters(self) -> dict[str, parameters.Parameter]:
+        """Property accessor that returns the dict cache of Parameter objects keyed by parameter name"""
+        return self._parameter_cache
 
-    def get_parameter_types(self, *names: str) -> Union[
-        parameter_types.ParameterType,
-        Iterable[parameter_types.ParameterType]
-    ]:
-        """Get one or more items from the dict cache of ParameterType objects"""
-        if len(names) == 1:
-            return self._parameter_type_cache[names[0]]
-        if len(names) == 0:
-            return self._parameter_type_cache
-        return (self._parameter_type_cache[name] for name in names)
+    @property
+    def parameter_types(self) -> dict[str, parameter_types.ParameterType]:
+        """Property accessor that returns the dict cache of ParameterType objects keyed by parameter type name"""
+        return self._parameter_type_cache
 
     def parse_ccsds_packet(self,
                            packet: packets.CCSDSPacket,
