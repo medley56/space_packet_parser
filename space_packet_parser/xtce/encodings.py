@@ -360,7 +360,8 @@ class StringDataEncoding(DataEncoding):
             ns: dict,
             tree: Optional[ElementTree.Element] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
-            parameter_type_lookup: Optional[dict[str, any]] = None
+            parameter_type_lookup: Optional[dict[str, any]] = None,
+            container_lookup: Optional[dict[str, any]] = None
     ) -> 'StringDataEncoding':
         """Create a data encoding object from an <xtce:StringDataEncoding> XML element.
 
@@ -392,6 +393,8 @@ class StringDataEncoding(DataEncoding):
         parameter_lookup: Optional[dict]
             Ignored
         parameter_type_lookup: Optional[dict]
+            Ignored
+        container_lookup: Optional[dict[str, SequenceContainer]]
             Ignored
 
         Returns
@@ -682,7 +685,8 @@ class IntegerDataEncoding(NumericDataEncoding):
             ns: dict,
             tree: Optional[ElementTree.Element] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
-            parameter_type_lookup: Optional[dict[str, any]] = None
+            parameter_type_lookup: Optional[dict[str, any]] = None,
+            container_lookup: Optional[dict[str, any]] = None
     ) -> 'IntegerDataEncoding':
         """Create a data encoding object from an <xtce:IntegerDataEncoding> XML element.
 
@@ -697,6 +701,8 @@ class IntegerDataEncoding(NumericDataEncoding):
         parameter_lookup: Optional[dict]
             Ignored
         parameter_type_lookup: Optional[dict]
+            Ignored
+        container_lookup: Optional[dict[str, SequenceContainer]]
             Ignored
 
         Returns
@@ -831,7 +837,8 @@ class FloatDataEncoding(NumericDataEncoding):
             ns: dict,
             tree: Optional[ElementTree.Element] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
-            parameter_type_lookup: Optional[dict[str, any]] = None
+            parameter_type_lookup: Optional[dict[str, any]] = None,
+            container_lookup: Optional[dict[str, any]] = None
     ) -> 'FloatDataEncoding':
         """Create a data encoding object from an <xtce:FloatDataEncoding> XML element.
 
@@ -846,6 +853,8 @@ class FloatDataEncoding(NumericDataEncoding):
         parameter_lookup: Optional[dict]
             Ignored
         parameter_type_lookup: Optional[dict]
+            Ignored
+        container_lookup: Optional[dict[str, SequenceContainer]]
             Ignored
 
         Returns
@@ -954,7 +963,8 @@ class BinaryDataEncoding(DataEncoding):
             ns: dict,
             tree: Optional[ElementTree.Element] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
-            parameter_type_lookup: Optional[dict[str, any]] = None
+            parameter_type_lookup: Optional[dict[str, any]] = None,
+            container_lookup: Optional[dict[str, any]] = None
     ) -> 'BinaryDataEncoding':
         """Create a data encoding object from an <xtce:BinaryDataEncoding> XML element.
 
@@ -969,6 +979,8 @@ class BinaryDataEncoding(DataEncoding):
         parameter_lookup: Optional[dict]
             Ignored
         parameter_type_lookup: Optional[dict]
+            Ignored
+        container_lookup: Optional[dict[str, SequenceContainer]]
             Ignored
 
         Returns

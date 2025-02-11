@@ -35,6 +35,8 @@ Release notes for the `space_packet_parser` library
   e.g. `space_packet_parser.xarr.create_dataset([packets1, packets2, ...], definition)`
 - BUGFIX: update list of allowed float encodings to match XTCE spec
 - Add benchmark tests and documentation overview of benchmarks.
+- Add checking to ensure that every object in the `XtcePacketDefinition` attributes `containers`, `parameters`, and
+  `parameter_types` is also referenced in the nested objects in `containers`
 
 ### v5.0.1 (released)
 - BUGFIX: Allow raw_value representation for enums with falsy raw values. Previously these defaulted to the enum label.

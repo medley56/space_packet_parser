@@ -45,6 +45,7 @@ class Parameter(common.Parseable, common.XmlObject):
             parameter_type_lookup: dict[str, parameter_types.ParameterType],
             tree: Optional[ElementTree.ElementTree] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
+            container_lookup: Optional[dict[str, any]] = None
     ) -> 'Parameter':
         """Create a Parameter object from an XML element.
 
@@ -59,6 +60,8 @@ class Parameter(common.Parseable, common.XmlObject):
         parameter_lookup: Optional[dict]
             Ignored
         parameter_type_lookup: dict[str, ParameterType]
+            Ignored
+        container_lookup: Optional[dict[str, SequenceContainer]]
             Ignored
 
         Returns

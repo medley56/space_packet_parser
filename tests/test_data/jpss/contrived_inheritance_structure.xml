@@ -210,6 +210,11 @@
                     </xtce:RestrictionCriteria>
                 </xtce:BaseContainer>
             </xtce:SequenceContainer>
+            <xtce:SequenceContainer name="UNUSED" shortDescription="This tests including the SecondaryHeaderContainer in multiple other entry lists">
+                <xtce:EntryList>
+                    <xtce:ContainerRefEntry containerRef="SecondaryHeaderContainer"/>
+                </xtce:EntryList>
+            </xtce:SequenceContainer>
         </xtce:ContainerSet>
     </xtce:TelemetryMetaData>
 </xtce:SpaceSystem>

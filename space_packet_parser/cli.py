@@ -80,11 +80,11 @@ def describe_xtce(
 
     # Recursively add nodes based on the inheritors of each container
     def add_nodes(tree_node, parent_key):
-        children = definition._sequence_container_cache[parent_key].inheritors
+        children = definition.containers[parent_key].inheritors
         for child_key in children:
             # Create a new child node (name + comparisons used to distinguish between containers)
             child_node = tree_node.add(
-                f"{child_key} {definition._sequence_container_cache[child_key].restriction_criteria}")
+                f"{child_key} {definition.containers[child_key].restriction_criteria}")
             # Recursively add any children of this child
             add_nodes(child_node, child_key)
 
@@ -92,16 +92,16 @@ def describe_xtce(
 
     console.print(Panel(tree, title="XTCE Container Layout", border_style="cyan", expand=False))
     if sequence_containers:
-        console.print(Panel(pretty.Pretty(definition._sequence_container_cache),
-                            title=f"Sequence Containers ({len(definition._sequence_container_cache)})",
+        console.print(Panel(pretty.Pretty(definition.containers),
+                            title=f"Sequence Containers ({len(definition.containers)})",
                             border_style="blue", expand=False))
     if parameters:
-        console.print(Panel(pretty.Pretty(definition._parameter_cache),
-                            title=f"Parameters ({len(definition._parameter_cache)})",
+        console.print(Panel(pretty.Pretty(definition.parameters),
+                            title=f"Parameters ({len(definition.parameters)})",
                             border_style="green", expand=False))
     if parameter_types:
-        console.print(Panel(pretty.Pretty(definition._parameter_type_cache),
-                            title=f"Parameter Types ({len(definition._parameter_type_cache)})",
+        console.print(Panel(pretty.Pretty(definition.parameter_types),
+                            title=f"Parameter Types ({len(definition.parameter_types)})",
                             border_style="magenta", expand=False))
 
 

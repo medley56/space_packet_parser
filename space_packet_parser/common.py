@@ -42,6 +42,7 @@ class XmlObject(metaclass=ABCMeta):
             tree: Optional[ElementTree.ElementTree],
             parameter_lookup: Optional[dict[str, any]],
             parameter_type_lookup: Optional[dict[str, any]],
+            container_lookup: Optional[dict[str, any]],
     ) -> 'XmlObject':
         """Create an object from an XML element
 
@@ -63,6 +64,8 @@ class XmlObject(metaclass=ABCMeta):
             Parameters dict for parsing that requires knowledge of existing parameters
         parameter_type_lookup: Optional[dict[str, parameters.ParameterType]]
             Parameter type dict for parsing that requires knowledge of existing parameter types
+        container_lookup: Optional[dict[str, parameters.ContainerType]]
+            Container type dict for parsing that requires knowledge of existing containers
 
         Returns
         -------

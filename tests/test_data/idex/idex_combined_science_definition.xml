@@ -43,12 +43,6 @@
         </xtce:UnitSet>
         <xtce:IntegerDataEncoding encoding="unsigned" sizeInBits="16"/>
       </xtce:FloatParameterType>
-      <xtce:FloatParameterType name="CHECKSUM_Type">
-        <xtce:UnitSet>
-          <xtce:Unit>dn</xtce:Unit>
-        </xtce:UnitSet>
-        <xtce:IntegerDataEncoding encoding="unsigned" sizeInBits="32"/>
-      </xtce:FloatParameterType>
       <xtce:IntegerParameterType name="IDX__SCI0AID_Type">
         <xtce:UnitSet/>
         <xtce:IntegerDataEncoding encoding="unsigned" sizeInBits="32"/>
@@ -932,9 +926,6 @@
         <xtce:AliasSet>
           <xtce:Alias nameSpace="itemName" alias="SHFINE"/>
         </xtce:AliasSet>
-        <xtce:ParameterProperties dataSource="telemetered"/>
-      </xtce:Parameter>
-      <xtce:Parameter shortDescription="CRC 16 Checksum" name="CHECKSUM" parameterTypeRef="CHECKSUM_Type">
         <xtce:ParameterProperties dataSource="telemetered"/>
       </xtce:Parameter>
       <xtce:Parameter name="IDX__SCI0AID" parameterTypeRef="IDX__SCI0AID_Type" shortDescription="Accountability Identifier">

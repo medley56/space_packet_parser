@@ -47,6 +47,7 @@ class ParameterType(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
             tree: Optional[ElementTree.Element] = None,
             parameter_lookup: Optional[dict] = None,
             parameter_type_lookup: Optional[dict] = None,
+            container_lookup: Optional[dict[str, any]] = None
     ) -> 'ParameterType':
         """Create a *ParameterType* from an <xtce:ParameterType> XML element.
 
@@ -61,6 +62,8 @@ class ParameterType(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
         parameter_lookup: Optional[dict]
             Ignored
         parameter_type_lookup: Optional[dict]
+            Ignored
+        container_lookup : Optional[dict[str, any]]
             Ignored
 
         Returns
@@ -238,7 +241,8 @@ class EnumeratedParameterType(ParameterType):
             ns: dict,
             tree: Optional[ElementTree.Element] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
-            parameter_type_lookup: Optional[dict[str, any]] = None
+            parameter_type_lookup: Optional[dict[str, any]] = None,
+            container_lookup: Optional[dict[str, any]] = None
     ) -> 'EnumeratedParameterType':
         """Create an EnumeratedParameterType from an <xtce:EnumeratedParameterType> XML element.
         Overrides ParameterType.from_parameter_type_xml_element
@@ -254,6 +258,8 @@ class EnumeratedParameterType(ParameterType):
         parameter_lookup: Optional[dict]
             Ignored
         parameter_type_lookup: Optional[dict]
+            Ignored
+        container_lookup: Optional[dict[str, any]]
             Ignored
 
         Returns
@@ -487,7 +493,8 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
             ns: dict,
             tree: Optional[ElementTree.ElementTree] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
-            parameter_type_lookup: Optional[dict[str, any]] = None
+            parameter_type_lookup: Optional[dict[str, any]] = None,
+            container_lookup: Optional[dict[str, any]] = None
     ) -> ElementTree.Element:
         """Create a *TimeParameterType* from an <xtce:TimeParameterType> XML element.
 
@@ -503,6 +510,7 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
             Ignored
         parameter_type_lookup: Optional[dict]
             Ignored
+        container_lookup: Optional[dict[str, any]]
 
         Returns
         -------

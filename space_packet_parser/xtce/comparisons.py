@@ -100,7 +100,8 @@ class Comparison(MatchCriteria):
             ns: dict,
             tree: Optional[ElementTree.Element] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
-            parameter_type_lookup: Optional[dict[str, any]] = None
+            parameter_type_lookup: Optional[dict[str, any]] = None,
+            container_lookup: Optional[dict[str, any]] = None
     ) -> 'Comparison':
         """Create
 
@@ -115,6 +116,8 @@ class Comparison(MatchCriteria):
         parameter_lookup: Optional[dict]
             Ignored
         parameter_type_lookup: Optional[dict]
+            Ignored
+        container_lookup: Optional[dict[str, SequenceContainer]]
             Ignored
 
         Returns
@@ -296,7 +299,8 @@ class Condition(MatchCriteria):
             ns: dict,
             tree: Optional[ElementTree.Element] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
-            parameter_type_lookup: Optional[dict[str, any]] = None
+            parameter_type_lookup: Optional[dict[str, any]] = None,
+            container_lookup: Optional[dict[str, any]] = None
     ) -> 'Condition':
         """Classmethod to create a Condition object from an XML element.
 
@@ -311,6 +315,8 @@ class Condition(MatchCriteria):
         parameter_lookup: Optional[dict]
             Ignored
         parameter_type_lookup: Optional[dict]
+            Ignored
+        container_lookup: Optional[dict[str, SequenceContainer]]
             Ignored
 
         Returns
@@ -451,7 +457,8 @@ class BooleanExpression(MatchCriteria):
             ns: dict,
             tree: Optional[ElementTree.Element] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
-            parameter_type_lookup: Optional[dict[str, any]] = None
+            parameter_type_lookup: Optional[dict[str, any]] = None,
+            container_lookup: Optional[dict[str, any]] = None
     ) -> 'BooleanExpression':
         """Abstract classmethod to create a match criteria object from an XML element.
 
@@ -466,6 +473,8 @@ class BooleanExpression(MatchCriteria):
         parameter_lookup: Optional[dict]
             Ignored
         parameter_type_lookup: Optional[dict]
+            Ignored
+        container_lookup: Optional[dict[str, SequenceContainer]]
             Ignored
 
         Returns
@@ -621,6 +630,7 @@ class DiscreteLookup(common.AttrComparable, common.XmlObject):
             tree: Optional[ElementTree.ElementTree] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
             parameter_type_lookup: Optional[dict[str, any]] = None,
+            container_lookup: Optional[dict[str, any]] = None
     ) -> 'DiscreteLookup':
         """Create a DiscreteLookup object from an <xtce:DiscreteLookup> XML element
 
@@ -635,6 +645,8 @@ class DiscreteLookup(common.AttrComparable, common.XmlObject):
         parameter_lookup: Optional[dict]
             Ignored
         parameter_type_lookup: Optional[dict]
+            Ignored
+        container_lookup: Optional[dict[str, SequenceContainer]]
             Ignored
 
         Returns
