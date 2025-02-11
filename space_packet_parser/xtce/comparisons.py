@@ -5,6 +5,7 @@ from collections import namedtuple
 from typing import Any, Optional, Union
 
 import lxml.etree as ElementTree
+from lxml.builder import ElementMaker
 
 from space_packet_parser import common, packets
 from space_packet_parser.exceptions import ComparisonError
@@ -28,53 +29,6 @@ class MatchCriteria(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
         "&lt;=": "__le__", "leq": "__le__", "<=": "__le__",  # less than or equal to
         "&gt;=": "__ge__", "geq": "__ge__", ">=": "__ge__",  # greater than or equal to
     }
-
-    @classmethod
-    @abstractmethod
-    def from_xml(
-            cls,
-            element: ElementTree.Element,
-            *,
-            ns: dict,
-            tree: Optional[ElementTree.Element] = None,
-            parameter_lookup: Optional[dict[str, any]] = None,
-            parameter_type_lookup: Optional[dict[str, any]] = None
-    ):
-        """Abstract classmethod to create a match criteria object from an XML element.
-
-        Parameters
-        ----------
-        element : ElementTree.Element
-            XML element
-        ns : dict
-            XML namespace dict
-        tree: Optional[ElementTree.Element]
-            Ignored
-        parameter_lookup: Optional[dict]
-            Ignored
-        parameter_type_lookup: Optional[dict]
-            Ignored
-
-        Returns
-        -------
-        : cls
-        """
-        raise NotImplementedError()
-
-    @abstractmethod
-    def to_xml(self, *, ns: dict) -> ElementTree.Element:
-        """Abstract method to create an XML element from this class
-
-        Parameters
-        ----------
-        ns : dict
-            XML namespace dict
-
-        Returns
-        -------
-        : ElementTree.Element
-        """
-        raise NotImplementedError()
 
     @abstractmethod
     def evaluate(self,
@@ -180,29 +134,24 @@ class Comparison(MatchCriteria):
 
         return cls(value, parameter_name, operator=operator, use_calibrated_value=use_calibrated_value)
 
-    def to_xml(self, *, ns: dict) -> ElementTree.Element:
+    def to_xml(self, *, elmaker: ElementMaker) -> ElementTree.Element:
         """Create a Comparison XML element
 
         Parameters
         ----------
-        ns : dict
-            XML namespace dict
+        elmaker : ElementMaker
+            Element factory with predefined namespace
 
         Returns
         -------
         : ElementTree.Element
         """
-        _, xtce_uri = next(iter(ns.items()))
-        xtce = f"{{{xtce_uri}}}"
-        return ElementTree.Element(
-            xtce + "Comparison",
-            attrib={
-                "parameterRef": self.referenced_parameter,
-                "useCalibratedValue": str(self.use_calibrated_value).lower(),
-                "comparisonOperator": self.operator,
-                "value": str(self.required_value)
-            },
-            nsmap=ns)
+        return elmaker.Comparison(
+            parameterRef=self.referenced_parameter,
+            useCalibratedValue=str(self.use_calibrated_value).lower(),
+            comparisonOperator=self.operator,
+            value=str(self.required_value)
+        )
 
     def evaluate(self,
                  packet: packets.CCSDSPacket,
@@ -348,7 +297,7 @@ class Condition(MatchCriteria):
             tree: Optional[ElementTree.Element] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
             parameter_type_lookup: Optional[dict[str, any]] = None
-    ):
+    ) -> 'Condition':
         """Classmethod to create a Condition object from an XML element.
 
         Parameters
@@ -386,44 +335,39 @@ class Condition(MatchCriteria):
         raise ValueError(f'Failed to parse a Condition element {element}. '
                          'See 3.4.3.4.2 of XTCE Green Book CCSDS 660.1-G-2')
 
-    def to_xml(self, *, ns: dict) -> ElementTree.Element:
+    def to_xml(self, *, elmaker: ElementMaker) -> ElementTree.Element:
         """Create a Condition XML element
 
         Parameters
         ----------
-        ns : dict
-            XML namespace dict
+        elmaker : ElementMaker
+            Element factory with predefined namespace
 
         Returns
         -------
         : ElementTree.Element
         """
-        _, xtce_uri = next(iter(ns.items()))
-        xtce = f"{{{xtce_uri}}}"
-        condition_element = ElementTree.Element(xtce + "Condition", nsmap=ns)
-        ElementTree.SubElement(
-            condition_element,
-            xtce + "ParameterInstanceRef",
-            attrib={
-                "parameterRef": self.left_param,
-                "useCalibratedValue": str(self.left_use_calibrated_value).lower()
-            },
-            nsmap=ns)
-        operator_element = ElementTree.SubElement(condition_element, xtce + "ComparisonOperator", nsmap=ns)
-        operator_element.text = self.operator
+        condition = elmaker.Condition(
+            elmaker.ParameterInstanceRef(
+                parameterRef=self.left_param,
+                useCalibratedValue=str(self.left_use_calibrated_value).lower(),
+            ),
+            elmaker.ComparisonOperator(self.operator)
+        )
+
         if self.right_param:
-            ElementTree.SubElement(
-                condition_element,
-                xtce + "ParameterInstanceRef",
-                attrib={
-                    "parameterRef": self.right_param,
-                    "useCalibratedValue": str(self.right_use_calibrated_value).lower()
-                },
-                nsmap=ns)
+            condition.append(
+                elmaker.ParameterInstanceRef(
+                    parameterRef=self.right_param,
+                    useCalibratedValue=str(self.right_use_calibrated_value).lower(),
+                )
+            )
         else:
-            right_value_element = ElementTree.SubElement(condition_element, xtce + "Value", nsmap=ns)
-            right_value_element.text = str(self.right_value)
-        return condition_element
+            condition.append(
+                elmaker.Value(str(self.right_value))
+            )
+
+        return condition
 
     def evaluate(self,
                  packet: packets.CCSDSPacket,
@@ -617,41 +561,34 @@ class BooleanExpression(MatchCriteria):
 
         raise ValueError(f"Error evaluating an unknown expression {self.expression}.")
 
-    def to_xml(self, *, ns: dict) -> ElementTree.Element:
+    def to_xml(self, *, elmaker: ElementMaker) -> ElementTree.Element:
         """Create a Condition XML element
 
         Parameters
         ----------
-        ns : dict
-            XML namespace dict
+        elmaker : ElementMaker
+            Element factory with predefined namespace
 
         Returns
         -------
         : ElementTree.Element
         """
-        _, xtce_uri = next(iter(ns.items()))
-        xtce = f"{{{xtce_uri}}}"
-
         def _serialize_anded(anded: Anded) -> ElementTree.Element:
-            anded_conditions_element = ElementTree.Element(xtce + "ANDedConditions", nsmap=ns)
-            for cond in anded.conditions:
-                anded_conditions_element.append(cond.to_xml(ns=ns))
-            for ored in anded.ors:
-                anded_conditions_element.append(_serialize_ored(ored))
-            return anded_conditions_element
+            return elmaker.ANDedConditions(
+                *(cond.to_xml(elmaker=elmaker) for cond in anded.conditions),
+                *(_serialize_ored(ored) for ored in anded.ors)
+            )
 
         def _serialize_ored(ored: Ored) -> ElementTree.Element:
-            ored_conditions_element = ElementTree.SubElement(element, xtce + "ORedConditions", nsmap=ns)
-            for cond in ored.conditions:
-                ored_conditions_element.append(cond.to_xml(ns=ns))
-            for anded in ored.ands:
-                ored_conditions_element.append(_serialize_anded(anded))
-            return ored_conditions_element
+            return elmaker.ORedConditions(
+                *(cond.to_xml(elmaker=elmaker) for cond in ored.conditions),
+                *(_serialize_anded(anded) for anded in ored.ands)
+            )
 
-        element = ElementTree.Element(xtce + "BooleanExpression", nsmap=ns)
+        element = elmaker.BooleanExpression()
 
         if isinstance(self.expression, Condition):
-            element.append(self.expression.to_xml(ns=ns))
+            element.append(self.expression.to_xml(elmaker=elmaker))
         elif isinstance(self.expression, Anded):
             element.append(_serialize_anded(self.expression))
         else:
@@ -659,7 +596,7 @@ class BooleanExpression(MatchCriteria):
 
         return element
 
-class DiscreteLookup(common.AttrComparable):
+class DiscreteLookup(common.AttrComparable, common.XmlObject):
     """<xtce:DiscreteLookup>"""
 
     def __init__(self, match_criteria: list[Comparison], lookup_value: Union[int, float]):
@@ -676,7 +613,15 @@ class DiscreteLookup(common.AttrComparable):
         self.lookup_value = lookup_value
 
     @classmethod
-    def from_discrete_lookup_xml_element(cls, element: ElementTree.Element, ns: dict) -> 'DiscreteLookup':
+    def from_xml(
+            cls,
+            element: ElementTree.Element,
+            *,
+            ns: dict,
+            tree: Optional[ElementTree.ElementTree] = None,
+            parameter_lookup: Optional[dict[str, any]] = None,
+            parameter_type_lookup: Optional[dict[str, any]] = None,
+    ) -> 'DiscreteLookup':
         """Create a DiscreteLookup object from an <xtce:DiscreteLookup> XML element
 
         Parameters
@@ -685,6 +630,12 @@ class DiscreteLookup(common.AttrComparable):
             <xtce:DiscreteLookup> XML element from which to parse the DiscreteLookup object.
         ns : dict
             Namespace dict for XML parsing
+        tree: Optional[ElementTree.Element]
+            Ignored
+        parameter_lookup: Optional[dict]
+            Ignored
+        parameter_type_lookup: Optional[dict]
+            Ignored
 
         Returns
         -------
@@ -702,33 +653,29 @@ class DiscreteLookup(common.AttrComparable):
 
         return cls(match_criteria, lookup_value)
 
-    def to_discrete_lookup_xml_element(self, ns: dict) -> ElementTree.Element:
+    def to_xml(self, *, elmaker: ElementMaker) -> ElementTree.Element:
         """Create a DiscreteLookup XML element
 
         Parameters
         ----------
-        ns : dict
-            XML namespace dict
+        elmaker : ElementMaker
+            ElementMaker factory
 
         Returns
         -------
         : ElementTree.Element
         """
-        _, xtce_uri = next(iter(ns.items()))
-        xtce = f"{{{xtce_uri}}}"
-        dl_element = ElementTree.Element(
-            xtce + "DiscreteLookup",
-            attrib={"value": str(self.lookup_value)},
-            nsmap=ns)
+        match_criteria = (c.to_xml(elmaker=elmaker) for c in self.match_criteria)
+
         if len(self.match_criteria) > 1:
-            comparison_parent_element = ElementTree.SubElement(dl_element, xtce + "ComparisonList", nsmap=ns)
+            dl_contents = (elmaker.ComparisonList(*match_criteria), )
         else:
-            comparison_parent_element = dl_element
+            dl_contents = match_criteria
 
-        for comp in self.match_criteria:
-            comparison_parent_element.append(comp.to_xml(ns=ns))
-
-        return dl_element
+        return elmaker.DiscreteLookup(
+            *dl_contents,
+            value=str(self.lookup_value)
+        )
 
     def evaluate(self, packet: packets.CCSDSPacket, current_parsed_value: Optional[Union[int, float]] = None) -> Any:
         """Evaluate the lookup to determine if it is valid.

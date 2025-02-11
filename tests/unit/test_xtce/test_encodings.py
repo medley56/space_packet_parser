@@ -114,7 +114,7 @@ from space_packet_parser.xtce import encodings, comparisons, calibrators, XTCE_N
          AttributeError())
     ]
 )
-def test_string_data_encoding(xml_string: str, expectation):
+def test_string_data_encoding(elmaker, xml_string: str, expectation):
     """Test parsing a StringDataEncoding from an XML string"""
     element = ElementTree.fromstring(xml_string)
 
@@ -125,7 +125,7 @@ def test_string_data_encoding(xml_string: str, expectation):
         result = encodings.StringDataEncoding.from_xml(element, ns=XTCE_NSMAP)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
-        result_string = ElementTree.tostring(result.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
+        result_string = ElementTree.tostring(result.to_xml(elmaker=elmaker), pretty_print=True).decode()
         full_circle = encodings.StringDataEncoding.from_xml(ElementTree.fromstring(result_string), ns=XTCE_NSMAP)
         assert full_circle == expectation
 
@@ -214,7 +214,7 @@ def test_string_data_encoding(xml_string: str, expectation):
                                        ])),
     ]
 )
-def test_integer_data_encoding(xml_string: str, expectation):
+def test_integer_data_encoding(elmaker, xml_string: str, expectation):
     """Test parsing an IntegerDataEncoding from an XML string"""
     element = ElementTree.fromstring(xml_string)
 
@@ -225,8 +225,7 @@ def test_integer_data_encoding(xml_string: str, expectation):
         result = encodings.IntegerDataEncoding.from_xml(element, ns=XTCE_NSMAP)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
-        result_string = ElementTree.tostring(result.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
-        print(result_string)
+        result_string = ElementTree.tostring(result.to_xml(elmaker=elmaker), pretty_print=True).decode()
         full_circle = encodings.IntegerDataEncoding.from_xml(ElementTree.fromstring(result_string),
                                                              ns=XTCE_NSMAP)
         assert full_circle == expectation
@@ -320,7 +319,7 @@ def test_integer_data_encoding(xml_string: str, expectation):
          )),
     ]
 )
-def test_float_data_encoding(xml_string: str, expectation):
+def test_float_data_encoding(elmaker, xml_string: str, expectation):
     """Test parsing an FloatDataEncoding from an XML string"""
     element = ElementTree.fromstring(xml_string)
 
@@ -331,7 +330,7 @@ def test_float_data_encoding(xml_string: str, expectation):
         result = encodings.FloatDataEncoding.from_xml(element, ns=XTCE_NSMAP)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
-        result_string = ElementTree.tostring(result.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
+        result_string = ElementTree.tostring(result.to_xml(elmaker=elmaker), pretty_print=True).decode()
         full_circle = encodings.FloatDataEncoding.from_xml(ElementTree.fromstring(result_string),
                                                            ns=XTCE_NSMAP)
         assert full_circle == expectation
@@ -381,7 +380,7 @@ def test_float_data_encoding(xml_string: str, expectation):
          ])),
     ]
 )
-def test_binary_data_encoding(xml_string: str, expectation):
+def test_binary_data_encoding(elmaker, xml_string: str, expectation):
     """Test parsing an BinaryDataEncoding from an XML string"""
     element = ElementTree.fromstring(xml_string)
 
@@ -392,8 +391,7 @@ def test_binary_data_encoding(xml_string: str, expectation):
         result = encodings.BinaryDataEncoding.from_xml(element, ns=XTCE_NSMAP)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
-        result_string = ElementTree.tostring(result.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
-        print(result_string)
+        result_string = ElementTree.tostring(result.to_xml(elmaker=elmaker), pretty_print=True).decode()
         full_circle = encodings.BinaryDataEncoding.from_xml(ElementTree.fromstring(result_string),
                                                             ns=XTCE_NSMAP)
         assert full_circle == expectation

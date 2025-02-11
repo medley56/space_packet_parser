@@ -4,6 +4,7 @@ from abc import ABCMeta, abstractmethod
 from typing import Optional, Protocol
 
 import lxml.etree as ElementTree
+from lxml.builder import ElementMaker
 
 from space_packet_parser import packets
 
@@ -70,13 +71,13 @@ class XmlObject(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def to_xml(self, *, ns: dict) -> ElementTree.Element:
+    def to_xml(self, *, elmaker: ElementMaker) -> ElementTree.Element:
         """Create an XML element from the object self
 
         Parameters
         ----------
-        ns : dict
-            XML namespace mapping
+        elmaker : ElementMaker
+            ElementMaker for creating new XML elements with predefined namespace
 
         Returns
         -------
@@ -84,9 +85,6 @@ class XmlObject(metaclass=ABCMeta):
             XML Element object
         """
         raise NotImplementedError()
-
-
-
 
 
 class Parseable(Protocol):

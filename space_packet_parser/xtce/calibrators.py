@@ -4,6 +4,7 @@ from collections import namedtuple
 from typing import Optional, Union
 
 import lxml.etree as ElementTree
+from lxml.builder import ElementMaker
 
 from space_packet_parser import common, exceptions
 from space_packet_parser.xtce import comparisons
@@ -40,22 +41,7 @@ class Calibrator(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
 
         Returns
         -------
-        cls
-        """
-        return NotImplemented
-
-    @abstractmethod
-    def to_xml(self, *, ns: dict) -> ElementTree.Element:
-        """Create an XML element for this calibrator
-
-        Parameters
-        ----------
-        ns : dict
-            XML namespace dict
-
-        Returns
-        -------
-        : ElementTree.Element
+        : Calibrator
         """
         return NotImplemented
 
@@ -141,34 +127,23 @@ class SplineCalibrator(Calibrator):
         extrapolate = element.attrib['extrapolate'].lower() == 'true' if 'extrapolate' in element.attrib else False
         return cls(order=order, points=spline_points, extrapolate=extrapolate)
 
-    def to_xml(self, ns: dict) -> ElementTree.Element:
+    def to_xml(self, *, elmaker: ElementMaker) -> ElementTree.Element:
         """Create a SplineCalibrator XML element
 
         Parameters
         ----------
-        ns : dict
-            XML namespace dict
+        elmaker : ElementMaker
+            Element factory with predefined namespace
 
         Returns
         -------
         : ElementTree.Element
         """
-        _, xtce_uri = next(iter(ns.items()))
-        xtce = f"{{{xtce_uri}}}"
-        element = ElementTree.Element(xtce + 'SplineCalibrator',
-                                      attrib={
-                                          "order": str(self.order),
-                                          "extrapolate": str(self.extrapolate).lower()
-                                      },
-                                      nsmap=ns)
-
-        for p in self.points:
-            ElementTree.SubElement(element,
-                                   xtce + "SplinePoint",
-                                   attrib={"raw": str(p.raw), "calibrated": str(p.calibrated)},
-                                   nsmap=ns)
-
-        return element
+        return elmaker.SplineCalibrator(
+            *(elmaker.SplinePoint(raw=str(p.raw), calibrated=str(p.calibrated)) for p in self.points),
+            order=str(self.order),
+            extrapolate=str(self.extrapolate).lower(),
+        )
 
     def calibrate(self, uncalibrated_value: float) -> float:
         """Take an integer-encoded value and returns a calibrated version according to the spline points.
@@ -317,29 +292,22 @@ class PolynomialCalibrator(Calibrator):
         ]
         return cls(coefficients=coefficients)
 
-    def to_xml(self, ns: dict) -> ElementTree.Element:
+    def to_xml(self, elmaker: ElementMaker) -> ElementTree.Element:
         """Create a PolynomialCalibrator XML element
 
         Parameters
         ----------
-        ns : dict
-            XML namespace dict
+        elmaker : ElementMaker
+            Element factory with predefined namespace
 
         Returns
         -------
         : ElementTree.Element
         """
-        _, xtce_uri = next(iter(ns.items()))
-        xtce = f"{{{xtce_uri}}}"
-        element = ElementTree.Element(xtce + 'PolynomialCalibrator', nsmap=ns)
-
-        for coeff in self.coefficients:
-            ElementTree.SubElement(element,
-                                   xtce + "Term",
-                                   attrib={"exponent": str(coeff.exponent), "coefficient": str(coeff.coefficient)},
-                                   nsmap=ns)
-
-        return element
+        return elmaker.PolynomialCalibrator(
+            *(elmaker.Term(exponent=str(coeff.exponent), coefficient=str(coeff.coefficient))
+              for coeff in self.coefficients)
+        )
 
     def calibrate(self, uncalibrated_value: float) -> float:
         """Evaluate the polynomial defined by object coefficients at the specified uncalibrated point.
@@ -399,12 +367,12 @@ class MathOperationCalibrator(Calibrator):
         """
         raise NotImplementedError(cls.err_msg)
 
-    def to_xml(self, ns: dict) -> ElementTree.Element:
+    def to_xml(self, elmaker: dict) -> ElementTree.Element:
         """Create a MathOperationsCalibrator XML element
 
         Parameters
         ----------
-        ns : dict
+        elmaker : dict
             XML namespace dict
 
         Returns
@@ -517,35 +485,36 @@ class ContextCalibrator(common.AttrComparable, common.XmlObject):
 
         return cls(match_criteria=match_criteria, calibrator=calibrator)
 
-    def to_xml(self, *, ns: dict) -> ElementTree.Element:
+    def to_xml(self, *, elmaker: ElementMaker) -> ElementTree.Element:
         """Create a MathOperationsCalibrator XML element
 
         Parameters
         ----------
-        ns : dict
-            XML namespace dict
+        elmaker : ElementMaker
+            Element factory with predefined namespace
 
         Returns
         -------
         : ElementTree.Element
         """
-        _, xtce_uri = next(iter(ns.items()))
-        xtce = f"{{{xtce_uri}}}"
-        element = ElementTree.Element(xtce + "ContextCalibrator", nsmap=ns)
-        context_match_element = ElementTree.SubElement(element, xtce + 'ContextMatch', nsmap=ns)
+        context_match_element = elmaker.ContextMatch()
+
         if len(self.match_criteria) > 1:
-            comparison_list_element = ElementTree.SubElement(context_match_element, xtce + 'ComparisonList', nsmap=ns)
-            for comparison in self.match_criteria:
-                comparison_list_element.append(comparison.to_xml(ns=ns))
+            comparison_list_element = elmaker.ComparisonList(
+                *(comp.to_xml(elmaker=elmaker) for comp in self.match_criteria)
+            )
+            context_match_element.append(comparison_list_element)
         elif isinstance(self.match_criteria[0], comparisons.Comparison):
-            context_match_element.append(self.match_criteria[0].to_xml(ns=ns))
+            context_match_element.append(self.match_criteria[0].to_xml(elmaker=elmaker))
         elif isinstance(self.match_criteria[0], comparisons.BooleanExpression):
-            context_match_element.append(self.match_criteria[0].to_xml(ns=ns))
+            context_match_element.append(self.match_criteria[0].to_xml(elmaker=elmaker))
         else:
             raise ValueError("Unsupported ContextMatch contents in match_criteria attribute")
-        calibrator_element = ElementTree.SubElement(element, xtce + 'Calibrator', nsmap=ns)
-        calibrator_element.append(self.calibrator.to_xml(ns=ns))
-        return element
+
+        return elmaker.ContextCalibrator(
+            context_match_element,
+            elmaker.Calibrator(self.calibrator.to_xml(elmaker=elmaker))
+        )
 
     def calibrate(self, parsed_value: Union[int, float]) -> float:
         """Wrapper method for the internal `Calibrator.calibrate`

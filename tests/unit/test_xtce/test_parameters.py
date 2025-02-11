@@ -131,7 +131,7 @@ def test_unsupported_parameter_type_error(test_data_dir):
                                                                               termination_character='00'))),
     ]
 )
-def test_string_parameter_type(xml_string: str, expectation):
+def test_string_parameter_type(elmaker, xml_string: str, expectation):
     """Test parsing an StringParameterType from an XML string"""
     element = ElementTree.fromstring(xml_string)
 
@@ -142,7 +142,7 @@ def test_string_parameter_type(xml_string: str, expectation):
         result = parameters.StringParameterType.from_xml(element, ns=XTCE_NSMAP)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
-        result_string = ElementTree.tostring(result.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
+        result_string = ElementTree.tostring(result.to_xml(elmaker=elmaker), pretty_print=True).decode()
         full_circle = parameters.StringParameterType.from_xml(ElementTree.fromstring(result_string),
                                                               ns=XTCE_NSMAP)
         assert full_circle == expectation
@@ -355,7 +355,7 @@ def test_string_parameter_parsing(parameter_type, raw_data, current_pos, expecte
                                              )))),
     ]
 )
-def test_integer_parameter_type(xml_string: str, expectation):
+def test_integer_parameter_type(elmaker, xml_string: str, expectation):
     """Test parsing an IntegerParameterType from an XML string"""
     element = ElementTree.fromstring(xml_string)
 
@@ -366,7 +366,7 @@ def test_integer_parameter_type(xml_string: str, expectation):
         result = parameters.IntegerParameterType.from_xml(element, ns=XTCE_NSMAP)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
-        result_string = ElementTree.tostring(result.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
+        result_string = ElementTree.tostring(result.to_xml(elmaker=elmaker), pretty_print=True).decode()
         full_circle = parameters.IntegerParameterType.from_xml(
             ElementTree.fromstring(result_string),
             ns=XTCE_NSMAP)
@@ -472,7 +472,7 @@ def test_integer_parameter_type(xml_string: str, expectation):
          -1),
     ]
 )
-def test_integer_parameter_parsing(parameter_type, raw_data, current_pos, expected):
+def test_integer_parameter_parsing(elmaker, parameter_type, raw_data, current_pos, expected):
     """Testing parsing an integer parameters"""
     # pre parsed data to reference for lookups
     packet = packets.CCSDSPacket(raw_data=raw_data, PKT_APID=packets.IntParameter(1101))
@@ -558,7 +558,7 @@ def test_integer_parameter_parsing(parameter_type, raw_data, current_pos, expect
                                            )))),
     ]
 )
-def test_float_parameter_type(xml_string: str, expectation):
+def test_float_parameter_type(elmaker, xml_string: str, expectation):
     """Test parsing an FloatParameterType from an XML string"""
     element = ElementTree.fromstring(xml_string)
 
@@ -569,7 +569,7 @@ def test_float_parameter_type(xml_string: str, expectation):
         result = parameters.FloatParameterType.from_xml(element, ns=XTCE_NSMAP)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
-        result_string = ElementTree.tostring(result.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
+        result_string = ElementTree.tostring(result.to_xml(elmaker=elmaker), pretty_print=True).decode()
         full_circle = parameters.FloatParameterType.from_xml(
             ElementTree.fromstring(result_string),
             ns=XTCE_NSMAP)
@@ -777,7 +777,7 @@ def test_float_parameter_parsing(parameter_type, raw_data, expected):
                                                          b"\x00E\x00E": 'OP_HIGH'})),
     ]
 )
-def test_enumerated_parameter_type(xml_string: str, expectation):
+def test_enumerated_parameter_type(elmaker, xml_string: str, expectation):
     """Test parsing an EnumeratedParameterType from an XML string"""
     element = ElementTree.fromstring(xml_string)
 
@@ -788,7 +788,7 @@ def test_enumerated_parameter_type(xml_string: str, expectation):
         result = parameters.EnumeratedParameterType.from_xml(element, ns=XTCE_NSMAP)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
-        result_string = ElementTree.tostring(result.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
+        result_string = ElementTree.tostring(result.to_xml(elmaker=elmaker), pretty_print=True).decode()
         full_circle = parameters.EnumeratedParameterType.from_xml(
             ElementTree.fromstring(result_string),
             ns=XTCE_NSMAP)
@@ -927,7 +927,7 @@ def test_enumerated_parameter_parsing(parameter_type, raw_data, expected_raw, ex
                                             size_reference_parameter='SizeFromThisParameter'))),
     ]
 )
-def test_binary_parameter_type(xml_string: str, expectation):
+def test_binary_parameter_type(elmaker, xml_string: str, expectation):
     """Test parsing an BinaryParameterType from an XML string"""
     element = ElementTree.fromstring(xml_string)
 
@@ -938,7 +938,7 @@ def test_binary_parameter_type(xml_string: str, expectation):
         result = parameters.BinaryParameterType.from_xml(element, ns=XTCE_NSMAP)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
-        result_string = ElementTree.tostring(result.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
+        result_string = ElementTree.tostring(result.to_xml(elmaker=elmaker), pretty_print=True).decode()
         full_circle = parameters.BinaryParameterType.from_xml(
             ElementTree.fromstring(result_string),
             ns=XTCE_NSMAP)
@@ -1031,7 +1031,7 @@ def test_binary_parameter_parsing(parameter_type, raw_data, expected):
                                                                                termination_character='00'))),
     ]
 )
-def test_boolean_parameter_type(xml_string, expectation):
+def test_boolean_parameter_type(elmaker, xml_string, expectation):
     """Test parsing a BooleanParameterType from an XML string"""
     element = ElementTree.fromstring(xml_string)
 
@@ -1042,7 +1042,7 @@ def test_boolean_parameter_type(xml_string, expectation):
         result = parameters.BooleanParameterType.from_xml(element, ns=XTCE_NSMAP)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
-        result_string = ElementTree.tostring(result.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
+        result_string = ElementTree.tostring(result.to_xml(elmaker=elmaker), pretty_print=True).decode()
         full_circle = parameters.BooleanParameterType.from_xml(
             ElementTree.fromstring(result_string),
             ns=XTCE_NSMAP)
@@ -1190,7 +1190,7 @@ def test_boolean_parameter_parsing(parameter_type, raw_data, current_pos, expect
          )),
     ]
 )
-def test_absolute_time_parameter_type(xml_string, expectation):
+def test_absolute_time_parameter_type(elmaker, xml_string, expectation):
     """Test parsing an AbsoluteTimeParameterType from an XML string."""
     element = ElementTree.fromstring(xml_string)
 
@@ -1201,8 +1201,7 @@ def test_absolute_time_parameter_type(xml_string, expectation):
         result = parameters.AbsoluteTimeParameterType.from_xml(element, ns=XTCE_NSMAP)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
-        result_string = ElementTree.tostring(result.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
-        print(result_string)
+        result_string = ElementTree.tostring(result.to_xml(elmaker=elmaker), pretty_print=True).decode()
         full_circle = parameters.AbsoluteTimeParameterType.from_xml(
             ElementTree.fromstring(result_string),
             ns=XTCE_NSMAP)
@@ -1277,6 +1276,6 @@ def test_absolute_time_parameter_parsing(parameter_type, raw_data, current_pos, 
          )
     ]
 )
-def test_parameter(param_xml, param_object):
+def test_parameter(elmaker, param_xml, param_object):
     """Test Parameter"""
-    assert ElementTree.tostring(param_object.to_parameter_xml_element(XTCE_NSMAP), pretty_print=True) == ElementTree.tostring(ElementTree.fromstring(param_xml), pretty_print=True)
+    assert ElementTree.tostring(param_object.to_xml(elmaker=elmaker), pretty_print=True) == ElementTree.tostring(ElementTree.fromstring(param_xml), pretty_print=True)

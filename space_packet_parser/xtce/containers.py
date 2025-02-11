@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from lxml import etree as ElementTree
+from lxml.builder import ElementMaker
 
 from space_packet_parser import common, packets
 from space_packet_parser.exceptions import ElementNotFoundError
@@ -136,63 +137,61 @@ class SequenceContainer(common.Parseable, common.XmlObject):
                    short_description=short_description,
                    long_description=long_description)
 
-    def to_xml(self, *, ns: dict) -> ElementTree.Element:
+    def to_xml(self, *, elmaker: ElementMaker) -> ElementTree.Element:
         """Create a SequenceContainer XML element
 
         Parameters
         ----------
-        ns : dict
-            XML namespace dict
+        elmaker : ElementMaker
+            Element factory with predefined namespace
 
         Returns
         -------
         : ElementTree.Element
         """
-        _, xtce_uri = next(iter(ns.items()))
-        xtce = f"{{{xtce_uri}}}"
-        element = ElementTree.Element(xtce + "SequenceContainer",
-                                      attrib={
-                                          "abstract": str(self.abstract).lower(),
-                                          "name": self.name
-                                      },
-                                      nsmap=ns)
+        em = elmaker
+        sc_attrib = {
+            "abstract": str(self.abstract).lower(),
+            "name": self.name
+        }
         if self.short_description:
-            element.attrib["shortDescription"] = self.short_description
+            sc_attrib["shortDescription"] = self.short_description
+
+        sc = em.SequenceContainer(**sc_attrib)
 
         if self.long_description:
-            ld = ElementTree.SubElement(element, xtce + "LongDescription", nsmap=ns)
-            ld.text = self.long_description
+            sc.append(
+                em.LongDescription(self.long_description)
+            )
+
+        if len(self.restriction_criteria) == 1:
+            restrictions = self.restriction_criteria[0].to_xml(elmaker=elmaker)
+        else:
+            restrictions = em.ComparisonList(
+                *(rc.to_xml(elmaker=elmaker) for rc in self.restriction_criteria)
+            )
 
         if self.base_container_name:
-            base_container = ElementTree.SubElement(element,
-                                                    xtce + "BaseContainer",
-                                                    attrib={"containerRef": self.base_container_name},
-                                                    nsmap=ns)
-            if self.restriction_criteria:
-                restriction_criteria = ElementTree.SubElement(base_container,
-                                                              xtce + "RestrictionCriteria",
-                                                              nsmap=ns)
-                if len(self.restriction_criteria) == 1:
-                    restriction_criteria.append(self.restriction_criteria[0].to_xml(ns=ns))
-                else:
-                    comp_list = ElementTree.SubElement(restriction_criteria, xtce + "ComparisonList", nsmap=ns)
-                    for comp in self.restriction_criteria:
-                        comp_list.append(comp.to_xml(ns=ns))
+            sc.append(
+                em.BaseContainer(
+                    em.RestrictionCriteria(restrictions),
+                    containerRef=self.base_container_name
+                ),
+            )
 
-        entry_list = ElementTree.SubElement(element, xtce + "EntryList", nsmap=ns)
+        entry_list = em.EntryList()
         for entry in self.entry_list:
             if isinstance(entry, parameters.Parameter):
-                ElementTree.SubElement(entry_list,
-                                       xtce + "ParameterRefEntry",
-                                       attrib={"parameterRef": entry.name},
-                                       nsmap=ns)
+                entry_element = em.ParameterRefEntry(parameterRef=entry.name)
             elif isinstance(entry, SequenceContainer):
-                ElementTree.SubElement(entry_list,
-                                       xtce + "ContainerRefEntry",
-                                       attrib={"containerRef": entry.name},
-                                       nsmap=ns)
+                entry_element = em.ContainerRefEntry(containerRef=entry.name)
+            else:
+                raise ValueError(f"Unrecognized element in EntryList for sequence container {self.name}")
+            entry_list.append(entry_element)
 
-        return element
+        sc.append(entry_list)
+
+        return sc
 
     @staticmethod
     def _find_container_by_name(tree: ElementTree.ElementTree, name: str, ns: dict) -> ElementTree.Element:

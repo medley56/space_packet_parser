@@ -11,7 +11,4 @@ def test_load_xml(jpss_test_data_dir, tmp_path):
     xtcedef.write_xml(outpath)
     assert outpath.exists()
 
-    with outpath.open('r') as f:
-        print(f.read())
-
     assert space_packet_parser.load_xml(outpath) == xtcedef

@@ -113,7 +113,7 @@ from space_packet_parser.xtce import comparisons, XTCE_NSMAP
     ]
 )
 @pytest.mark.filterwarnings("ignore:Performing a comparison against a current value")
-def test_comparison(xml_string, test_parsed_data, current_parsed_value, expected_comparison_result):
+def test_comparison(elmaker, xml_string, test_parsed_data, current_parsed_value, expected_comparison_result):
     """Test Comparison object"""
     element = ElementTree.fromstring(xml_string)
     if isinstance(expected_comparison_result, Exception):
@@ -124,7 +124,7 @@ def test_comparison(xml_string, test_parsed_data, current_parsed_value, expected
         comparison = comparisons.Comparison.from_xml(element, ns=XTCE_NSMAP)
         assert comparison.evaluate(test_parsed_data, current_parsed_value) == expected_comparison_result
         # Recover XML and re-parse it to check it's reproducible
-        result_string = ElementTree.tostring(comparison.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
+        result_string = ElementTree.tostring(comparison.to_xml(elmaker=elmaker), pretty_print=True).decode()
         full_circle = comparisons.Comparison.from_xml(ElementTree.fromstring(result_string),
                                                       ns=XTCE_NSMAP)
         assert full_circle.evaluate(test_parsed_data, current_parsed_value) == expected_comparison_result
@@ -179,13 +179,13 @@ def test_comparison(xml_string, test_parsed_data, current_parsed_value, expected
           'P2': packets.FloatParameter(3.14, 180)}, True),
     ]
 )
-def test_condition(xml_string, test_parsed_data, expected_condition_result):
+def test_condition(elmaker, xml_string, test_parsed_data, expected_condition_result):
     """Test Condition object"""
     element = ElementTree.fromstring(xml_string)
     condition = comparisons.Condition.from_xml(element, ns=XTCE_NSMAP)
     assert condition.evaluate(test_parsed_data, None) == expected_condition_result
     # Recover XML and re-parse it to check it's reproducible
-    result_string = ElementTree.tostring(condition.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
+    result_string = ElementTree.tostring(condition.to_xml(elmaker=elmaker), pretty_print=True).decode()
     full_circle = comparisons.Condition.from_xml(ElementTree.fromstring(result_string),
                                                  ns=XTCE_NSMAP)
     assert full_circle.evaluate(test_parsed_data) == expected_condition_result
@@ -257,7 +257,7 @@ def test_condition(xml_string, test_parsed_data, expected_condition_result):
           'P4': packets.IntParameter(99, 4)}, True),
     ]
 )
-def test_boolean_expression(xml_string, test_parsed_data, expected_result):
+def test_boolean_expression(elmaker, xml_string, test_parsed_data, expected_result):
     """Test BooleanExpression object"""
     element = ElementTree.fromstring(xml_string)
     if isinstance(expected_result, Exception):
@@ -267,7 +267,7 @@ def test_boolean_expression(xml_string, test_parsed_data, expected_result):
         expression = comparisons.BooleanExpression.from_xml(element, ns=XTCE_NSMAP)
         assert expression.evaluate(test_parsed_data, current_parsed_value=None) == expected_result
         # Recover XML and re-parse it to check it's reproducible
-        result_string = ElementTree.tostring(expression.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
+        result_string = ElementTree.tostring(expression.to_xml(elmaker=elmaker), pretty_print=True).decode()
         full_circle = comparisons.BooleanExpression.from_xml(ElementTree.fromstring(result_string),
                                                              ns=XTCE_NSMAP)
         assert full_circle.evaluate(test_parsed_data) == expected_result
@@ -302,14 +302,13 @@ def test_boolean_expression(xml_string, test_parsed_data, expected_result):
          }, 11),
     ]
 )
-def test_discrete_lookup(xml_string, test_parsed_data, expected_lookup_result):
+def test_discrete_lookup(elmaker, xml_string, test_parsed_data, expected_lookup_result):
     """Test DiscreteLookup object"""
     element = ElementTree.fromstring(xml_string)
-    discrete_lookup = comparisons.DiscreteLookup.from_discrete_lookup_xml_element(element, XTCE_NSMAP)
+    discrete_lookup = comparisons.DiscreteLookup.from_xml(element, ns=XTCE_NSMAP)
     assert discrete_lookup.evaluate(test_parsed_data, current_parsed_value=None) == expected_lookup_result
     # Recover XML and re-parse it to check it's reproducible
-    result_string = ElementTree.tostring(discrete_lookup.to_discrete_lookup_xml_element(XTCE_NSMAP), pretty_print=True).decode()
-    print(result_string)
-    full_circle = comparisons.DiscreteLookup.from_discrete_lookup_xml_element(ElementTree.fromstring(result_string),
-                                                                              ns=XTCE_NSMAP)
+    result_string = ElementTree.tostring(discrete_lookup.to_xml(elmaker=elmaker), pretty_print=True).decode()
+    full_circle = comparisons.DiscreteLookup.from_xml(ElementTree.fromstring(result_string),
+                                                      ns=XTCE_NSMAP)
     assert full_circle.evaluate(test_parsed_data) == expected_lookup_result

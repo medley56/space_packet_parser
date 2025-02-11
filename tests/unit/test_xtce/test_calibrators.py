@@ -117,15 +117,14 @@ from space_packet_parser.xtce import calibrators, comparisons, XTCE_NSMAP
              ]))),
     ]
 )
-def test_context_calibrator(xml_string, expectation):
+def test_context_calibrator(elmaker, xml_string, expectation):
     """Test parsing a ContextCalibrator from an XML element"""
     element = ElementTree.fromstring(xml_string)
 
     result = calibrators.ContextCalibrator.from_xml(element, ns=XTCE_NSMAP)
     assert result == expectation
     # Re parse the serialized form of the context calibrator to make sure we can recover it
-    result_string = ElementTree.tostring(result.to_xml(ns=XTCE_NSMAP), pretty_print=True).decode()
-    print(result_string)
+    result_string = ElementTree.tostring(result.to_xml(elmaker=elmaker), pretty_print=True).decode()
     full_circle = calibrators.ContextCalibrator.from_xml(ElementTree.fromstring(result_string), ns=XTCE_NSMAP)
     assert full_circle == expectation
 
@@ -243,7 +242,7 @@ def test_context_calibrator_calibrate(context_calibrator, parsed_data, parsed_va
          ])),
     ]
 )
-def test_spline_calibrator(xml_string: str, expectation):
+def test_spline_calibrator(elmaker, xml_string: str, expectation):
     """Test parsing a StringDataEncoding from an XML string"""
     element = ElementTree.fromstring(xml_string)
 
@@ -254,7 +253,7 @@ def test_spline_calibrator(xml_string: str, expectation):
         result = calibrators.SplineCalibrator.from_xml(element, ns=XTCE_NSMAP)
         assert result == expectation
         # Re serialize to XML and re parse it to ensure we can reproduce it
-        result_string = ElementTree.tostring(result.to_xml(XTCE_NSMAP), pretty_print=True).decode()
+        result_string = ElementTree.tostring(result.to_xml(elmaker=elmaker), pretty_print=True).decode()
         full_circle = calibrators.SplineCalibrator.from_xml(
             ElementTree.fromstring(result_string),
             ns=XTCE_NSMAP)
@@ -320,7 +319,7 @@ def test_spline_calibrator_calibrate(xq, order, extrapolate, expectation):
          ])),
     ]
 )
-def test_polynomial_calibrator(xml_string: str, expectation):
+def test_polynomial_calibrator(elmaker, xml_string: str, expectation):
     """Test parsing a StringDataEncoding from an XML string"""
     element = ElementTree.fromstring(xml_string)
 
@@ -331,7 +330,7 @@ def test_polynomial_calibrator(xml_string: str, expectation):
         result = calibrators.PolynomialCalibrator.from_xml(element, ns=XTCE_NSMAP)
         assert result == expectation
         # Re serialize to XML and re parse it to ensure we can reproduce it
-        result_string = ElementTree.tostring(result.to_xml(XTCE_NSMAP), pretty_print=True).decode()
+        result_string = ElementTree.tostring(result.to_xml(elmaker=elmaker), pretty_print=True).decode()
         full_circle = calibrators.PolynomialCalibrator.from_xml(
             ElementTree.fromstring(result_string),
             ns=XTCE_NSMAP)

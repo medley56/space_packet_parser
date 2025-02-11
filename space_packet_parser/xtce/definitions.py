@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import BinaryIO, Optional, TextIO, Union
 
 import lxml.etree as ElementTree
+from lxml.builder import ElementMaker
 
 from space_packet_parser import common, packets
 from space_packet_parser.exceptions import InvalidParameterTypeError, UnrecognizedPacketTypeError
@@ -102,58 +103,48 @@ class XtcePacketDefinition(common.AttrComparable):
         """
         self.to_xml_tree().write(filepath.absolute(), pretty_print=True, xml_declaration=True, encoding="utf-8")
 
-    def to_xml_tree(self, ns: Optional[dict] = None) -> ElementTree.ElementTree:
+    def to_xml_tree(self) -> ElementTree.ElementTree:
         """Initializes and returns an ElementTree object based on parameter type, parameter, and container information
-
-        Parameters
-        ----------
-        ns : Optional[dict]
-            XML namespace dictionary. Defaults to internal namespace dict, provided on initialization.
 
         Returns
         -------
         : ElementTree.ElementTree
         """
-        if not ns:
-            ns = self.ns
-        xtce_label, xtce_uri = next(iter(ns.items()))
-        xtce = f"{{{xtce_uri}}}"
-        tree = ElementTree.ElementTree(ElementTree.Element(xtce + "SpaceSystem", nsmap=ns))
+        # ElementMaker element factory with predefined namespace and namespace mapping
+        # The XTCE namespace actually defines the XTCE elements
+        # The ns mapping just affects the serialization of XTCE elements
+        # Both can be None, resulting in no namespace awareness
+        elmaker = ElementMaker(namespace=self.xtce_schema_uri, nsmap=self.ns)
 
-        space_system_root = tree.getroot()
+        space_system_attrib = {}
         if self.space_system_name:
-            space_system_root.attrib["name"] = self.space_system_name
+            space_system_attrib["name"] = self.space_system_name
 
-        header = ElementTree.SubElement(space_system_root, xtce + "Header",
-                                        attrib={
-                                            "date": self.date or datetime.now().isoformat(),
-                                            "version": self.xtce_version
-                                        },
-                                        nsmap=ns)
+        header_attrib = {
+            "date": self.date or datetime.now().isoformat(),
+            "version": self.xtce_version
+        }
         if self.author:
-            header.attrib["author"] = self.author
+            header_attrib["author"] = self.author
 
-        telemetry_metadata_element = ElementTree.SubElement(space_system_root,
-                                                            xtce + "TelemetryMetaData",
-                                                            nsmap=ns)
-
-        parameter_type_set = ElementTree.SubElement(telemetry_metadata_element,
-                                                    xtce + "ParameterTypeSet",
-                                                    nsmap=ns)
-        for _, ptype in self._parameter_type_cache.items():
-            parameter_type_set.append(ptype.to_xml(ns=ns))
-
-        parameter_set = ElementTree.SubElement(telemetry_metadata_element,
-                                               xtce + "ParameterSet",
-                                               nsmap=ns)
-        for _, param in self._parameter_cache.items():
-            parameter_set.append(param.to_parameter_xml_element(ns))
-
-        sequence_container_set = ElementTree.SubElement(telemetry_metadata_element,
-                                                        xtce + "ContainerSet",
-                                                        nsmap=ns)
-        for _, sc in self._sequence_container_cache.items():
-            sequence_container_set.append(sc.to_xml(ns=ns))
+        tree = ElementTree.ElementTree(
+            elmaker.SpaceSystem(
+                elmaker.Header(**header_attrib),
+                elmaker.TelemetryMetaData(
+                    elmaker.ParameterTypeSet(
+                        # TODO: Pass elmaker instead of self.ns to to_xml
+                        *(ptype.to_xml(elmaker=elmaker) for ptype in self._parameter_type_cache.values()),
+                    ),
+                    elmaker.ParameterSet(
+                        *(param.to_xml(elmaker=elmaker) for param in self._parameter_cache.values()),
+                    ),
+                    elmaker.ContainerSet(
+                        *(sc.to_xml(elmaker=elmaker) for sc in self._sequence_container_cache.values()),
+                    )
+                ),
+                **space_system_attrib
+            )
+        )
 
         return tree
 
@@ -162,10 +153,11 @@ class XtcePacketDefinition(common.AttrComparable):
             cls,
             xtce_document: Union[str, Path, TextIO],
             *,
-            ns: Optional[dict] = None,
+            xtce_schema_uri: Optional[str] = XTCE_URI,
             root_container_name: Optional[str] = DEFAULT_ROOT_CONTAINER
     ) -> 'XtcePacketDefinition':
-        """Instantiate an object representation of a CCSDS packet definition, according to a format specified in an XTCE
+        f"""Instantiate an object representation of a CCSDS packet definition,
+        according to a format specified in an XTCE
         XML document. The parser iteratively builds sequences of parameters according to the
         SequenceContainers specified in the XML document's ContainerSet element. The notions of container inheritance
         (via BaseContainer) and nested container (by including a SequenceContainer within a SequenceContainer) are
@@ -176,25 +168,28 @@ class XtcePacketDefinition(common.AttrComparable):
         ----------
         xtce_document : TextIO
             Path to XTCE XML document containing packet definition.
-        ns : Optional[dict]
-            Optional different namespace than the namespace defined in the XTCE document.
+        xtce_schema_uri : Optional[str]
+            The URI associated with XTCE. Default is {XTCE_URI}. None means no namespace awareness.
         root_container_name : Optional[str]
-            Optional override to the root container name. Default is 'CCSDSPacket'.
+            Optional override to the root container name. Default is {DEFAULT_ROOT_CONTAINER}.
         """
         tree = ElementTree.parse(xtce_document)  # noqa: S320
         space_system = tree.getroot()
-        ns = ns or tree.getroot().nsmap
-        if ns:
-            xtce_label, xtce_uri = next(iter(ns.items()))
+        ns = tree.getroot().nsmap
+        header = space_system.find(f"{{{xtce_schema_uri}}}" + "Header")
+        if header is not None:
+            author = header.attrib.get("author", None)
+            date = header.attrib.get("date", None)
         else:
-            xtce_uri = ""
-        xtce = f"{{{xtce_uri}}}"
-        header = space_system.find(xtce + "Header", ns)
+            author = None
+            date = None
+
         xtce_definition = cls(
             ns=ns,
+            xtce_schema_uri=xtce_schema_uri,
             root_container_name=root_container_name,
-            author=header.attrib.get("author", None),
-            date=header.attrib.get("date", None),
+            author=author,
+            date=date,
             space_system_name=space_system.attrib.get("name", None)
         )
 
@@ -207,9 +202,6 @@ class XtcePacketDefinition(common.AttrComparable):
         )
 
         return xtce_definition
-
-    # def __getitem__(self, item):
-    #     return self._sequence_container_cache[item]
 
     @staticmethod
     def _get_sequence_containers(
@@ -282,6 +274,8 @@ class XtcePacketDefinition(common.AttrComparable):
 
         parameter_type_dict = {}
         for parameter_type_element in tree.getroot().iterfind(f'{xtce}TelemetryMetaData/{xtce}ParameterTypeSet/*', ns):
+            # TODO: This should really be a call to a ParameterType.from_xml() method. Adding a ParameterType class
+            #  will also make it more feasible to add array parameter types and aggregate parameter types
             parameter_type_name = parameter_type_element.attrib['name']
             if parameter_type_name in parameter_type_dict:
                 raise ValueError(f"Found duplicate parameter type {parameter_type_name}. "
@@ -336,29 +330,12 @@ class XtcePacketDefinition(common.AttrComparable):
         xtce = f"{{{xtce_uri}}}"
         for parameter_element in tree.getroot().iterfind(
                 f'{xtce}TelemetryMetaData/{xtce}ParameterSet/{xtce}Parameter', ns):
-            parameter_name = parameter_element.attrib['name']
-            if parameter_name in parameter_dict:
-                raise ValueError(f"Found duplicate parameter name {parameter_name}. "
+            parameter_object = parameters.Parameter.from_xml(parameter_element, ns=ns,
+                                                             parameter_type_lookup=parameter_type_lookup)
+            if parameter_object.name in parameter_dict:
+                raise ValueError(f"Found duplicate parameter name {parameter_object.name}. "
                                  f"Parameters are expected to be unique")
-            parameter_type_name = parameter_element.attrib['parameterTypeRef']
-
-            # Lookup from within the parameter type cache
-            parameter_type_object = parameter_type_lookup[parameter_type_name]
-
-            parameter_short_description = parameter_element.attrib['shortDescription'] if (
-                    'shortDescription' in parameter_element.attrib
-            ) else None
-            parameter_long_description = parameter_element.find('xtce:LongDescription', ns).text if (
-                    parameter_element.find('xtce:LongDescription', ns) is not None
-            ) else None
-
-            parameter_object = parameters.Parameter(
-                name=parameter_name,
-                parameter_type=parameter_type_object,
-                short_description=parameter_short_description,
-                long_description=parameter_long_description
-            )
-            parameter_dict[parameter_name] = parameter_object  # Add to cache
+            parameter_dict[parameter_object.name] = parameter_object  # Add to cache
 
         return parameter_dict
 

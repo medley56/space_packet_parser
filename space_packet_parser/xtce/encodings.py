@@ -6,6 +6,7 @@ from abc import ABCMeta, abstractmethod
 from typing import Optional, Union
 
 import lxml.etree as ElementTree
+from lxml.builder import ElementMaker
 
 from space_packet_parser import common, packets
 from space_packet_parser.xtce import calibrators, comparisons
@@ -15,55 +16,6 @@ logger = logging.getLogger(__name__)
 
 class DataEncoding(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
     """Abstract base class for XTCE data encodings"""
-
-    @classmethod
-    @abstractmethod
-    def from_xml(
-            cls,
-            element: ElementTree.Element,
-            *,
-            ns: dict,
-            tree: Optional[ElementTree.Element] = None,
-            parameter_lookup: Optional[dict[str, any]] = None,
-            parameter_type_lookup: Optional[dict[str, any]] = None
-    ) -> 'DataEncoding':
-        """Abstract classmethod to create a data encoding object from an XML element.
-
-        Parameters
-        ----------
-        element : ElementTree.Element
-            XML element
-        ns : dict
-            XML namespace dict
-        tree: Optional[ElementTree.Element]
-            Ignored
-        parameter_lookup: Optional[dict]
-            Ignored
-        parameter_type_lookup: Optional[dict]
-            Ignored
-
-        Returns
-        -------
-        : DataEncoding
-        """
-        return NotImplemented
-
-    @abstractmethod
-    def to_xml(self, *, ns: dict) -> ElementTree.Element:
-        """Abstract method to create an XML element from a data encoding object.
-
-        Parameters
-        ----------
-        ns : dict
-            XML namespace mapping from name (key) to URI (value). Used to prepend URIs on to elements for proper naming
-
-        Returns
-        -------
-        : ElementTree.Element
-            The XML element
-        """
-        return NotImplemented
-
 
     @staticmethod
     def get_default_calibrator(data_encoding_element: ElementTree.Element,
@@ -484,7 +436,7 @@ class StringDataEncoding(DataEncoding):
             elif size_element.find("xtce:DiscreteLookupList", ns) is not None:
                 # Raw string length is specified by lookup table based on another parameter
                 discrete_lookup_list_element = element.find('xtce:Variable/xtce:DiscreteLookupList', ns)
-                discrete_lookup_list = [comparisons.DiscreteLookup.from_discrete_lookup_xml_element(el, ns)
+                discrete_lookup_list = [comparisons.DiscreteLookup.from_xml(el, ns=ns)
                                         for el in discrete_lookup_list_element.findall('xtce:DiscreteLookup', ns)]
                 init_kwargs["discrete_lookup_length"] = discrete_lookup_list
             else:
@@ -503,62 +455,69 @@ class StringDataEncoding(DataEncoding):
 
         return cls(**init_kwargs)
 
-    def to_xml(self, *, ns: dict) -> ElementTree.Element:
+    def to_xml(self, *, elmaker: ElementMaker) -> ElementTree.Element:
         """Create a data encoding XML element
+
+        Parameters
+        ----------
+        elmaker: ElementMaker
+            Element factory with predefined namespace
 
         Returns
         -------
         : ElementTree.Element
         """
-        _, xtce_uri = next(iter(ns.items()))
-        xtce = f"{{{xtce_uri}}}"
-        element = ElementTree.Element(xtce + "StringDataEncoding", attrib={"encoding": self.encoding}, nsmap=ns)
+        element = elmaker.StringDataEncoding(encoding=self.encoding)
 
         if self.fixed_length:
-            size_element = ElementTree.SubElement(element, xtce + "SizeInBits", nsmap=ns)
-            fixed = ElementTree.SubElement(size_element, xtce + "Fixed", nsmap=ns)
-            fixed_value = ElementTree.SubElement(fixed, xtce + "FixedValue", nsmap=ns)
-            fixed_value.text = str(self.fixed_length)
+            size_element = elmaker.SizeInBits(
+                elmaker.Fixed(
+                    elmaker.FixedValue(str(self.fixed_length))
+                )
+            )
         else:
-            size_element = ElementTree.SubElement(element, xtce + "Variable", nsmap=ns)
+            size_element = elmaker.Variable()
             if self.dynamic_length_reference:
-                dynamic_value_element = ElementTree.SubElement(size_element, xtce + "DynamicValue", nsmap=ns)
-                ElementTree.SubElement(dynamic_value_element,
-                                       xtce + "ParameterInstanceRef",
-                                       attrib={
-                                           "parameterRef": self.dynamic_length_reference,
-                                           "useCalibratedValue": str(self.use_calibrated_value).lower(),
-                                       },
-                                       nsmap=ns)
+                dynamic_value_element = elmaker.DynamicValue(
+                    elmaker.ParameterInstanceRef(
+                        parameterRef=self.dynamic_length_reference,
+                        useCalibratedValue=str(self.use_calibrated_value).lower(),
+                    )
+                )
+
                 if self.length_linear_adjuster:
                     intercept = self.length_linear_adjuster(0)  # f(0)
                     slope = self.length_linear_adjuster(1) - intercept  # ( f(1) - f(0) ) / (1 - 0)
-                    ElementTree.SubElement(dynamic_value_element,
-                                           xtce + "LinearAdjustment",
-                                           attrib={
-                                               "intercept": str(intercept),
-                                               "slope": str(slope)
-                                           },
-                                           nsmap=ns)
+                    dynamic_value_element.append(
+                        elmaker.LinearAdjustment(
+                            intercept=str(intercept),
+                            slope=str(slope),
+                        )
+                    )
+
+                size_element.append(dynamic_value_element)
 
             elif self.discrete_lookup_length:
-                discrete_lookup_list_element = ElementTree.SubElement(size_element,
-                                                                      xtce + "DiscreteLookupList",
-                                                                      nsmap=ns)
-                for dl in self.discrete_lookup_length:
-                    discrete_lookup_list_element.append(dl.to_discrete_lookup_xml_element(ns))
+                size_element.append(
+                    elmaker.DiscreteLookupList(
+                        *(dl.to_xml(elmaker=elmaker) for dl in self.discrete_lookup_length)
+                    )
+                )
 
             else:
                 raise ValueError("Variable element must contain either DynamicValue or DiscreteLookupList.")
 
         if self.leading_length_size:
-            ElementTree.SubElement(size_element, xtce + "LeadingSize",
-                                   attrib={"sizeInBitsOfSizeTag": str(self.leading_length_size)},
-                                   nsmap=ns)
+            size_element.append(
+                elmaker.LeadingSize(sizeInBitsOfSizeTag=str(self.leading_length_size))
+            )
 
         if self.termination_character:
-            tchar_element = ElementTree.SubElement(size_element, xtce + "TerminationChar", nsmap=ns)
-            tchar_element.text = self.termination_character.hex()
+            size_element.append(
+                elmaker.TerminationChar(self.termination_character.hex())
+            )
+
+        element.append(size_element)
 
         return element
 
@@ -659,31 +618,37 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
         # No calibrations applied, we need to determine if it's an int or a float encoding calling this routine
         return self._data_return_class(parsed_value)
 
-    def to_xml(self, *, ns: dict) -> ElementTree.Element:
+    def to_xml(self, *, elmaker: ElementMaker) -> ElementTree.Element:
         """Create a data encoding XML element
+
+        Parameters
+        ----------
+        elmaker: ElementMaker
+            Element factory with predefined namespace
 
         Returns
         -------
         : ElementTree.Element
         """
-        _, xtce_uri = next(iter(ns.items()))
-        xtce = f"{{{xtce_uri}}}"
-        element = ElementTree.Element(xtce + self.__class__.__name__,
-                                      attrib={
-                                          "sizeInBits": str(self.size_in_bits),
-                                          "encoding": self.encoding,
-                                          "byteOrder": self.byte_order
-                                      },
-                                      nsmap=ns)
+        element = getattr(elmaker, self.__class__.__name__)(
+            sizeInBits=str(self.size_in_bits),
+            encoding=self.encoding,
+            byteOrder=self.byte_order,
+        )
 
         if self.default_calibrator:
-            default_calibrator_element = ElementTree.SubElement(element, xtce + "DefaultCalibrator", nsmap=ns)
-            default_calibrator_element.append(self.default_calibrator.to_xml(ns=ns))
+            element.append(
+                elmaker.DefaultCalibrator(
+                    self.default_calibrator.to_xml(elmaker=elmaker)
+                )
+            )
 
         if self.context_calibrators:
-            context_calibrator_list_element = ElementTree.SubElement(element, xtce + "ContextCalibratorList", nsmap=ns)
-            for cal in self.context_calibrators:
-                context_calibrator_list_element.append(cal.to_xml(ns=ns))
+            element.append(
+                elmaker.ContextCalibratorList(
+                    *(cal.to_xml(elmaker=elmaker) for cal in self.context_calibrators)
+                )
+            )
 
         return element
 
@@ -1028,55 +993,60 @@ class BinaryDataEncoding(DataEncoding):
 
         discrete_lookup_list_element = element.find('xtce:SizeInBits/xtce:DiscreteLookupList', ns)
         if discrete_lookup_list_element is not None:
-            discrete_lookup_list = [comparisons.DiscreteLookup.from_discrete_lookup_xml_element(el, ns)
+            discrete_lookup_list = [comparisons.DiscreteLookup.from_xml(el, ns=ns)
                                     for el in discrete_lookup_list_element.findall('xtce:DiscreteLookup', ns)]
             return cls(size_discrete_lookup_list=discrete_lookup_list)
 
         raise ValueError("Tried parsing a binary parameter length using Fixed, Dynamic, and DiscreteLookupList "
                          "but failed. See 3.4.5 of the XTCE Green Book CCSDS 660.1-G-2.")
 
-    def to_xml(self, *, ns: dict) -> ElementTree.Element:
+    def to_xml(self, *, elmaker: ElementMaker) -> ElementTree.Element:
         """Create a data encoding XML element
 
         Parameters
         ----------
-        ns : dict
-            XML namespace dict
+        elmaker : ElementMaker
+            Element factory with predefined namespace
 
         Returns
         -------
         : ElementTree.Element
         """
-        _, xtce_uri = next(iter(ns.items()))
-        xtce = f"{{{xtce_uri}}}"
-        element = ElementTree.Element(xtce + "BinaryDataEncoding", nsmap=ns)
-        size_in_bits = ElementTree.SubElement(element, xtce + "SizeInBits", nsmap=ns)
-
         if self.fixed_size_in_bits:
-            fixed_value = ElementTree.SubElement(size_in_bits, xtce + "FixedValue", nsmap=ns)
-            fixed_value.text = str(self.fixed_size_in_bits)
-            return element
+            return elmaker.BinaryDataEncoding(
+                elmaker.SizeInBits(
+                    elmaker.FixedValue(str(self.fixed_size_in_bits))
+                )
+            )
+
+        size_in_bits = elmaker.SizeInBits()
+        element = elmaker.BinaryDataEncoding(size_in_bits)
 
         if self.size_reference_parameter:
-            dynamic_value = ElementTree.SubElement(size_in_bits, xtce + "DynamicValue", nsmap=ns)
-            ElementTree.SubElement(dynamic_value,
-                                   xtce + "ParameterInstanceRef",
-                                   attrib={
-                                       "parameterRef": self.size_reference_parameter,
-                                       "useCalibratedValue": str(self.use_calibrated_value).lower()
-                                   },
-                                   nsmap=ns)
+            dynamic_value = elmaker.DynamicValue(
+                elmaker.ParameterInstanceRef(
+                    parameterRef=self.size_reference_parameter,
+                    useCalibratedValue=str(self.use_calibrated_value).lower(),
+                )
+            )
+
             if self.linear_adjuster:
                 intercept = self.linear_adjuster(0)
                 slope = self.linear_adjuster(1) - intercept
-                ElementTree.SubElement(dynamic_value,
-                                       xtce + "LinearAdjustment",
-                                       attrib={"intercept": str(intercept), "slope": str(slope)},
-                                       nsmap=ns)
+                dynamic_value.append(
+                    elmaker.LinearAdjustment(
+                        intercept=str(intercept),
+                        slope=str(slope),
+                    )
+                )
+
+            size_in_bits.append(dynamic_value)
 
         if self.size_discrete_lookup_list:
-            discrete_lookup = ElementTree.SubElement(size_in_bits, xtce + "DiscreteLookupList", nsmap=ns)
-            for dl in self.size_discrete_lookup_list:
-                discrete_lookup.append(dl.to_discrete_lookup_xml_element(ns))
+            size_in_bits.append(
+                elmaker.DiscreteLookupList(
+                    *(dl.to_xml(elmaker=elmaker) for dl in self.size_discrete_lookup_list)
+                )
+            )
 
         return element

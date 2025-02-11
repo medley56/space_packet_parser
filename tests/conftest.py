@@ -1,12 +1,17 @@
 """Test fixtures"""
-# Standard
 from pathlib import Path
 import sys
-# Installed
-import pytest
 
-XTCE_URI = "http://www.omg.org/space/xtce"
-TEST_NAMESPACE = {'xtce': XTCE_URI}
+import pytest
+from lxml.builder import ElementMaker
+
+from space_packet_parser.xtce import XTCE_URI, XTCE_NSMAP
+
+
+@pytest.fixture(scope="session")
+def elmaker():
+    """ElementMaker for testing XML element creation"""
+    return ElementMaker(namespace=XTCE_URI, nsmap=XTCE_NSMAP)
 
 
 @pytest.fixture

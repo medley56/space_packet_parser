@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Optional, Union
 
 import lxml.etree as ElementTree
+from lxml.builder import ElementMaker
 
 from space_packet_parser import common, packets
 from space_packet_parser.xtce import calibrators, encodings
@@ -76,24 +77,29 @@ class ParameterType(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
         encoding = cls.get_data_encoding(element, ns)
         return cls(name, encoding, unit)
 
-    def to_xml(self, *, ns: dict) -> ElementTree.Element:
+    def to_xml(self, *, elmaker: ElementMaker) -> ElementTree.Element:
         """Create a parameter type XML element
+
+        Parameters
+        ----------
+        elmaker: ElementMaker
+            Element factory with predefined namespace
 
         Returns
         -------
         : ElementTree.Element
         """
-        _, xtce_uri = next(iter(ns.items()))
-        xtce = f"{{{xtce_uri}}}"
-        param_type_element = ElementTree.Element(xtce + self.__class__.__name__,
-                                                 attrib={"name": self.name},
-                                                 nsmap=ns)
+        # This looks funny because it's creating a dynamically named XML element from the ElementMaker API
+        param_type_element = getattr(elmaker, self.__class__.__name__)(name=self.name)
+
         if self.unit:
-            unitset_element = ElementTree.SubElement(param_type_element, xtce + "UnitSet", nsmap=ns)
-            unit_element = ElementTree.SubElement(unitset_element, xtce + "Unit", nsmap=ns)
-            unit_element.text = self.unit
-            param_type_element.append(unitset_element)
-        param_type_element.append(self.encoding.to_xml(ns=ns))
+            param_type_element.append(
+                elmaker.UnitSet(
+                    elmaker.Unit(self.unit)
+                )
+            )
+
+        param_type_element.append(self.encoding.to_xml(elmaker=elmaker))
         return param_type_element
 
     @staticmethod
@@ -261,39 +267,43 @@ class EnumeratedParameterType(ParameterType):
         enumeration = cls.get_enumeration_list_contents(element, encoding, ns)
         return cls(name, encoding, enumeration=enumeration, unit=unit)
 
-    def to_xml(self, *, ns: dict) -> ElementTree.Element:
+    def to_xml(self, *, elmaker: ElementMaker) -> ElementTree.Element:
         """Create a parameter type XML element
 
         Parameters
         ----------
-        ns : dict
-            XML namespace dict
+        elmaker : ElementMaker
+            Element factory with predefined namespace
 
         Returns
         -------
         : ElementTree.Element
         """
-        _, xtce_uri = next(iter(ns.items()))
-        xtce = f"{{{xtce_uri}}}"
-        param_type_element = ElementTree.Element(xtce + self.__class__.__name__,
-                                                 attrib={"name": self.name},
-                                                 nsmap=ns)
+        param_type_element = getattr(elmaker, self.__class__.__name__)(name=self.name)
+
         if self.unit:
-            unitset_element = ElementTree.SubElement(param_type_element, xtce + "UnitSet", nsmap=ns)
-            unit_element = ElementTree.SubElement(unitset_element, xtce + "Unit", nsmap=ns)
-            unit_element.text = self.unit
-            param_type_element.append(unitset_element)
-        param_type_element.append(self.encoding.to_xml(ns=ns))
-        enum_list_element = ElementTree.SubElement(param_type_element, xtce + "EnumerationList", nsmap=ns)
-        for value, label in self.enumeration.items():
-            if isinstance(self.encoding, encodings.StringDataEncoding):
-                # If the values are string encoded, we actually store them as bytes, but they need to be decoded
-                # with the string encoding (e.g. UTF-16) for inclusion in the XML
-                value = value.decode(self.encoding.encoding)
-            ElementTree.SubElement(enum_list_element,
-                                   xtce + "Enumeration",
-                                   attrib={"label": label, "value": str(value)},
-                                   nsmap=ns)
+            param_type_element.append(
+                elmaker.UnitSet(
+                    elmaker.Unit(self.unit)
+                )
+            )
+
+        param_type_element.append(self.encoding.to_xml(elmaker=elmaker))
+
+        param_type_element.append(
+            elmaker.EnumerationList(
+                *(
+                    elmaker.Enumeration(
+                        label=label,
+                        value=str(value.decode(self.encoding.encoding))
+                        if isinstance(self.encoding, encodings.StringDataEncoding)
+                        else str(value)
+                    )
+                    for value, label in self.enumeration.items()
+                )
+            )
+        )
+
         return param_type_element
 
 
@@ -509,7 +519,7 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
         offset_from = cls.get_offset_from(element, ns)
         return cls(name, encoding, unit=unit, epoch=epoch, offset_from=offset_from)
 
-    def to_xml(self, *, ns: dict) -> ElementTree.Element:
+    def to_xml(self, *, elmaker: ElementMaker) -> ElementTree.Element:
         """Create a TimeParameterType XML element
 
         For some reason, Time types have a really different structure than other parameter types so we
@@ -517,21 +527,22 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
 
         Parameters
         ----------
-        ns : dict
-            XML namespace dict
+        elmaker : ElementMaker
+            Element factory with predefined namespace
 
         Returns
         -------
         : ElementTree.Element
         """
-        _, xtce_uri = next(iter(ns.items()))
-        xtce = f"{{{xtce_uri}}}"
-        element = ElementTree.Element(xtce + self.__class__.__name__, attrib={"name": self.name}, nsmap=ns)
+        if not isinstance(self.encoding, encodings.NumericDataEncoding):
+            raise ValueError("Only NumericDataEncodings are supported for TimeParameterTypes.")
+
+        element = getattr(elmaker, self.__class__.__name__)(name=self.name)
+
         encoding_attrib = {
             "units": self.unit
         }
-        if not isinstance(self.encoding, encodings.NumericDataEncoding):
-            raise ValueError("Only NumericDataEncodings are supported for TimeParameterTypes.")
+
         if self.encoding.default_calibrator:
             if not isinstance(self.encoding.default_calibrator, calibrators.PolynomialCalibrator):
                 raise ValueError("Expected to get a PolynomialCalibrator for TimeParameterType but "
@@ -546,20 +557,26 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
             if offset:
                 encoding_attrib["offset"] = str(offset[0])
 
-        encoding = ElementTree.SubElement(element, xtce + "Encoding",
-                                          attrib=encoding_attrib,
-                                          nsmap=ns)
-        encoding.append(self.encoding.to_xml(ns=ns))
+        element.append(
+            elmaker.Encoding(
+                self.encoding.to_xml(elmaker=elmaker),
+                **encoding_attrib
+            )
+        )
+
         if self.offset_from or self.epoch:
-            reference_time = ElementTree.SubElement(element, xtce + "ReferenceTime", nsmap=ns)
+            reference_time = elmaker.ReferenceTime()
             if self.offset_from:
-                ElementTree.SubElement(reference_time,
-                                       xtce + "OffsetFrom",
-                                       attrib={"parameterRef": self.offset_from},
-                                       nsmap=ns)
+                reference_time.append(
+                    elmaker.OffsetFrom(parameterRef=self.offset_from)
+                )
+
             if self.epoch:
-                epoch = ElementTree.SubElement(reference_time, xtce + "Epoch", nsmap=ns)
-                epoch.text = str(self.epoch)
+                reference_time.append(
+                    elmaker.Epoch(str(self.epoch))
+                )
+
+            element.append(reference_time)
 
         return element
 
@@ -685,7 +702,7 @@ class RelativeTimeParameterType(TimeParameterType):
 
 
 @dataclass
-class Parameter(common.Parseable):
+class Parameter(common.Parseable, common.XmlObject):
     """<xtce:Parameter>
 
     Parameters
@@ -711,29 +728,82 @@ class Parameter(common.Parseable):
         """
         packet[self.name] = self.parameter_type.parse_value(packet)
 
-    def to_parameter_xml_element(self, ns: dict) -> ElementTree.Element:
+    @classmethod
+    def from_xml(
+            cls,
+            element: ElementTree.Element,
+            *,
+            ns: dict,
+            parameter_type_lookup: dict[str, ParameterType],
+            tree: Optional[ElementTree.ElementTree] = None,
+            parameter_lookup: Optional[dict[str, any]] = None,
+    ) -> 'Parameter':
+        """Create a Parameter object from an XML element.
+
+        Parameters
+        ----------
+        element : ElementTree.Element
+            XML element
+        ns : dict
+            XML namespace dict
+        tree: Optional[ElementTree.Element]
+            Ignored
+        parameter_lookup: Optional[dict]
+            Ignored
+        parameter_type_lookup: dict[str, ParameterType]
+            Ignored
+
+        Returns
+        -------
+        : Parameter
+        """
+        parameter_name = element.attrib['name']
+
+        parameter_type_name = element.attrib['parameterTypeRef']
+
+        # Lookup from within the parameter type cache
+        parameter_type_object = parameter_type_lookup[parameter_type_name]
+
+        parameter_short_description = element.attrib['shortDescription'] if (
+                'shortDescription' in element.attrib
+        ) else None
+        parameter_long_description = element.find('xtce:LongDescription', ns).text if (
+                element.find('xtce:LongDescription', ns) is not None
+        ) else None
+
+        return cls(
+            name=parameter_name,
+            parameter_type=parameter_type_object,
+            short_description=parameter_short_description,
+            long_description=parameter_long_description
+        )
+
+    def to_xml(self, *, elmaker: ElementMaker) -> ElementTree.Element:
         """Create a Parameter XML element
 
         Parameters
         ----------
-        ns : dict
-            XML namespace dictionary
+        elmaker : ElementMaker
+            Element factory with predefined namespace
 
         Returns
         -------
         : ElementTree.Element
         """
-        _, xtce_uri = next(iter(ns.items()))
-        xtce = f"{{{xtce_uri}}}"
-        element = ElementTree.Element(xtce + "Parameter",
-                                      attrib={
-                                          "name": self.name,
-                                          "parameterTypeRef": self.parameter_type.name,
-                                      },
-                                      nsmap=ns)
+        parameter_attrib = {
+            "name": self.name,
+            "parameterTypeRef": self.parameter_type.name,
+        }
         if self.short_description:
-            element.attrib["shortDescription"] = self.short_description
+            parameter_attrib["shortDescription"] = self.short_description
+
+        element = elmaker.Parameter(
+            **parameter_attrib
+        )
+
         if self.long_description:
-            ld = ElementTree.SubElement(element, xtce + "LongDescription", nsmap=ns)
-            ld.text = self.long_description
+            element.append(
+                elmaker.LongDescription(self.long_description)
+            )
+
         return element
