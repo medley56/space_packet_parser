@@ -296,7 +296,7 @@ def test_custom_namespacing(test_data_dir, xml, uri, ns, new_uri, new_ns):
     # And also using the URI literal, if any
     prefix = f"{{{uri}}}" if uri else ""
     assert default_tree.find(f"{prefix}TelemetryMetaData", ns) is not None
-    
+
     # Create the XML tree using a custom namespace label for the XTCE schema
     xdef.ns = new_ns
     xdef.xtce_schema_uri = new_uri

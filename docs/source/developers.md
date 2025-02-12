@@ -1,12 +1,30 @@
 # Developer Documentation
+
 ## Installing Development Dependencies
-Poetry installs dev dependencies by default from the `poetry.lock` or `pyproject.toml` files. Just run 
+
+Poetry installs dev dependencies by default from the `poetry.lock` or `pyproject.toml` files.
+
 ```bash
 poetry install
 ```
 
+Alternatively, if you are using something other than Poetry for development you can install from
+the `dev` extras group.
+
+```bash
+pip install ".[dev]"
+```
+
+Once the development dependencies are installed, you can run
+
+```bash
+pre-commit install
+```
+
+to get pre-commit hooks to automatically run the linting and formatting checks for you before each commit.
+
 ## Testing
-Testing is run with `pytest` and the order is randomized by `pytest-randomly`. 
+Testing is run with `pytest` and the order is randomized by `pytest-randomly`.
 To run all tests, run
 ```bash
 pytest tests
@@ -18,7 +36,7 @@ docker-compose up --build && docker-compose down
 ```
 
 ## Building Documentation with Sphinx
-Documentation is automatically built on ReadTheDocs in response to every PR and release, 
+Documentation is automatically built on ReadTheDocs in response to every PR and release,
 but you can also build it locally with:
 ```bash
 # From docs directory
@@ -26,7 +44,7 @@ make html && open build/html/index.html
 ```
 
 ## Making a Pull Request
-Feel free to fork this repo and submit a PR! 
+Feel free to fork this repo and submit a PR!
 - If you are working on an issue, link your PR to that issue.
 - All PRs should be destined for the `main` branch (trunk-based development).
 - Reviews are required before merging and our automated tests must pass.
@@ -45,7 +63,7 @@ That is,
 
 ### Preparing for Release
 1. Create a release candidate branch named according to the version to be released. This branch is used to polish
-   the release but is fundamentally not different from any other feature branch in trunk-based development. 
+   the release but is fundamentally not different from any other feature branch in trunk-based development.
    The naming convention is `release/X.Y.Z`.
 
 2. Bump the version of the package to the version you are about to release, either manually by editing `pyproject.toml`
@@ -56,30 +74,30 @@ That is,
 
 4. Update `changelog.md` to reflect that the version is now "released" and revisit `README.md` to keep it up to date.
 
-5. Open a PR to merge the release branch into main. This informs the rest of the team how the release 
-   process is progressing as you polish the release branch. You may need to rebase the release branch onto 
+5. Open a PR to merge the release branch into main. This informs the rest of the team how the release
+   process is progressing as you polish the release branch. You may need to rebase the release branch onto
    any recent changes to `main` and resolve any conflicts on a regular basis.
 
-6. When you are satisfied that the release branch is ready, merge the PR into `main`. 
+6. When you are satisfied that the release branch is ready, merge the PR into `main`.
 
-7. Check out the `main` branch, pull the merged changes, and tag the newly created merge commit with the 
-   desired version `X.Y.Z` and push the tag upstream. 
+7. Check out the `main` branch, pull the merged changes, and tag the newly created merge commit with the
+   desired version `X.Y.Z` and push the tag upstream.
 
 ### Automatic Release Process
-We use GitHub Actions for automatic release process that responds to pushes of git tags. When a tag matching 
-a semantic version (`[0-9]+.[0-9]+.[0-9]+*` or `test-release/[0-9]+.[0-9]+.[0-9]+*`) is pushed, 
-a workflow runs that builds the package, pushes the artifacts to PyPI or TestPyPI 
-(if tag is prefixed with `test-release`), 
-and creates a GitHub Release from the distributed artifacts. Release notes 
+We use GitHub Actions for automatic release process that responds to pushes of git tags. When a tag matching
+a semantic version (`[0-9]+.[0-9]+.[0-9]+*` or `test-release/[0-9]+.[0-9]+.[0-9]+*`) is pushed,
+a workflow runs that builds the package, pushes the artifacts to PyPI or TestPyPI
+(if tag is prefixed with `test-release`),
+and creates a GitHub Release from the distributed artifacts. Release notes
 are automatically generated from commit history and the Release name is taken from the basename of the tag.
 
 #### Official Releases
 Official releases are published to the public PyPI (even if they are release candidates like `1.2.3rc1`). This differs
-from test releases, which are only published to TestPyPI and are not published to GitHub at all. 
-If the semantic version has any suffixes (e.g. `rc1`), the release will be marked as 
+from test releases, which are only published to TestPyPI and are not published to GitHub at all.
+If the semantic version has any suffixes (e.g. `rc1`), the release will be marked as
 a prerelease in GitHub and PyPI.
 
-To trigger an official release, push a tag referencing the commit you want to release. The commit _MUST_ be on 
+To trigger an official release, push a tag referencing the commit you want to release. The commit _MUST_ be on
 the `main` branch. Never publish an official release from a commit that hasn't been merged to `main`!
 
 ```bash
@@ -90,10 +108,10 @@ git push origin X.Y.Z
 ```
 
 #### Test Releases
-Test releases are published to TestPyPI only and are not published on GitHub. Test releases are triggered by tags 
+Test releases are published to TestPyPI only and are not published on GitHub. Test releases are triggered by tags
 prefixed with `test-release`.
 
-To publish a test release, prefix the tag with `test-release`. This will prevent any publishing to the public PyPI 
+To publish a test release, prefix the tag with `test-release`. This will prevent any publishing to the public PyPI
 and will prevent the artifacts being published on GitHub.
 
 ```bash

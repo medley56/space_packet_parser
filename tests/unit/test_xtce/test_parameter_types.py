@@ -18,7 +18,7 @@ from space_packet_parser.xtce import XTCE_NSMAP, parameter_types, encodings, cal
             </xtce:Fixed>
         </xtce:SizeInBits>
     </xtce:StringDataEncoding>
-</xtce:StringParameterType> 
+</xtce:StringParameterType>
 """,
          parameter_types.StringParameterType(name='TEST_STRING_Type',
                                                                       encoding=encodings.StringDataEncoding(fixed_raw_length=40))),
@@ -32,7 +32,7 @@ from space_packet_parser.xtce import XTCE_NSMAP, parameter_types, encodings, cal
             <xtce:LeadingSize sizeInBitsOfSizeTag="17"/>
         </xtce:SizeInBits>
     </xtce:StringDataEncoding>
-</xtce:StringParameterType> 
+</xtce:StringParameterType>
 """,
          parameter_types.StringParameterType(name='TEST_STRING_Type',
                                                                       encoding=encodings.StringDataEncoding(fixed_raw_length=40,
@@ -47,7 +47,7 @@ from space_packet_parser.xtce import XTCE_NSMAP, parameter_types, encodings, cal
             <xtce:TerminationChar>00</xtce:TerminationChar>
         </xtce:SizeInBits>
     </xtce:StringDataEncoding>
-</xtce:StringParameterType> 
+</xtce:StringParameterType>
 """,
          parameter_types.StringParameterType(name='TEST_STRING_Type',
                                                                       encoding=encodings.StringDataEncoding(fixed_raw_length=40,
@@ -77,17 +77,17 @@ def test_string_parameter_type(elmaker, xml_string: str, expectation):
         ("""
 <xtce:IntegerParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_INT_Type">
     <xtce:UnitSet>
-        <xtce:Unit>smoot</xtce:Unit>
+        <xtce:Unit>m/s</xtce:Unit>
     </xtce:UnitSet>
     <xtce:IntegerDataEncoding sizeInBits="16" encoding="unsigned"/>
 </xtce:IntegerParameterType>
 """,
-         parameter_types.IntegerParameterType(name='TEST_INT_Type', unit='smoot',
+         parameter_types.IntegerParameterType(name='TEST_INT_Type', unit='m/s',
                                                                        encoding=encodings.IntegerDataEncoding(size_in_bits=16, encoding='unsigned'))),
         ("""
 <xtce:IntegerParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_INT_Type">
     <xtce:UnitSet>
-        <xtce:Unit>smoot</xtce:Unit>
+        <xtce:Unit>m/s</xtce:Unit>
     </xtce:UnitSet>
     <xtce:IntegerDataEncoding sizeInBits="16" encoding="unsigned">
         <xtce:DefaultCalibrator>
@@ -100,7 +100,7 @@ def test_string_parameter_type(elmaker, xml_string: str, expectation):
     </xtce:IntegerDataEncoding>
 </xtce:IntegerParameterType>
 """,
-         parameter_types.IntegerParameterType(name='TEST_INT_Type', unit='smoot',
+         parameter_types.IntegerParameterType(name='TEST_INT_Type', unit='m/s',
                                                                        encoding=encodings.IntegerDataEncoding(
                                              size_in_bits=16, encoding='unsigned',
                                              default_calibrator=calibrators.PolynomialCalibrator([
@@ -112,7 +112,7 @@ def test_string_parameter_type(elmaker, xml_string: str, expectation):
         ("""
 <xtce:IntegerParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_INT_Type">
     <xtce:UnitSet>
-        <xtce:Unit>smoot</xtce:Unit>
+        <xtce:Unit>m/s</xtce:Unit>
     </xtce:UnitSet>
     <xtce:IntegerDataEncoding sizeInBits="16" encoding="unsigned">
         <xtce:DefaultCalibrator>
@@ -125,7 +125,7 @@ def test_string_parameter_type(elmaker, xml_string: str, expectation):
     </xtce:IntegerDataEncoding>
 </xtce:IntegerParameterType>
 """,
-         parameter_types.IntegerParameterType(name='TEST_INT_Type', unit='smoot',
+         parameter_types.IntegerParameterType(name='TEST_INT_Type', unit='m/s',
                                                                        encoding=encodings.IntegerDataEncoding(
                                              size_in_bits=16, encoding='unsigned',
                                              default_calibrator=calibrators.SplineCalibrator(
@@ -162,27 +162,27 @@ def test_integer_parameter_type(elmaker, xml_string: str, expectation):
         ("""
 <xtce:FloatParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_INT_Type">
     <xtce:UnitSet>
-        <xtce:Unit>smoot</xtce:Unit>
+        <xtce:Unit>m/s</xtce:Unit>
     </xtce:UnitSet>
     <xtce:FloatDataEncoding sizeInBits="16"/>
 </xtce:FloatParameterType>
 """,
-         parameter_types.FloatParameterType(name='TEST_INT_Type', unit='smoot',
+         parameter_types.FloatParameterType(name='TEST_INT_Type', unit='m/s',
                                                                      encoding=encodings.FloatDataEncoding(size_in_bits=16, encoding='IEEE754'))),
         ("""
 <xtce:FloatParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_INT_Type">
     <xtce:UnitSet>
-        <xtce:Unit>smoot</xtce:Unit>
+        <xtce:Unit>m/s</xtce:Unit>
     </xtce:UnitSet>
     <xtce:IntegerDataEncoding sizeInBits="16" encoding="unsigned"/>
 </xtce:FloatParameterType>
 """,
-         parameter_types.FloatParameterType(name='TEST_INT_Type', unit='smoot',
+         parameter_types.FloatParameterType(name='TEST_INT_Type', unit='m/s',
                                                                      encoding=encodings.IntegerDataEncoding(size_in_bits=16, encoding='unsigned'))),
         ("""
 <xtce:FloatParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_INT_Type">
     <xtce:UnitSet>
-        <xtce:Unit>smoot</xtce:Unit>
+        <xtce:Unit>m/s</xtce:Unit>
     </xtce:UnitSet>
     <xtce:IntegerDataEncoding sizeInBits="16" encoding="unsigned">
         <xtce:DefaultCalibrator>
@@ -195,7 +195,7 @@ def test_integer_parameter_type(elmaker, xml_string: str, expectation):
     </xtce:IntegerDataEncoding>
 </xtce:FloatParameterType>
 """,
-         parameter_types.FloatParameterType(name='TEST_INT_Type', unit='smoot',
+         parameter_types.FloatParameterType(name='TEST_INT_Type', unit='m/s',
                                                                      encoding=encodings.IntegerDataEncoding(
                                            size_in_bits=16, encoding='unsigned',
                                            default_calibrator=calibrators.PolynomialCalibrator([
@@ -207,7 +207,7 @@ def test_integer_parameter_type(elmaker, xml_string: str, expectation):
         ("""
 <xtce:FloatParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_INT_Type">
     <xtce:UnitSet>
-        <xtce:Unit>smoot</xtce:Unit>
+        <xtce:Unit>m/s</xtce:Unit>
     </xtce:UnitSet>
     <xtce:IntegerDataEncoding sizeInBits="16" encoding="unsigned">
         <xtce:DefaultCalibrator>
@@ -220,7 +220,7 @@ def test_integer_parameter_type(elmaker, xml_string: str, expectation):
     </xtce:IntegerDataEncoding>
 </xtce:FloatParameterType>
 """,
-         parameter_types.FloatParameterType(name='TEST_INT_Type', unit='smoot',
+         parameter_types.FloatParameterType(name='TEST_INT_Type', unit='m/s',
                                                                      encoding=encodings.IntegerDataEncoding(
                                            size_in_bits=16, encoding='unsigned',
                                            default_calibrator=calibrators.SplineCalibrator(
@@ -370,7 +370,7 @@ def test_enumerated_parameter_type(elmaker, xml_string: str, expectation):
         ("""
 <xtce:BinaryParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
     <xtce:UnitSet>
-        <xtce:Unit>smoot</xtce:Unit>
+        <xtce:Unit>m/s</xtce:Unit>
     </xtce:UnitSet>
     <xtce:BinaryDataEncoding>
         <xtce:SizeInBits>
@@ -379,7 +379,7 @@ def test_enumerated_parameter_type(elmaker, xml_string: str, expectation):
     </xtce:BinaryDataEncoding>
 </xtce:BinaryParameterType>
 """,
-         parameter_types.BinaryParameterType(name='TEST_PARAM_Type', unit='smoot',
+         parameter_types.BinaryParameterType(name='TEST_PARAM_Type', unit='m/s',
                                                                       encoding=encodings.BinaryDataEncoding(fixed_size_in_bits=256))),
         ("""
 <xtce:BinaryParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
@@ -452,7 +452,7 @@ def test_binary_parameter_type(elmaker, xml_string: str, expectation):
         ("""
 <xtce:BooleanParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
     <xtce:UnitSet>
-        <xtce:Unit>smoot</xtce:Unit>
+        <xtce:Unit>m/s</xtce:Unit>
     </xtce:UnitSet>
     <xtce:BinaryDataEncoding>
         <xtce:SizeInBits>
@@ -461,22 +461,22 @@ def test_binary_parameter_type(elmaker, xml_string: str, expectation):
     </xtce:BinaryDataEncoding>
 </xtce:BooleanParameterType>
 """,
-         parameter_types.BooleanParameterType(name='TEST_PARAM_Type', unit='smoot',
+         parameter_types.BooleanParameterType(name='TEST_PARAM_Type', unit='m/s',
                                                                        encoding=encodings.BinaryDataEncoding(fixed_size_in_bits=1))),
         ("""
 <xtce:BooleanParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
     <xtce:UnitSet>
-        <xtce:Unit>smoot</xtce:Unit>
+        <xtce:Unit>m/s</xtce:Unit>
     </xtce:UnitSet>
     <xtce:IntegerDataEncoding encoding="unsigned" sizeInBits="1"/>
 </xtce:BooleanParameterType>
 """,
-         parameter_types.BooleanParameterType(name='TEST_PARAM_Type', unit='smoot',
+         parameter_types.BooleanParameterType(name='TEST_PARAM_Type', unit='m/s',
                                                                        encoding=encodings.IntegerDataEncoding(size_in_bits=1, encoding="unsigned"))),
         ("""
 <xtce:BooleanParameterType xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_PARAM_Type">
     <xtce:UnitSet>
-        <xtce:Unit>smoot</xtce:Unit>
+        <xtce:Unit>m/s</xtce:Unit>
     </xtce:UnitSet>
     <xtce:StringDataEncoding encoding="UTF-8">
         <xtce:SizeInBits>
@@ -488,7 +488,7 @@ def test_binary_parameter_type(elmaker, xml_string: str, expectation):
     </xtce:StringDataEncoding>
 </xtce:BooleanParameterType>
 """,
-         parameter_types.BooleanParameterType(name='TEST_PARAM_Type', unit='smoot',
+         parameter_types.BooleanParameterType(name='TEST_PARAM_Type', unit='m/s',
                                                                        encoding=encodings.StringDataEncoding(fixed_raw_length=40,
                                                                                termination_character='00'))),
     ]
