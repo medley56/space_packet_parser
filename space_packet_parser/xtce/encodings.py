@@ -127,7 +127,7 @@ class DataEncoding(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
         """
         return NotImplemented
 
-    def parse_value(self, packet: packets.CCSDSPacket) -> packets.ParameterDataTypes:
+    def parse_value(self, packet: packets.CCSDSPacket) -> common.ParameterDataTypes:
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
@@ -137,7 +137,7 @@ class DataEncoding(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
             previously parsed data items to infer field lengths.
         Returns
         -------
-        : packets.ParameterDataTypes
+        : common.ParameterDataTypes
             Derived value with a `raw_value` attribute that can be used to get the original packet data.
         """
         return NotImplemented
@@ -315,7 +315,7 @@ class StringDataEncoding(DataEncoding):
         ).to_bytes(buflen_bytes, "big")
         return raw_string_buffer
 
-    def parse_value(self, packet: packets.CCSDSPacket) -> packets.StrParameter:
+    def parse_value(self, packet: packets.CCSDSPacket) -> common.StrParameter:
         """Parse a string value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
@@ -350,7 +350,7 @@ class StringDataEncoding(DataEncoding):
             # Indicates there is no further parsing. The raw string value is the whole string value.
             parsed_string = raw_string_buffer.decode(self.encoding)
 
-        return packets.StrParameter(parsed_string, bytes(raw_string_buffer))
+        return common.StrParameter(parsed_string, bytes(raw_string_buffer))
 
     @classmethod
     def from_xml(
@@ -524,7 +524,7 @@ class StringDataEncoding(DataEncoding):
 
 class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
     """Abstract class that is inherited by IntegerDataEncoding and FloatDataEncoding"""
-    _data_return_class = packets.FloatParameter
+    _data_return_class = common.FloatParameter
 
     def __init__(self,
                  size_in_bits: int,
@@ -590,7 +590,7 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
 
     def parse_value(self,
                     packet: packets.CCSDSPacket,
-                    ) -> Union[packets.FloatParameter, packets.IntParameter]:
+                    ) -> Union[common.FloatParameter, common.IntParameter]:
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
@@ -600,7 +600,7 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
             previously parsed data items to infer field lengths.
         Returns
         -------
-        : packets.FloatParameter or packets.IntParameter
+        : common.FloatParameter or common.IntParameter
             Parsed data item as either a float or integer depending on the type of encoding.
         """
         parsed_value = self._get_raw_value(packet)
@@ -611,10 +611,10 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
                 if all(criterion.evaluate(packet, parsed_value) for criterion in match_criteria):
                     # If the parsed data so far satisfy all the match criteria
                     calibrated_value = calibrator.calibrate(parsed_value)
-                    return packets.FloatParameter(calibrated_value, parsed_value)
+                    return common.FloatParameter(calibrated_value, parsed_value)
         if self.default_calibrator:  # If no context calibrators or if none apply and there is a default
             calibrated_value = self.default_calibrator.calibrate(parsed_value)
-            return packets.FloatParameter(calibrated_value, parsed_value)
+            return common.FloatParameter(calibrated_value, parsed_value)
         # No calibrations applied, we need to determine if it's an int or a float encoding calling this routine
         return self._data_return_class(parsed_value)
 
@@ -655,7 +655,7 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
 
 class IntegerDataEncoding(NumericDataEncoding):
     """<xtce:IntegerDataEncoding>"""
-    _data_return_class = packets.IntParameter
+    _data_return_class = common.IntParameter
 
     def _get_raw_value(self, packet: packets.CCSDSPacket) -> int:
         # Extract the bits from the data in big-endian order from the packet
@@ -716,7 +716,7 @@ class FloatDataEncoding(NumericDataEncoding):
     """<xtce:FloatDataEncoding>"""
     _allowed_encodings = ['IEEE754_1985', 'IEEE754', 'MILSTD_1750A', 'DEC', 'IBM', 'TI']
     _supported_encodings = _allowed_encodings[:3] # expand this if/when support for other float types is added
-    _data_return_class = packets.FloatParameter
+    _data_return_class = common.FloatParameter
 
     def __init__(
             self,
@@ -928,7 +928,7 @@ class BinaryDataEncoding(DataEncoding):
             len_bits = self.linear_adjuster(len_bits)
         return len_bits
 
-    def parse_value(self, packet: packets.CCSDSPacket) -> packets.BinaryParameter:
+    def parse_value(self, packet: packets.CCSDSPacket) -> common.BinaryParameter:
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
@@ -939,12 +939,12 @@ class BinaryDataEncoding(DataEncoding):
 
         Returns
         -------
-        : packets.BinaryParameter
+        : common.BinaryParameter
             Parsed binary data item.
         """
         nbits = self._calculate_size(packet)
         parsed_value = packet.raw_data.read_as_bytes(nbits)
-        return packets.BinaryParameter(parsed_value)
+        return common.BinaryParameter(parsed_value)
 
     @classmethod
     def from_xml(
