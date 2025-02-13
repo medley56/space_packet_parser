@@ -158,7 +158,7 @@ class ParameterType(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
         raise ValueError(f"No Data Encoding element found for Parameter Type "
                          f"{parameter_type_element.tag}: {parameter_type_element.attrib}")
 
-    def parse_value(self, packet: packets.CCSDSPacket) -> packets.ParameterDataTypes:
+    def parse_value(self, packet: packets.CCSDSPacket) -> common.ParameterDataTypes:
         """Using the parameter type definition and associated data encoding, parse a value from a bit stream starting
         at the current cursor position.
 
@@ -170,7 +170,7 @@ class ParameterType(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
 
         Returns
         -------
-        parsed_value : packets.ParameterDataTypes
+        parsed_value : common.ParameterDataTypes
             Resulting parsed parameter value
         """
         return self.encoding.parse_value(packet)
@@ -352,7 +352,7 @@ class EnumeratedParameterType(ParameterType):
                          "Supported encodings for enums are FloatDataEncoding, IntegerDataEncoding, "
                          "and StringDataEncoding.")
 
-    def parse_value(self, packet: packets.CCSDSPacket) -> packets.StrParameter:
+    def parse_value(self, packet: packets.CCSDSPacket) -> common.StrParameter:
         """Using the parameter type definition and associated data encoding, parse a value from a bit stream starting
         at the current cursor position.
 
@@ -364,7 +364,7 @@ class EnumeratedParameterType(ParameterType):
 
         Returns
         -------
-        derived_value : packets.StrParameter
+        derived_value : common.StrParameter
             Resulting enum label associated with the (usually integer-)encoded data value.
         """
         raw_enum_value = super().parse_value(packet).raw_value
@@ -378,7 +378,7 @@ class EnumeratedParameterType(ParameterType):
         except KeyError as exc:
             raise ValueError(f"Failed to find the value {raw_enum_value} in "
                              f"enum lookup list {self.enumeration}.") from exc
-        return packets.StrParameter(label, raw_enum_value)
+        return common.StrParameter(label, raw_enum_value)
 
 
 class BinaryParameterType(ParameterType):
@@ -437,7 +437,7 @@ class BooleanParameterType(ParameterType):
         # binary encoded or string encoded data should be truthy/falsy.
         # This implementation defaults to Python's interpretation of True/False for the (raw) parsed value,
         # so non-empty byte strings (the representation for binary and string encoded data) will always be True.
-        return packets.BoolParameter(bool(parsed_value), parsed_value)
+        return common.BoolParameter(bool(parsed_value), parsed_value)
 
 
 class TimeParameterType(ParameterType, metaclass=ABCMeta):

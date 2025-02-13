@@ -2,7 +2,7 @@
 import pytest
 import lxml.etree as ElementTree
 
-from space_packet_parser import packets
+from space_packet_parser import common
 from space_packet_parser.exceptions import ComparisonError
 from space_packet_parser.xtce import comparisons, XTCE_NSMAP
 
@@ -14,82 +14,82 @@ from space_packet_parser.xtce import comparisons, XTCE_NSMAP
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="==" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': packets.FloatParameter(678, 3)}, None, True),
+         {'MSN__PARAM': common.FloatParameter(678, 3)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="eq" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': packets.FloatParameter(668, 3)}, None, False),
+         {'MSN__PARAM': common.FloatParameter(668, 3)}, None, False),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="!=" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': packets.FloatParameter(678, 3)}, None, False),
+         {'MSN__PARAM': common.FloatParameter(678, 3)}, None, False),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="neq" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': packets.FloatParameter(658, 3)}, None, True),
+         {'MSN__PARAM': common.FloatParameter(658, 3)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="&lt;" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': packets.FloatParameter(679, 3)}, None, False),
+         {'MSN__PARAM': common.FloatParameter(679, 3)}, None, False),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="lt" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': packets.FloatParameter(670, 3)}, None, True),
+         {'MSN__PARAM': common.FloatParameter(670, 3)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="&gt;" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': packets.FloatParameter(678, 3)}, None, False),
+         {'MSN__PARAM': common.FloatParameter(678, 3)}, None, False),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="gt" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': packets.FloatParameter(679, 3)}, None, True),
+         {'MSN__PARAM': common.FloatParameter(679, 3)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="&lt;=" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': packets.FloatParameter(660, 3)}, None, True),
+         {'MSN__PARAM': common.FloatParameter(660, 3)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="leq" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': packets.FloatParameter(690, 3)}, None, False),
+         {'MSN__PARAM': common.FloatParameter(690, 3)}, None, False),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="&gt;=" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': packets.FloatParameter(660, 3)}, None, False),
+         {'MSN__PARAM': common.FloatParameter(660, 3)}, None, False),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="geq" value="678" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': packets.FloatParameter(690, 3)}, None, True),
+         {'MSN__PARAM': common.FloatParameter(690, 3)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="==" value="678" parameterRef="MSN__PARAM" useCalibratedValue="false"/>
 """,
-         {'MSN__PARAM': packets.FloatParameter(690, 678)}, None, True),
+         {'MSN__PARAM': common.FloatParameter(690, 678)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="==" value="678" parameterRef="MSN__PARAM" useCalibratedValue="true"/>
 """,
-         {'MSN__PARAM': packets.FloatParameter(678, 3)}, None, True),
+         {'MSN__PARAM': common.FloatParameter(678, 3)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="==" value="foostring" parameterRef="MSN__PARAM" useCalibratedValue="false"/>
 """,
-         {'MSN__PARAM': packets.StrParameter('calibratedfoostring', 'foostring')}, None, True),
+         {'MSN__PARAM': common.StrParameter('calibratedfoostring', 'foostring')}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="==" value="3.14" parameterRef="MSN__PARAM"/>
 """,
-         {'MSN__PARAM': packets.FloatParameter(3.14, 1)}, None, True),
+         {'MSN__PARAM': common.FloatParameter(3.14, 1)}, None, True),
         ("""
 <xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
     comparisonOperator="==" value="3.0" parameterRef="REFERENCE_TO_OWN_RAW_VAL"/>
@@ -140,8 +140,8 @@ def test_comparison(elmaker, xml_string, test_parsed_data, current_parsed_value,
     <xtce:ParameterInstanceRef parameterRef="P2"/>
 </xtce:Condition>
 """,
-         {'P1': packets.IntParameter(700, 4),
-          'P2': packets.IntParameter(678, 3)}, True),
+         {'P1': common.IntParameter(700, 4),
+          'P2': common.IntParameter(678, 3)}, True),
         ("""
 <xtce:Condition xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:ParameterInstanceRef parameterRef="P1"/>
@@ -149,7 +149,7 @@ def test_comparison(elmaker, xml_string, test_parsed_data, current_parsed_value,
     <xtce:Value>4</xtce:Value>
 </xtce:Condition>
 """,
-         {'P1': packets.IntParameter(700, 4)}, True),
+         {'P1': common.IntParameter(700, 4)}, True),
         ("""
 <xtce:Condition xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:ParameterInstanceRef parameterRef="P1"/>
@@ -157,8 +157,8 @@ def test_comparison(elmaker, xml_string, test_parsed_data, current_parsed_value,
     <xtce:ParameterInstanceRef parameterRef="P2"/>
 </xtce:Condition>
 """,
-         {'P1': packets.IntParameter(700, 4),
-          'P2': packets.IntParameter(678, 3)}, False),
+         {'P1': common.IntParameter(700, 4),
+          'P2': common.IntParameter(678, 3)}, False),
         ("""
 <xtce:Condition xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:ParameterInstanceRef parameterRef="P1" useCalibratedValue="false"/>
@@ -166,8 +166,8 @@ def test_comparison(elmaker, xml_string, test_parsed_data, current_parsed_value,
     <xtce:ParameterInstanceRef parameterRef="P2" useCalibratedValue="false"/>
 </xtce:Condition>
 """,
-         {'P1': packets.StrParameter('abcd'),
-          'P2': packets.StrParameter('abcd')}, True),
+         {'P1': common.StrParameter('abcd'),
+          'P2': common.StrParameter('abcd')}, True),
         ("""
 <xtce:Condition xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:ParameterInstanceRef parameterRef="P1"/>
@@ -175,8 +175,8 @@ def test_comparison(elmaker, xml_string, test_parsed_data, current_parsed_value,
     <xtce:ParameterInstanceRef parameterRef="P2"/>
 </xtce:Condition>
 """,
-         {'P1': packets.FloatParameter(3.14, 1),
-          'P2': packets.FloatParameter(3.14, 180)}, True),
+         {'P1': common.FloatParameter(3.14, 1),
+          'P2': common.FloatParameter(3.14, 180)}, True),
     ]
 )
 def test_condition(elmaker, xml_string, test_parsed_data, expected_condition_result):
@@ -217,10 +217,10 @@ def test_condition(elmaker, xml_string, test_parsed_data, expected_condition_res
     </xtce:ORedConditions>
 </xtce:BooleanExpression>
 """,
-         {'P': packets.IntParameter(0, 4),
-          'P2': packets.IntParameter(700, 4),
-          'P3': packets.IntParameter(701, 4),
-          'P4': packets.IntParameter(98, 4)}, True),
+         {'P': common.IntParameter(0, 4),
+          'P2': common.IntParameter(700, 4),
+          'P3': common.IntParameter(701, 4),
+          'P4': common.IntParameter(98, 4)}, True),
         ("""
 <xtce:BooleanExpression xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:ANDedConditions>
@@ -249,12 +249,12 @@ def test_condition(elmaker, xml_string, test_parsed_data, expected_condition_res
     </xtce:ANDedConditions>
 </xtce:BooleanExpression>
 """,
-         {'P': packets.IntParameter(100, 4),
-          'P0': packets.IntParameter(678, 4),
-          'P1': packets.IntParameter(500, 4),
-          'P2': packets.IntParameter(700, 4),
-          'P3': packets.IntParameter(701, 4),
-          'P4': packets.IntParameter(99, 4)}, True),
+         {'P': common.IntParameter(100, 4),
+          'P0': common.IntParameter(678, 4),
+          'P1': common.IntParameter(500, 4),
+          'P2': common.IntParameter(700, 4),
+          'P3': common.IntParameter(701, 4),
+          'P4': common.IntParameter(99, 4)}, True),
     ]
 )
 def test_boolean_expression(elmaker, xml_string, test_parsed_data, expected_result):
@@ -281,13 +281,13 @@ def test_boolean_expression(elmaker, xml_string, test_parsed_data, expected_resu
     <xtce:Comparison useCalibratedValue="false" parameterRef="P1" value="1"/>
 </xtce:DiscreteLookup>
 """,
-         {'P1': packets.IntParameter(678, 1)}, 10),
+         {'P1': common.IntParameter(678, 1)}, 10),
         ("""
 <xtce:DiscreteLookup value="10" xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:Comparison useCalibratedValue="false" parameterRef="P1" value="1"/>
 </xtce:DiscreteLookup>
 """,
-         {'P1': packets.IntParameter(678, 0)}, None),
+         {'P1': common.IntParameter(678, 0)}, None),
         ("""
 <xtce:DiscreteLookup value="11" xmlns:xtce="http://www.omg.org/space/xtce">
     <xtce:ComparisonList>
@@ -297,8 +297,8 @@ def test_boolean_expression(elmaker, xml_string, test_parsed_data, expected_resu
 </xtce:DiscreteLookup>
 """,
          {
-             'MSN__PARAM1': packets.IntParameter(680, 3),
-             'MSN__PARAM2': packets.IntParameter(3000, 3),
+             'MSN__PARAM1': common.IntParameter(680, 3),
+             'MSN__PARAM2': common.IntParameter(3000, 3),
          }, 11),
     ]
 )
