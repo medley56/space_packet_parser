@@ -6,8 +6,8 @@
 
 Documentation: [https://space-packet-parser.readthedocs.io/en/latest/](https://space-packet-parser.readthedocs.io/en/latest/)
 
-Space Packet Parser is a package for decoding CCSDS telemetry packets according to an XTCE packet structure definition. 
-It is based on the UML model of the XTCE spec and aims to support all but the most esoteric elements of the 
+Space Packet Parser is a package for decoding CCSDS telemetry packets according to an XTCE packet structure definition.
+It is based on the UML model of the XTCE spec and aims to support all but the most esoteric elements of the
 XTCE telemetry packet specification.
 
 Resources:

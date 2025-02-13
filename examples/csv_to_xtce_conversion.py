@@ -9,7 +9,7 @@ to begin with a CCSDSPy CSV file to do this, but it's a convenient example appli
 
 Reference for CCSDSPy CSV format: https://docs.ccsdspy.org/en/1.3.2/user-guide/loadfile.html
 
-This example was generated based on documention of CCSDSPy version 1.3.2
+This example was generated based on documentation of CCSDSPy version 1.3.2
 """
 import csv
 from pathlib import Path

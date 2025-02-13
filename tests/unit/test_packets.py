@@ -45,7 +45,7 @@ def test_create_ccsds_packet_type_validation(input_var, input_value):
 
 
 def test_raw_packet_attributes():
-    p = packets.create_ccsds_packet(data=b"123", version_number=3, type=1, secondary_header_flag=1, 
+    p = packets.create_ccsds_packet(data=b"123", version_number=3, type=1, secondary_header_flag=1,
                                     apid=1234, sequence_flags=2, sequence_count=5)
     assert p.version_number == 3
     assert p.type == 1

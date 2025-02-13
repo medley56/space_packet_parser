@@ -11,102 +11,102 @@ from space_packet_parser.xtce import comparisons, XTCE_NSMAP
     ('xml_string', 'test_parsed_data', 'current_parsed_value', 'expected_comparison_result'),
     [
         ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
+<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce"
     comparisonOperator="==" value="678" parameterRef="MSN__PARAM"/>
 """,
          {'MSN__PARAM': common.FloatParameter(678, 3)}, None, True),
         ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
+<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce"
     comparisonOperator="eq" value="678" parameterRef="MSN__PARAM"/>
 """,
          {'MSN__PARAM': common.FloatParameter(668, 3)}, None, False),
         ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
+<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce"
     comparisonOperator="!=" value="678" parameterRef="MSN__PARAM"/>
 """,
          {'MSN__PARAM': common.FloatParameter(678, 3)}, None, False),
         ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
+<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce"
     comparisonOperator="neq" value="678" parameterRef="MSN__PARAM"/>
 """,
          {'MSN__PARAM': common.FloatParameter(658, 3)}, None, True),
         ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
+<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce"
     comparisonOperator="&lt;" value="678" parameterRef="MSN__PARAM"/>
 """,
          {'MSN__PARAM': common.FloatParameter(679, 3)}, None, False),
         ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
+<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce"
     comparisonOperator="lt" value="678" parameterRef="MSN__PARAM"/>
 """,
          {'MSN__PARAM': common.FloatParameter(670, 3)}, None, True),
         ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
+<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce"
     comparisonOperator="&gt;" value="678" parameterRef="MSN__PARAM"/>
 """,
          {'MSN__PARAM': common.FloatParameter(678, 3)}, None, False),
         ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
+<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce"
     comparisonOperator="gt" value="678" parameterRef="MSN__PARAM"/>
 """,
          {'MSN__PARAM': common.FloatParameter(679, 3)}, None, True),
         ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
+<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce"
     comparisonOperator="&lt;=" value="678" parameterRef="MSN__PARAM"/>
 """,
          {'MSN__PARAM': common.FloatParameter(660, 3)}, None, True),
         ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
+<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce"
     comparisonOperator="leq" value="678" parameterRef="MSN__PARAM"/>
 """,
          {'MSN__PARAM': common.FloatParameter(690, 3)}, None, False),
         ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
+<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce"
     comparisonOperator="&gt;=" value="678" parameterRef="MSN__PARAM"/>
 """,
          {'MSN__PARAM': common.FloatParameter(660, 3)}, None, False),
         ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
+<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce"
     comparisonOperator="geq" value="678" parameterRef="MSN__PARAM"/>
 """,
          {'MSN__PARAM': common.FloatParameter(690, 3)}, None, True),
         ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
+<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce"
     comparisonOperator="==" value="678" parameterRef="MSN__PARAM" useCalibratedValue="false"/>
 """,
          {'MSN__PARAM': common.FloatParameter(690, 678)}, None, True),
         ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
+<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce"
     comparisonOperator="==" value="678" parameterRef="MSN__PARAM" useCalibratedValue="true"/>
 """,
          {'MSN__PARAM': common.FloatParameter(678, 3)}, None, True),
         ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
+<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce"
     comparisonOperator="==" value="foostring" parameterRef="MSN__PARAM" useCalibratedValue="false"/>
 """,
          {'MSN__PARAM': common.StrParameter('calibratedfoostring', 'foostring')}, None, True),
         ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
+<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce"
     comparisonOperator="==" value="3.14" parameterRef="MSN__PARAM"/>
 """,
          {'MSN__PARAM': common.FloatParameter(3.14, 1)}, None, True),
         ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
+<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce"
     comparisonOperator="==" value="3.0" parameterRef="REFERENCE_TO_OWN_RAW_VAL"/>
 """,
          {}, 3.0, True),
         ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
+<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce"
     comparisonOperator="==" value="3" parameterRef="REFERENCE_TO_OWN_RAW_VAL"/>
 """,
          {}, 3, True),
         ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
+<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce"
     comparisonOperator="==" value="foostr" parameterRef="REFERENCE_TO_OWN_RAW_VAL"/>
 """,
          {}, "foostr", True),
         ("""
-<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce" 
+<xtce:Comparison xmlns:xtce="http://www.omg.org/space/xtce"
     comparisonOperator="==" value="3.0" parameterRef="REFERENCE_TO_OWN_RAW_VAL"/>
 """,
          {}, 3, ComparisonError("Fails to parse a float string 3.0 into an int")),

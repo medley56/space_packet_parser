@@ -221,7 +221,7 @@ def test_context_calibrator_calibrate(context_calibrator, parsed_data, parsed_va
     <xtce:SplinePoint raw="1" calibrated="10"/>
     <xtce:SplinePoint raw="2.7" calibrated="100.948"/>
     <xtce:SplinePoint raw="3" calibrated="5E2"/>
-</xtce:SplineCalibrator> 
+</xtce:SplineCalibrator>
 """,
          calibrators.SplineCalibrator(order=0, extrapolate=True, points=[
              calibrators.SplinePoint(raw=1, calibrated=10),
@@ -233,7 +233,7 @@ def test_context_calibrator_calibrate(context_calibrator, parsed_data, parsed_va
     <xtce:SplinePoint raw="1" calibrated="10"/>
     <xtce:SplinePoint raw="2.7" calibrated="100.948"/>
     <xtce:SplinePoint raw="3" calibrated="5E2"/>
-</xtce:SplineCalibrator> 
+</xtce:SplineCalibrator>
 """,
          calibrators.SplineCalibrator(order=0, extrapolate=False, points=[
              calibrators.SplinePoint(raw=1, calibrated=10),
@@ -308,7 +308,7 @@ def test_spline_calibrator_calibrate(xq, order, extrapolate, expectation):
     <xtce:Term exponent="2" coefficient="-0.045"/>
     <xtce:Term exponent="3" coefficient="1.25"/>
     <xtce:Term exponent="4" coefficient="2.5E-3"/>
-</xtce:PolynomialCalibrator> 
+</xtce:PolynomialCalibrator>
 """,
          calibrators.PolynomialCalibrator(coefficients=[
              calibrators.PolynomialCoefficient(coefficient=0.5, exponent=0),

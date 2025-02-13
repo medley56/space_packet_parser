@@ -2,11 +2,11 @@
 
 ## Full Packet Parsing Performance
 
-Benchmarking packet parsing is challenging because performance is greatly impacted by the complexity of the packet 
+Benchmarking packet parsing is challenging because performance is greatly impacted by the complexity of the packet
 structures being parsed. There are a few measures by which we can assess the performance of Space Packet Parser.
 
 > [!NOTE]
-> Throughout the Space Packet Parser repo and documentation space, 
+> Throughout the Space Packet Parser repo and documentation space,
 > B/kB means bytes/kilobytes and b/kb means bits/kilobits.*
 
 Common factors affecting performance:
@@ -17,23 +17,23 @@ Common factors affecting performance:
 
 ### Packets Per Second
 
-This is a metric we are often asked about. Unfortunately, the answer is that it depends on which packets are 
-being parsed: how many fields are in each packet and how much extra work the parser is doing to sort out complex 
+This is a metric we are often asked about. Unfortunately, the answer is that it depends on which packets are
+being parsed: how many fields are in each packet and how much extra work the parser is doing to sort out complex
 packet structures and evaluate calibrators.
 
 ### Kilobits Per Second
 
-This metric is often used when discussing data volumes and downlink bandwidths to make sure that a data processing 
-system can keep up with the data rate from a spacecraft in the time allowed for processing. This number is also 
-affected by packet structures. It will be high for simple packets containing large binary blobs and low for 
+This metric is often used when discussing data volumes and downlink bandwidths to make sure that a data processing
+system can keep up with the data rate from a spacecraft in the time allowed for processing. This number is also
+affected by packet structures. It will be high for simple packets containing large binary blobs and low for
 complex packets containing many small fields.
 
 ### Results
 
-These tests were run on an Apple Silicon M3 Max processor. 
+These tests were run on an Apple Silicon M3 Max processor.
 
-As a baseline, for relatively simple packets (these are JPSS-1 spacecraft geolocation packets containing attitude 
-and ephemeris data), we benchmarked using 7200 packets with a consistent size of 71B per packet. These packets contain 
+As a baseline, for relatively simple packets (these are JPSS-1 spacecraft geolocation packets containing attitude
+and ephemeris data), we benchmarked using 7200 packets with a consistent size of 71B per packet. These packets contain
 32-bit floats and integers of various sizes.
 
 - **26405-34620 packets per second**
@@ -89,9 +89,9 @@ Progress: [====================]100% [Elapsed: 0:00:00.264275, Parsed 511200 byt
 
 ## Parsing Individual Values Benchmarking
 
-In addition to the benchmarks discussed above, we also benchmarked the low level operations that make up most 
+In addition to the benchmarks discussed above, we also benchmarked the low level operations that make up most
 of the parsing work. The parser relies on two fundamental methods: `read_as_int(nbits)` and `read_as_bytes(nbits)`,
-each of which is capable of reading an arbitrary number of bits from a byte string. That is, the binary data being 
+each of which is capable of reading an arbitrary number of bits from a byte string. That is, the binary data being
 parsed need not be byte aligned or even an integer number of bytes.
 
 ```
@@ -108,9 +108,9 @@ test_benchmark__read_as_bytes__partial_bytes              441.6660 (1.91)     46
 
 The results are as expected:
 
-- The most efficient parsing is byte-aligned parsing of objects that are integer number of bytes in length. 
+- The most efficient parsing is byte-aligned parsing of objects that are integer number of bytes in length.
 - Parsing integers is slower than raw bytes due to the conversion from bytes to int.
-- The most expensive operation is parsing a bytes object that is an odd number of bits (e.g. 6 bits). This is due 
+- The most expensive operation is parsing a bytes object that is an odd number of bits (e.g. 6 bits). This is due
   to the padding operation required to return a bytes object from such a call.
 - The only surprise is that non-aligned integers parse faster than non-aligned full bytes. Ironically this is due
   to a check that we perform during byte parsing to return faster if the request _is_ byte aligned.
