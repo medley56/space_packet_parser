@@ -2,7 +2,7 @@
 import pytest
 import lxml.etree as ElementTree
 
-from space_packet_parser import packets
+from space_packet_parser import common
 from space_packet_parser.exceptions import CalibrationError
 from space_packet_parser.xtce import calibrators, comparisons, XTCE_NSMAP
 
@@ -143,7 +143,7 @@ def test_context_calibrator(elmaker, xml_string, expectation):
                 calibrators.PolynomialCoefficient(coefficient=0.5, exponent=0),
                 calibrators.PolynomialCoefficient(coefficient=1.5, exponent=1)
             ])),
-         {"EXI__FPGAT": packets.IntParameter(700, 600)},
+         {"EXI__FPGAT": common.IntParameter(700, 600)},
          42, True, 63.5),
         (calibrators.ContextCalibrator(
             match_criteria=[
@@ -154,7 +154,7 @@ def test_context_calibrator(elmaker, xml_string, expectation):
                 calibrators.PolynomialCoefficient(coefficient=0.5, exponent=0),
                 calibrators.PolynomialCoefficient(coefficient=1.5, exponent=1),
             ])),
-         {"EXI__FPGAT": packets.FloatParameter(700.0, 3.14)},
+         {"EXI__FPGAT": common.FloatParameter(700.0, 3.14)},
          42, True, 63.5),
         (calibrators.ContextCalibrator(
             match_criteria=[
@@ -174,8 +174,8 @@ def test_context_calibrator(elmaker, xml_string, expectation):
                 calibrators.PolynomialCoefficient(coefficient=0.5, exponent=0),
                 calibrators.PolynomialCoefficient(coefficient=1.5, exponent=1),
             ])),
-         {"P1": packets.FloatParameter(700.0, 100.0),
-          "P2": packets.FloatParameter(700.0, 99)},
+         {"P1": common.FloatParameter(700.0, 100.0),
+          "P2": common.FloatParameter(700.0, 99)},
          42, True, 63.5),
         (calibrators.ContextCalibrator(
             match_criteria=[
@@ -196,8 +196,8 @@ def test_context_calibrator(elmaker, xml_string, expectation):
                 calibrators.PolynomialCoefficient(coefficient=0.5, exponent=0),
                 calibrators.PolynomialCoefficient(coefficient=1.5, exponent=1),
             ])),
-         {"P1": packets.FloatParameter(700.0, 100.0),
-          "P2": packets.FloatParameter(700.0, 99)},
+         {"P1": common.FloatParameter(700.0, 100.0),
+          "P2": common.FloatParameter(700.0, 99)},
          42, False, 63.5),
     ]
 )
