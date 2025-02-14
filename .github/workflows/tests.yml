@@ -40,7 +40,7 @@ jobs:
 
       - name: Testing
         run: |
-          pytest --color=yes --cov
+          pytest --color=yes --cov --cov-report=xml
 
       - uses: codecov/codecov-action@v5
         with:
