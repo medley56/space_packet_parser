@@ -1,6 +1,6 @@
 """Module with XTCE models related to SequenceContainers"""
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, Union
 
 from lxml import etree as ElementTree
 from lxml.builder import ElementMaker
@@ -29,18 +29,18 @@ class SequenceContainer(common.Parseable, common.XmlObject):
         be included.
     abstract : bool
         True if container has abstract=true attribute. False otherwise.
-    inheritors : list, Optional
+    inheritors : Optional[list]
         List of SequenceContainer objects that may inherit this one's entry list if their restriction criteria
         are met. Any SequenceContainers with this container as base_container_name should be listed here.
     """
     name: str
-    entry_list: list  # List of Parameter objects, found by reference
+    entry_list: list[Union[parameters.Parameter, 'SequenceContainer']]
     short_description: Optional[str] = None
     long_description: Optional[str] = None
     base_container_name: Optional[str] = None
-    restriction_criteria: Optional[list] = field(default_factory=lambda: [])
+    restriction_criteria: Optional[list[comparisons.MatchCriteria]] = field(default_factory=lambda: [])
     abstract: bool = False
-    inheritors: Optional[list['SequenceContainer']] = field(default_factory=lambda: [])
+    inheritors: Optional[list[str]] = field(default_factory=lambda: [])
 
     def __post_init__(self):
         # Handle the explicit None passing for default values
@@ -63,6 +63,7 @@ class SequenceContainer(common.Parseable, common.XmlObject):
             ns: dict,
             tree: ElementTree.ElementTree,
             parameter_lookup: dict[str, parameters.Parameter],
+            container_lookup: Optional[dict[str, any]],
             parameter_type_lookup: Optional[dict[str, parameter_types.ParameterType]] = None
     ) -> 'SequenceContainer':
         """Parses the list of parameters in a SequenceContainer element, recursively parsing nested SequenceContainers
@@ -79,7 +80,9 @@ class SequenceContainer(common.Parseable, common.XmlObject):
         ns : dict
             XML namespace dict
         parameter_lookup : dict[str, parameters.Parameter]
-            Parameters contained in the entrylists of sequence containers
+            Parameters contained in the entry lists of sequence containers
+        container_lookup: Optional[dict[str, SequenceContainer]]
+            Containers already parsed, used to sort out duplicate references
         parameter_type_lookup : Optional[dict[str, parameter_types.ParameterType]]
             Ignored.
 
@@ -89,37 +92,54 @@ class SequenceContainer(common.Parseable, common.XmlObject):
             SequenceContainer containing an entry_list of SequenceContainers and Parameters with ParameterTypes
             in the order expected in a packet.
         """
-        entry_list = []  # List to house Parameters for the current SequenceContainer
+        entry_list = []  # List to house Parameters and nested SequenceContainers for the current SequenceContainer
         try:
-            base_container, restriction_criteria = cls._get_container_base_container(
-                tree, element, ns
-            )
-            base_sequence_container = cls.from_xml(
-                base_container, ns=ns, tree=tree, parameter_lookup=parameter_lookup
-            )
-            base_container_name = base_sequence_container.name
+            base_container, restriction_criteria = cls._get_base_container_element(tree, element, ns)
+            base_container_name = base_container.attrib['name']
+            if base_container_name not in container_lookup:
+                base_sequence_container = cls.from_xml(
+                    base_container,
+                    tree=tree,
+                    parameter_lookup=parameter_lookup,
+                    container_lookup=container_lookup,
+                    ns=ns
+                )
+                container_lookup[base_sequence_container.name] = base_sequence_container
         except ElementNotFoundError:
             base_container_name = None
             restriction_criteria = None
 
+        # TODO: These hardcoded namespace prefixes need to be made dynamic according to the namespace uri
+        #  This probably means passing xtce_namespace_uri into this
         container_contents = element.find('xtce:EntryList', ns).findall('*', ns)
 
         for entry in container_contents:
             if entry.tag == '{{{xtce}}}ParameterRefEntry'.format(**ns):
                 parameter_name = entry.attrib['parameterRef']
-                entry_list.append(parameter_lookup[parameter_name])
+                entry_list.append(parameter_lookup[parameter_name])  # KeyError if parameter is not in the lookup
 
             elif entry.tag == '{{{xtce}}}ContainerRefEntry'.format(
                     **ns):
-                nested_container = cls._find_container_by_name(
-                    tree,
-                    name=entry.attrib['containerRef'],
-                    ns=ns
-                )
-                entry_list.append(
-                    cls.from_xml(
-                        nested_container, ns=ns, tree=tree, parameter_lookup=parameter_lookup
+
+                # This container may not have been parsed yet. We need to parse it now so we might as well
+                # add it to the container lookup dict.
+                if entry.attrib['containerRef'] in container_lookup:
+                    nested_container = container_lookup[entry.attrib['containerRef']]
+                else:
+                    nested_container_element = cls._get_container_element(
+                        tree,
+                        name=entry.attrib['containerRef'],
+                        ns=ns
                     )
+                    nested_container = cls.from_xml(
+                            nested_container_element,
+                            tree=tree,
+                            parameter_lookup=parameter_lookup,
+                            container_lookup=container_lookup,
+                            ns=ns
+                        )
+                entry_list.append(
+                    nested_container
                 )
 
         short_description = element.attrib.get('shortDescription', None)
@@ -194,7 +214,11 @@ class SequenceContainer(common.Parseable, common.XmlObject):
         return sc
 
     @staticmethod
-    def _find_container_by_name(tree: ElementTree.ElementTree, name: str, ns: dict) -> ElementTree.Element:
+    def _get_container_element(
+            tree: ElementTree.ElementTree,
+            name: str,
+            ns: dict
+    ) -> ElementTree.Element:
         """Finds an XTCE container <xtce:SequenceContainer> by name.
 
         Parameters
@@ -216,12 +240,13 @@ class SequenceContainer(common.Parseable, common.XmlObject):
         return containers[0]
 
     @staticmethod
-    def _get_container_base_container(
+    def _get_base_container_element(
             tree: ElementTree.Element,
             container_element: ElementTree.Element,
             ns: dict
     ) -> tuple[ElementTree.Element, list[comparisons.MatchCriteria]]:
-        """Examines the container_element and returns information about its inheritance.
+        """Finds the referenced base container of an existing XTCE container element,
+        including its inheritance restrictions.
 
         Parameters
         ----------
@@ -230,9 +255,8 @@ class SequenceContainer(common.Parseable, common.XmlObject):
 
         Returns
         -------
-        : ElementTree.Element
+        : tuple[ElementTree.Element, list[comparisons.MatchCriteria]]
             The base container element of the input container_element.
-        : list
             The restriction criteria for the inheritance.
         """
         base_container_element = container_element.find('xtce:BaseContainer', ns)
@@ -268,7 +292,7 @@ class SequenceContainer(common.Parseable, common.XmlObject):
         else:
             restrictions = []
         return (
-            SequenceContainer._find_container_by_name(tree, base_container_element.attrib['containerRef'], ns),
+            SequenceContainer._get_container_element(tree, base_container_element.attrib['containerRef'], ns),
             restrictions
         )
 

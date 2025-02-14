@@ -22,7 +22,8 @@ class Calibrator(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
             ns: dict,
             tree: Optional[ElementTree.Element] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
-            parameter_type_lookup: Optional[dict[str, any]] = None
+            parameter_type_lookup: Optional[dict[str, any]] = None,
+            container_lookup: Optional[dict[str, any]] = None,
     ) -> 'Calibrator':
         """Abstract classmethod to create a default_calibrator object from an XML element.
 
@@ -37,6 +38,8 @@ class Calibrator(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
         parameter_lookup: Optional[dict]
             Ignored
         parameter_type_lookup: Optional[dict]
+            Ignored
+        container_lookup: Optional[dict[str, SequenceContainer]]
             Ignored
 
         Returns
@@ -97,7 +100,8 @@ class SplineCalibrator(Calibrator):
             ns: dict,
             tree: Optional[ElementTree.Element] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
-            parameter_type_lookup: Optional[dict[str, any]] = None
+            parameter_type_lookup: Optional[dict[str, any]] = None,
+            container_lookup: Optional[dict[str, any]] = None
     ) -> 'SplineCalibrator':
         """Create a spline default_calibrator object from an <xtce:SplineCalibrator> XML element.
 
@@ -112,6 +116,8 @@ class SplineCalibrator(Calibrator):
         parameter_lookup: Optional[dict]
             Ignored
         parameter_type_lookup: Optional[dict]
+            Ignored
+        container_lookup: Optional[dict[str, SequenceContainer]]
             Ignored
 
         Returns
@@ -264,7 +270,8 @@ class PolynomialCalibrator(Calibrator):
             ns: dict,
             tree: Optional[ElementTree.Element] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
-            parameter_type_lookup: Optional[dict[str, any]] = None
+            parameter_type_lookup: Optional[dict[str, any]] = None,
+            container_lookup: Optional[dict[str, any]] = None
     ) -> 'PolynomialCalibrator':
         """Create a polynomial default_calibrator object from an <xtce:PolynomialCalibrator> XML element.
 
@@ -279,6 +286,8 @@ class PolynomialCalibrator(Calibrator):
         parameter_lookup: Optional[dict]
             Ignored
         parameter_type_lookup: Optional[dict]
+            Ignored
+        container_lookup: Optional[dict[str, SequenceContainer]]
             Ignored
 
         Returns
@@ -344,7 +353,8 @@ class MathOperationCalibrator(Calibrator):
             ns: dict,
             tree: Optional[ElementTree.Element] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
-            parameter_type_lookup: Optional[dict[str, any]] = None
+            parameter_type_lookup: Optional[dict[str, any]] = None,
+            container_lookup: Optional[dict[str, any]] = None
     ) -> 'MathOperationCalibrator':
         """Create a math operation default_calibrator from an <xtce:MathOperationCalibrator> XML element.
 
@@ -359,6 +369,8 @@ class MathOperationCalibrator(Calibrator):
         parameter_lookup: Optional[dict]
             Ignored
         parameter_type_lookup: Optional[dict]
+            Ignored
+        container_lookup: Optional[dict[str, SequenceContainer]]
             Ignored
 
         Returns
@@ -451,7 +463,8 @@ class ContextCalibrator(common.AttrComparable, common.XmlObject):
             ns: dict,
             tree: Optional[ElementTree.Element] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
-            parameter_type_lookup: Optional[dict[str, any]] = None
+            parameter_type_lookup: Optional[dict[str, any]] = None,
+            container_lookup: Optional[dict[str, any]] = None
     ) -> 'ContextCalibrator':
         """Create a ContextCalibrator object from an <xtce:ContextCalibrator> XML element
 
@@ -466,6 +479,8 @@ class ContextCalibrator(common.AttrComparable, common.XmlObject):
         parameter_lookup: Optional[dict]
             Ignored
         parameter_type_lookup: Optional[dict]
+            Ignored
+        container_lookup: Optional[dict[str, SequenceContainer]]
             Ignored
 
         Returns

@@ -88,13 +88,69 @@ def test_parsing_xtce_document(test_data_dir):
 
 def test_generating_xtce_from_objects():
     """Tests our ability to create an XTCE definition directly from Python objects"""
-    def _uint_type(bits: int):
-        return space_packet_parser.xtce.parameter_types.IntegerParameterType(
-        name=f"UINT{bits}_Type",
+    uint1 = space_packet_parser.xtce.parameter_types.IntegerParameterType(
+        name=f"UINT1_Type",
         encoding=encodings.IntegerDataEncoding(
-            size_in_bits=bits,
+            size_in_bits=1,
             encoding="unsigned"
         )
+    )
+
+    uint2 = space_packet_parser.xtce.parameter_types.IntegerParameterType(
+        name=f"UINT2_Type",
+        encoding=encodings.IntegerDataEncoding(
+            size_in_bits=2,
+            encoding="unsigned"
+        )
+    )
+
+    uint3 = space_packet_parser.xtce.parameter_types.IntegerParameterType(
+        name=f"UINT3_Type",
+        encoding=encodings.IntegerDataEncoding(
+            size_in_bits=3,
+            encoding="unsigned"
+        )
+    )
+
+    uint11 = space_packet_parser.xtce.parameter_types.IntegerParameterType(
+        name=f"UINT11_Type",
+        encoding=encodings.IntegerDataEncoding(
+            size_in_bits=11,
+            encoding="unsigned"
+        )
+    )
+
+    uint14 = space_packet_parser.xtce.parameter_types.IntegerParameterType(
+        name=f"UINT14_Type",
+        encoding=encodings.IntegerDataEncoding(
+            size_in_bits=14,
+            encoding="unsigned"
+        )
+    )
+
+    uint16 = space_packet_parser.xtce.parameter_types.IntegerParameterType(
+        name=f"UINT16_Type",
+        encoding=encodings.IntegerDataEncoding(
+            size_in_bits=16,
+            encoding="unsigned"
+        )
+    )
+
+    multiply_nested_container = containers.SequenceContainer(
+        name="NestedContainer",
+        abstract=True,
+        entry_list=[
+            parameters.Parameter(
+                name="REPEATABLY_NESTED",
+                parameter_type=space_packet_parser.xtce.parameter_types.IntegerParameterType(
+                    name="REPEATABLY_NESTED_Type",
+                    encoding=encodings.IntegerDataEncoding(
+                        size_in_bits=32,
+                        encoding="unsigned"
+                    )
+                )
+            )
+        ]
     )
 
     apid_filtered_container = containers.SequenceContainer(
@@ -109,6 +165,7 @@ def test_generating_xtce_from_objects():
             )
         ],
         entry_list=[
+            multiply_nested_container,
             parameters.Parameter(
                 name="SCI_DATA_LEN_BYTES",
                 parameter_type=space_packet_parser.xtce.parameter_types.IntegerParameterType(
@@ -135,43 +192,44 @@ def test_generating_xtce_from_objects():
     root_container = containers.SequenceContainer(
         name="RootContainer",
         abstract=True,
-        inheritors=[apid_filtered_container],
+        inheritors=[apid_filtered_container.name],
         entry_list=[
             parameters.Parameter(
                 name="VERSION",
-                parameter_type=_uint_type(3),
+                parameter_type=uint3,
                 short_description="CCSDS header version"
             ),
             parameters.Parameter(
                 name="TYPE",
-                parameter_type=_uint_type(1),
+                parameter_type=uint1,
                 short_description="CCSDS header type"
             ),
             parameters.Parameter(
                 name="SEC_HDR_FLG",
-                parameter_type=_uint_type(1),
+                parameter_type=uint1,
                 short_description="CCSDS header secondary header flag"
             ),
             parameters.Parameter(
                 name="APID",
-                parameter_type=_uint_type(11),
+                parameter_type=uint11,
                 short_description="CCSDS header APID"
             ),
             parameters.Parameter(
                 name="SEQ_FLGS",
-                parameter_type=_uint_type(2),
+                parameter_type=uint2,
                 short_description="CCSDS header sequence flags"
             ),
             parameters.Parameter(
                 name="SRC_SEQ_CTR",
-                parameter_type=_uint_type(14),
+                parameter_type=uint14,
                 short_description="CCSDS header source sequence counter"
             ),
             parameters.Parameter(
                 name="PKT_LEN",
-                parameter_type=_uint_type(16),
+                parameter_type=uint16,
                 short_description="CCSDS header packet length"
-            )
+            ),
+            multiply_nested_container
         ]
     )
 
@@ -180,16 +238,14 @@ def test_generating_xtce_from_objects():
 
     # Create the definition object
     definition = definitions.XtcePacketDefinition(
-        sequence_container_list=sequence_containers,
+        container_list=sequence_containers,
         root_container_name=root_container.name,
         date="2025-01-01T01:01:01",
-        author="Test Author",
         space_system_name="Test Space System Name"
     )
 
     # Serialize it to an XML string
     xtce_string = ElementTree.tostring(definition.to_xml_tree(), pretty_print=True).decode()
-
     # Reparse that string into a new definition object using from_document
     reparsed_definition = definitions.XtcePacketDefinition.from_xtce(
         io.StringIO(xtce_string),
@@ -316,3 +372,110 @@ def test_custom_namespacing(test_data_dir, xml, uri, ns, new_uri, new_ns):
     # And also using the new URI literal, if any
     prefix = f"{{{new_uri}}}" if new_uri else ""
     assert new_tree.find(f"{prefix}TelemetryMetaData", new_ns) is not None
+
+
+def test_uniqueness_of_parsed_xtce_objects():
+    """When we parse a document, we expect a singleton reference to each parameter, parameter type and sequence
+    container definition. This test proves that these references are all unique
+    """
+    xtce = """
+<xtce:SpaceSystem xmlns:xtce="http://www.omg.org/space/xtce" name="Libera">
+    <xtce:Header date="2021-06-08T14:11:00MST" version="1.0" author="Gavin Medley"/>
+    <xtce:TelemetryMetaData>
+        <xtce:ParameterTypeSet>
+            <xtce:IntegerParameterType name="UINT3_Type" signed="false">
+                <xtce:IntegerDataEncoding sizeInBits="3" encoding="unsigned"/>
+            </xtce:IntegerParameterType>
+            <xtce:IntegerParameterType name="UINT1_Type" signed="false">
+                <xtce:IntegerDataEncoding sizeInBits="1" encoding="unsigned"/>
+            </xtce:IntegerParameterType>
+        </xtce:ParameterTypeSet>
+        <xtce:ParameterSet>
+            <xtce:Parameter name="PARAM_1" parameterTypeRef="UINT3_Type"/>
+            <xtce:Parameter name="PARAM_2" parameterTypeRef="UINT3_Type"/>
+            <xtce:Parameter name="PARAM_3" parameterTypeRef="UINT1_Type"/>
+            <xtce:Parameter name="PARAM_4" parameterTypeRef="UINT1_Type"/>
+        </xtce:ParameterSet>
+        <xtce:ContainerSet>
+            <xtce:SequenceContainer name="CCSDSPacket" abstract="true">
+                <xtce:EntryList>
+                    <xtce:ParameterRefEntry parameterRef="PARAM_1"/>
+                    <xtce:ParameterRefEntry parameterRef="PARAM_2"/>
+                </xtce:EntryList>
+            </xtce:SequenceContainer>
+            <xtce:SequenceContainer name="CCSDSTelemetryPacket" abstract="true">
+                <xtce:LongDescription>Super-container for all telemetry packets</xtce:LongDescription>
+                <xtce:EntryList/>
+                <xtce:BaseContainer containerRef="CCSDSPacket">
+                    <xtce:RestrictionCriteria>
+                        <xtce:Comparison parameterRef="PARAM_1" value="0" useCalibratedValue="false"/>
+                    </xtce:RestrictionCriteria>
+                </xtce:BaseContainer>
+            </xtce:SequenceContainer>
+            <xtce:SequenceContainer name="SecondaryHeaderContainer" abstract="true">
+                <xtce:EntryList>
+                    <xtce:ParameterRefEntry parameterRef="PARAM_3"/>
+                </xtce:EntryList>
+            </xtce:SequenceContainer>
+            <xtce:SequenceContainer name="USES_SecondaryHeaderContainer">
+                <xtce:EntryList>
+                    <xtce:ContainerRefEntry containerRef="SecondaryHeaderContainer"/>
+                    <xtce:ParameterRefEntry parameterRef="PARAM_4"/>
+                </xtce:EntryList>
+                <xtce:BaseContainer containerRef="CCSDSTelemetryPacket">
+                    <xtce:RestrictionCriteria>
+                        <xtce:Comparison parameterRef="PARAM_2" value="11" useCalibratedValue="false"/>
+                    </xtce:RestrictionCriteria>
+                </xtce:BaseContainer>
+            </xtce:SequenceContainer>
+            <xtce:SequenceContainer name="ALSO_USES_SecondaryHeaderContainer">
+                <xtce:EntryList>
+                    <xtce:ContainerRefEntry containerRef="SecondaryHeaderContainer"/>
+                    <xtce:ParameterRefEntry parameterRef="PARAM_1"/>
+                </xtce:EntryList>
+            </xtce:SequenceContainer>
+        </xtce:ContainerSet>
+    </xtce:TelemetryMetaData>
+</xtce:SpaceSystem>
+"""
+    xdef = definitions.XtcePacketDefinition.from_xtce(io.StringIO(xtce))
+
+    def_param_ids = [id(p) for p in xdef.parameters.values()]
+    def_param_type_ids = [id(pt) for pt in xdef.parameter_types.values()]
+    def_cont_ids = [id(sc) for sc in xdef.containers.values()]
+
+    def _flatten_container(container: containers.SequenceContainer):
+        for entry in container.entry_list:
+            if isinstance(entry, containers.SequenceContainer):
+                if id(entry) not in def_cont_ids:
+                    raise AssertionError(f"{entry.name} object not in def.containers")
+                _flatten_container(entry)
+            else:
+                if id(entry.parameter_type) not in def_param_type_ids:
+                    raise AssertionError(f"{entry.parameter_type.name} not in definition.parameter_types")
+
+                if id(entry) not in def_param_ids:
+                    raise AssertionError(f"{entry.name} not in definition.parameters")
+
+    for sc in xdef.containers.values():
+        _flatten_container(sc)
+
+
+def test_uniqueness_of_reused_sequence_container(jpss_test_data_dir):
+    """Test that a reused sequence container element (nested into multiple entry lists)
+    is still the same object
+
+    This is a rather particular test that tests for regressions on a specific fixed behavior
+    """
+    jpss_xtce = jpss_test_data_dir / 'contrived_inheritance_structure.xml'
+    jpss_definition = definitions.XtcePacketDefinition.from_xtce(xtce_document=jpss_xtce)
+    assert isinstance(jpss_definition, definitions.XtcePacketDefinition)
+
+    # Prove that parsed sequence container objects are referencing the same objects, not duplicates
+    unused_secondary_header_container_ref = jpss_definition.containers["UNUSED"].entry_list[0]
+    assert isinstance(unused_secondary_header_container_ref, containers.SequenceContainer)
+    jpss_att_ephem_header_container_ref = jpss_definition.containers["JPSS_ATT_EPHEM"].entry_list[0]
+    assert isinstance(jpss_att_ephem_header_container_ref, containers.SequenceContainer)
+    assert unused_secondary_header_container_ref in jpss_definition.containers.values()
+    assert jpss_att_ephem_header_container_ref in jpss_definition.containers.values()
+    assert unused_secondary_header_container_ref is jpss_att_ephem_header_container_ref

@@ -40,21 +40,20 @@ class XtcePacketDefinition(common.AttrComparable):
     #  This will require an additional namespace dict entry for xsi (in this example)
     def __init__(
             self,
-            sequence_container_list: Optional[list[containers.SequenceContainer]] = None,
+            container_list: Optional[list[containers.SequenceContainer]] = None,
             *,
             ns: dict = XTCE_NSMAP,
             xtce_schema_uri: str = XTCE_URI,
             root_container_name: Optional[str] = DEFAULT_ROOT_CONTAINER,
             space_system_name: Optional[str] = None,
             xtce_version: str = "1.0",
-            date: str = None,
-            author: Optional[str] = None
+            date: str = None
     ):
         f"""
 
         Parameters
         ----------
-        sequence_container_list : Optional[list[space_packet_parser.containers.SequenceContainer]]
+        container_list : Optional[list[space_packet_parser.containers.SequenceContainer]]
             List of SequenceContainer objects, containing entry lists of Parameter objects, which contain their
             ParameterTypes. This is effectively the entire XTCE document in one list of objects.
         ns : dict
@@ -71,19 +70,47 @@ class XtcePacketDefinition(common.AttrComparable):
             Default "1.0"
         date: Optional[str]
             Optional header date string.
-        author : Optional[str]
-            Optional author name to include in XML when serializing.
         """
-        self._parameter_type_cache = {}
-        self._parameter_cache = {}
-        self._sequence_container_cache = {}
+        self.parameter_types = {}
+        self.parameters = {}
+        self.containers = {}
+
+        def _update_caches(sc: containers.SequenceContainer) -> None:
+            if sc.name in self.containers and self.containers[sc.name] is not sc:
+                raise ValueError(f"Got two different SequenceContainer objects: "
+                                 f"{sc}, {self.parameter_types[sc.name]}, "
+                                 f"for SequenceContainer with name {sc.name}. If you reuse a "
+                                 f"SequenceContainer, you must pass in the same object for each instance. Note: "
+                                 f"these SequenceContainer objects may be __eq__ equal but they "
+                                 f"are not the same object ")
+            self.containers[sc.name] = sc
+            for entry in sc.entry_list:
+                if isinstance(entry, containers.SequenceContainer):
+                    _update_caches(entry)  # recurse
+                elif isinstance(entry, parameters.Parameter):
+                    if entry.name in self.parameters and self.parameters[entry.name] is not entry:
+                        raise ValueError(f"Got two different Parameter objects: "
+                                         f"{entry}, {self.parameters[entry.name]}, "
+                                         f"for Parameter with name {entry.name}. If you reuse a Parameter, you must "
+                                         f"pass in the same object for each instance. Note: these Parameter objects "
+                                         f"may be __eq__ equal but they are not the same object and they should be.")
+                    self.parameters[entry.name] = entry
+                    if (entry.parameter_type.name in self.parameter_types and
+                            self.parameter_types[entry.parameter_type.name] is not entry.parameter_type):
+                        raise ValueError(f"Got two different ParameterType objects: "
+                                         f"{entry.parameter_type}, {self.parameter_types[entry.parameter_type.name]}, "
+                                         f"for ParameterType with name {entry.parameter_type.name}. If you reuse a "
+                                         f"ParameterType, you must pass in the same object for each instance. Note: "
+                                         f"these ParameterType objects may be __eq__ equal but they "
+                                         f"are not the same object ")
+                    self.parameter_types[entry.parameter_type.name] = entry.parameter_type
+                else:
+                    raise ValueError(f"Unrecognized element type in SequenceContainer entry list: {entry}")
 
         # Populate the three caches for easy lookup later.
-        if sequence_container_list:
-            for sc in sequence_container_list:
-                self._parameter_type_cache.update({p.parameter_type.name: p.parameter_type for p in sc.entry_list})
-                self._parameter_cache.update({p.name: p for p in sc.entry_list})
-            self._sequence_container_cache.update({sc.name: sc for sc in sequence_container_list})
+        if container_list:
+            for sequence_container in container_list:
+                _update_caches(sequence_container)
 
         self.ns = ns  # Default ns dict used when creating XML elements
         self.xtce_schema_uri = xtce_schema_uri  # XTCE schema URI
@@ -91,7 +118,6 @@ class XtcePacketDefinition(common.AttrComparable):
         self.space_system_name = space_system_name
         self.xtce_version = xtce_version
         self.date = date
-        self.author = author
 
     def write_xml(self, filepath: Union[str, Path]) -> None:
         """Write out the XTCE XML for this packet definition object to the specified path
@@ -124,21 +150,19 @@ class XtcePacketDefinition(common.AttrComparable):
             "date": self.date or datetime.now().isoformat(),
             "version": self.xtce_version
         }
-        if self.author:
-            header_attrib["author"] = self.author
 
         tree = ElementTree.ElementTree(
             elmaker.SpaceSystem(
                 elmaker.Header(**header_attrib),
                 elmaker.TelemetryMetaData(
                     elmaker.ParameterTypeSet(
-                        *(ptype.to_xml(elmaker=elmaker) for ptype in self._parameter_type_cache.values()),
+                        *(ptype.to_xml(elmaker=elmaker) for ptype in self.parameter_types.values()),
                     ),
                     elmaker.ParameterSet(
-                        *(param.to_xml(elmaker=elmaker) for param in self._parameter_cache.values()),
+                        *(param.to_xml(elmaker=elmaker) for param in self.parameters.values()),
                     ),
                     elmaker.ContainerSet(
-                        *(sc.to_xml(elmaker=elmaker) for sc in self._sequence_container_cache.values()),
+                        *(sc.to_xml(elmaker=elmaker) for sc in self.containers.values()),
                     )
                 ),
                 **space_system_attrib
@@ -177,27 +201,24 @@ class XtcePacketDefinition(common.AttrComparable):
         ns = tree.getroot().nsmap
         header = space_system.find(f"{{{xtce_schema_uri}}}" + "Header")
         if header is not None:
-            author = header.attrib.get("author", None)
             date = header.attrib.get("date", None)
         else:
-            author = None
             date = None
 
         xtce_definition = cls(
             ns=ns,
             xtce_schema_uri=xtce_schema_uri,
             root_container_name=root_container_name,
-            author=author,
             date=date,
             space_system_name=space_system.attrib.get("name", None)
         )
 
-        xtce_definition._parameter_type_cache = cls._get_parameter_types(tree, ns)
-        xtce_definition._parameter_cache = cls._get_parameters(
-            tree, xtce_definition._parameter_type_cache, ns
+        xtce_definition.parameter_types = cls._get_parameter_types(tree, ns)
+        xtce_definition.parameters = cls._get_parameters(
+            tree, xtce_definition.parameter_types, ns
         )
-        xtce_definition._sequence_container_cache = cls._get_sequence_containers(
-            tree, xtce_definition._parameter_cache, ns
+        xtce_definition.containers = cls._get_sequence_containers(
+            tree, xtce_definition.parameters, ns
         )
 
         return xtce_definition
@@ -228,23 +249,31 @@ class XtcePacketDefinition(common.AttrComparable):
         else:
             xtce_uri = ""
         xtce = f"{{{xtce_uri}}}"
-        sequence_container_dict = {}
-        for sequence_container in tree.getroot().iterfind(
+        container_lookup = {}
+        for sequence_container_element in tree.getroot().iterfind(
                 f'{xtce}TelemetryMetaData/{xtce}ContainerSet/{xtce}SequenceContainer',
                 ns
         ):
-            sequence_container_dict[
-                sequence_container.attrib['name']
-            ] = containers.SequenceContainer.from_xml(
-                sequence_container, tree=tree, parameter_lookup=parameter_lookup, ns=ns
+            sequence_container = containers.SequenceContainer.from_xml(
+                sequence_container_element,
+                tree=tree,
+                parameter_lookup=parameter_lookup,
+                container_lookup=container_lookup,
+                ns=ns
             )
 
-        # Back-populate the list of inheritors for each container
-        for name, sc in sequence_container_dict.items():
-            if sc.base_container_name:
-                sequence_container_dict[sc.base_container_name].inheritors.append(name)
+            if sequence_container.name in container_lookup:
+                raise ValueError(f"Found duplicate sequence container name {sequence_container.name}. "
+                                 "Sequence container names are expected to be unique")
 
-        return sequence_container_dict
+            container_lookup[sequence_container.name] = sequence_container
+
+        # Back-populate the list of inheritors for each container
+        for name, sc in container_lookup.items():
+            if sc.base_container_name:
+                container_lookup[sc.base_container_name].inheritors.append(name)
+
+        return container_lookup
 
     @staticmethod
     def _get_parameter_types(
@@ -318,7 +347,7 @@ class XtcePacketDefinition(common.AttrComparable):
         -------
         : dict[str, parameters.Parameter]
         """
-        parameter_dict = {}
+        parameter_lookup = {}
         if ns:
             xtce_label, xtce_uri = next(iter(ns.items()))
         else:
@@ -328,27 +357,14 @@ class XtcePacketDefinition(common.AttrComparable):
                 f'{xtce}TelemetryMetaData/{xtce}ParameterSet/{xtce}Parameter', ns):
             parameter_object = parameters.Parameter.from_xml(parameter_element, ns=ns,
                                                              parameter_type_lookup=parameter_type_lookup)
-            if parameter_object.name in parameter_dict:
+
+            if parameter_object.name in parameter_lookup:
                 raise ValueError(f"Found duplicate parameter name {parameter_object.name}. "
-                                 f"Parameters are expected to be unique")
-            parameter_dict[parameter_object.name] = parameter_object  # Add to cache
+                                 "Parameters are expected to be unique")
 
-        return parameter_dict
+            parameter_lookup[parameter_object.name] = parameter_object  # Add to cache
 
-    @property
-    def containers(self) -> dict[str, containers.SequenceContainer]:
-        """Property accessor that returns the dict cache of SequenceContainer objects keyed by container name"""
-        return self._sequence_container_cache
-
-    @property
-    def parameters(self) -> dict[str, parameters.Parameter]:
-        """Property accessor that returns the dict cache of Parameter objects keyed by parameter name"""
-        return self._parameter_cache
-
-    @property
-    def parameter_types(self) -> dict[str, parameter_types.ParameterType]:
-        """Property accessor that returns the dict cache of ParameterType objects keyed by parameter type name"""
-        return self._parameter_type_cache
+        return parameter_lookup
 
     def parse_ccsds_packet(self,
                            packet: packets.CCSDSPacket,
@@ -371,19 +387,19 @@ class XtcePacketDefinition(common.AttrComparable):
             A Packet object containing header and data attributes.
         """
         root_container_name = root_container_name or self.root_container_name
-        current_container: containers.SequenceContainer = self._sequence_container_cache[root_container_name]
+        current_container: containers.SequenceContainer = self.containers[root_container_name]
         while True:
             current_container.parse(packet)
 
             valid_inheritors = []
             for inheritor_name in current_container.inheritors:
                 if all(rc.evaluate(packet)
-                       for rc in self._sequence_container_cache[inheritor_name].restriction_criteria):
+                       for rc in self.containers[inheritor_name].restriction_criteria):
                     valid_inheritors.append(inheritor_name)
 
             if len(valid_inheritors) == 1:
                 # Set the unique valid inheritor as the next current_container
-                current_container = self._sequence_container_cache[valid_inheritors[0]]
+                current_container = self.containers[valid_inheritors[0]]
                 continue
 
             if len(valid_inheritors) == 0:
