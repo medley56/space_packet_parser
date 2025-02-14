@@ -11,9 +11,6 @@ on:
 jobs:
   ci-tests:
     runs-on: ${{ matrix.os }}
-    permissions:
-      # For codecov OIDC verifications
-      id-token: write
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
