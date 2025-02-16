@@ -84,14 +84,29 @@ def test_raw_packet_reads(raw_value, start, nbits, expected):
     assert raw_packet.pos == start + nbits
 
 
+def test_packet_data_lookups():
+    packet = packets.Packet(raw_data=b"123")
+    assert packet.raw_data == b"123"
+    # There are no items yet, so it should be an empty dictionary
+    assert packet == {}
+    # Now populate some packet items
+    packet.update({x: x for x in range(10)})
+    assert packet[5] == 5
+    assert packet == {x: x for x in range(10)}
+
+    with pytest.raises(KeyError):
+        packet[10]
+
+
 def test_ccsds_packet_data_lookups():
+    # Deprecated CCSDSPacket class with header/user_data fields
     packet = packets.CCSDSPacket(raw_data=b"123")
     assert packet.raw_data == b"123"
     # There are no items yet, so it should be an empty dictionary
     assert packet == {}
     assert packet.header == {}
     assert packet.user_data == {}
-    # Now populated some packet items
+    # Now populate some packet items
     packet.update({x: x for x in range(10)})
     assert packet[5] == 5
     assert packet == {x: x for x in range(10)}

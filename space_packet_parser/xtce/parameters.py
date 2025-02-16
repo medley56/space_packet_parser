@@ -29,7 +29,7 @@ class Parameter(common.Parseable, common.XmlObject):
     short_description: Optional[str] = None
     long_description: Optional[str] = None
 
-    def parse(self, packet: packets.CCSDSPacket) -> None:
+    def parse(self, packet: packets.Packet) -> None:
         """Parse this parameter from the packet data.
 
         Parse the parameter and add it to the packet dictionary.

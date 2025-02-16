@@ -154,13 +154,13 @@ class ParameterType(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
         raise ValueError(f"No Data Encoding element found for Parameter Type "
                          f"{parameter_type_element.tag}: {parameter_type_element.attrib}")
 
-    def parse_value(self, packet: packets.CCSDSPacket) -> common.ParameterDataTypes:
+    def parse_value(self, packet: packets.Packet) -> common.ParameterDataTypes:
         """Using the parameter type definition and associated data encoding, parse a value from a bit stream starting
         at the current cursor position.
 
         Parameters
         ----------
-        packet: CCSDSPacket
+        packet: Packet
             Binary representation of the packet used to get the coming bits and any
             previously parsed data items to infer field lengths.
 
@@ -346,13 +346,13 @@ class EnumeratedParameterType(ParameterType):
                          "Supported encodings for enums are FloatDataEncoding, IntegerDataEncoding, "
                          "and StringDataEncoding.")
 
-    def parse_value(self, packet: packets.CCSDSPacket) -> common.StrParameter:
+    def parse_value(self, packet: packets.Packet) -> common.StrParameter:
         """Using the parameter type definition and associated data encoding, parse a value from a bit stream starting
         at the current cursor position.
 
         Parameters
         ----------
-        packet: CCSDSPacket
+        packet: Packet
             Binary representation of the packet used to get the coming bits and any
             previously parsed data items to infer field lengths.
 
@@ -407,13 +407,13 @@ class BooleanParameterType(ParameterType):
                           f"encoded booleans is not specified in XTCE. e.g. is the string \"0\" truthy?")
         super().__init__(name, encoding, unit)
 
-    def parse_value(self, packet: packets.CCSDSPacket):
+    def parse_value(self, packet: packets.Packet):
         """Using the parameter type definition and associated data encoding, parse a value from a bit stream starting
         at the current cursor position.
 
         Parameters
         ----------
-        packet: CCSDSPacket
+        packet: Packet
             Binary representation of the packet used to get the coming bits and any
             previously parsed data items to infer field lengths.
 

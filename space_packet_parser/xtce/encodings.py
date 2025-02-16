@@ -103,12 +103,12 @@ class DataEncoding(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
             return adjuster
         return None
 
-    def _calculate_size(self, packet: packets.CCSDSPacket) -> int:
+    def _calculate_size(self, packet: packets.Packet) -> int:
         """Calculate the size of the data item in bits.
 
         Parameters
         ----------
-        packet: CCSDSPacket
+        packet: Packet
             Binary representation of the packet used to get the coming bits and any
             previously parsed data items to infer field lengths.
 
@@ -119,12 +119,12 @@ class DataEncoding(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
         """
         return NotImplemented
 
-    def parse_value(self, packet: packets.CCSDSPacket) -> common.ParameterDataTypes:
+    def parse_value(self, packet: packets.Packet) -> common.ParameterDataTypes:
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
         ----------
-        packet: CCSDSPacket
+        packet: Packet
             Binary representation of the packet used to get the coming bits and any
             previously parsed data items to infer field lengths.
         Returns
@@ -241,12 +241,12 @@ class StringDataEncoding(DataEncoding):
         self.discrete_lookup_length = discrete_lookup_length
         self.length_linear_adjuster = length_linear_adjuster
 
-    def _calculate_size(self, packet: packets.CCSDSPacket) -> int:
+    def _calculate_size(self, packet: packets.Packet) -> int:
         """Calculate the size of the raw string buffer field
 
         Parameters
         ----------
-        packet : packets.CCSDSPacket
+        packet : packets.Packet
             Partially parsed packet for referencing previous data fields.
 
         Returns
@@ -276,7 +276,7 @@ class StringDataEncoding(DataEncoding):
             raise ValueError("No raw length specifier found when decoding a string.")
         return int(buflen_bits)
 
-    def _get_raw_buffer(self, packet: packets.CCSDSPacket) -> bytes:
+    def _get_raw_buffer(self, packet: packets.Packet) -> bytes:
         """Get the raw string buffer as bytes. This will include any leading size or termination characters.
 
         Notes
@@ -285,7 +285,7 @@ class StringDataEncoding(DataEncoding):
 
         Parameters
         ----------
-        packet : packets.CCSDSPacket
+        packet : packets.Packet
             Packet parsed so far, for referencing previous values
 
         Returns
@@ -307,12 +307,12 @@ class StringDataEncoding(DataEncoding):
         ).to_bytes(buflen_bytes, "big")
         return raw_string_buffer
 
-    def parse_value(self, packet: packets.CCSDSPacket) -> common.StrParameter:
+    def parse_value(self, packet: packets.Packet) -> common.StrParameter:
         """Parse a string value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
         ----------
-        packet: CCSDSPacket
+        packet: Packet
             Binary representation of the packet used to get the coming bits and any
             previously parsed data items to infer field lengths.
 
@@ -544,16 +544,16 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
         self.default_calibrator = default_calibrator
         self.context_calibrators = context_calibrators
 
-    def _calculate_size(self, packet: packets.CCSDSPacket) -> int:
+    def _calculate_size(self, packet: packets.Packet) -> int:
         return self.size_in_bits
 
     @abstractmethod
-    def _get_raw_value(self, packet: packets.CCSDSPacket) -> Union[int, float]:
+    def _get_raw_value(self, packet: packets.Packet) -> Union[int, float]:
         """Read the raw value from the packet data
 
         Parameters
         ----------
-        packet: CCSDSPacket
+        packet: Packet
             Binary representation of the packet used to get the coming bits and any
             previously parsed data items to infer field lengths.
 
@@ -574,13 +574,13 @@ class NumericDataEncoding(DataEncoding, metaclass=ABCMeta):
         return val
 
     def parse_value(self,
-                    packet: packets.CCSDSPacket,
+                    packet: packets.Packet,
                     ) -> Union[common.FloatParameter, common.IntParameter]:
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
         ----------
-        packet: CCSDSPacket
+        packet: Packet
             Binary representation of the packet used to get the coming bits and any
             previously parsed data items to infer field lengths.
         Returns
@@ -642,7 +642,7 @@ class IntegerDataEncoding(NumericDataEncoding):
     """<xtce:IntegerDataEncoding>"""
     _data_return_class = common.IntParameter
 
-    def _get_raw_value(self, packet: packets.CCSDSPacket) -> int:
+    def _get_raw_value(self, packet: packets.Packet) -> int:
         # Extract the bits from the data in big-endian order from the packet
         val = packet.raw_data.read_as_int(self.size_in_bits)
         if self.byte_order == 'leastSignificantByteFirst':
@@ -881,7 +881,7 @@ class BinaryDataEncoding(DataEncoding):
         self.size_discrete_lookup_list = size_discrete_lookup_list
         self.linear_adjuster = linear_adjuster
 
-    def _calculate_size(self, packet: packets.CCSDSPacket) -> int:
+    def _calculate_size(self, packet: packets.Packet) -> int:
         """Determine the number of bits in the binary field.
 
         Returns
@@ -913,12 +913,12 @@ class BinaryDataEncoding(DataEncoding):
             len_bits = self.linear_adjuster(len_bits)
         return len_bits
 
-    def parse_value(self, packet: packets.CCSDSPacket) -> common.BinaryParameter:
+    def parse_value(self, packet: packets.Packet) -> common.BinaryParameter:
         """Parse a value from packet data, possibly using previously parsed data items to inform parsing.
 
         Parameters
         ----------
-        packet: CCSDSPacket
+        packet: Packet
             Binary representation of the packet used to get the coming bits and any
             previously parsed data items to infer field lengths.
 

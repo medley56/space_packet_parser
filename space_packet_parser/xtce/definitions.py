@@ -372,14 +372,14 @@ class XtcePacketDefinition(common.AttrComparable):
         return parameter_lookup
 
     def parse_ccsds_packet(self,
-                           packet: packets.CCSDSPacket,
+                           packet: packets.Packet,
                            *,
-                           root_container_name: Optional[str] = None) -> packets.CCSDSPacket:
+                           root_container_name: Optional[str] = None) -> packets.Packet:
         """Parse binary packet data according to the self.packet_definition object
 
         Parameters
         ----------
-        packet: packets.CCSDSPacket
+        packet: packets.Packet
             Binary representation of the packet used to get the coming bits and any
             previously parsed data items to infer field lengths.
         root_container_name : Optional[str]
