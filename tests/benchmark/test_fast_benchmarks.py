@@ -14,11 +14,9 @@ def test_benchmark__read_as_int__aligned(benchmark):
     test_byte = b'\x55'  # 01 01 01 01
     n_iterations = 1000
     nbits = 16
-    expected_value = 21845  # 01010101 01010101
+    expected_value = int.from_bytes(test_byte, "big")  # 85
     n_test_byte_repeats = ((rounds + warmup_rounds) * n_iterations * nbits // 8) + 1
-    raw_packet = packets.create_ccsds_packet(data=test_byte * n_test_byte_repeats)
-    # parse the header to move the bit cursor
-    _ = raw_packet.header_values
+    raw_packet = packets.RawPacketData(test_byte * n_test_byte_repeats)
 
     value = benchmark.pedantic(raw_packet.read_as_int, args=(nbits, ),
                                rounds=rounds,
@@ -36,14 +34,14 @@ def test_benchmark__read_as_int__non_aligned(benchmark):
     """
     rounds = 3
     warmup_rounds = 1
-    test_byte = b'\x55'  # 01 01 01 01
+    test_byte = b'\x55' * 3  # 01 01 01 01
     n_iterations = 1000
     nbits = 18
-    expected_value = 87381 # 01010101 01010101 01
     n_test_byte_repeats = ((rounds + warmup_rounds) * n_iterations * nbits // 8) + 1
-    raw_packet = packets.create_ccsds_packet(data=test_byte * n_test_byte_repeats)
-    # parse the header to move the bit cursor
-    _ = raw_packet.header_values
+    test_data = test_byte * n_test_byte_repeats
+    expected_value = 87381 # 01010101 01010101 01
+
+    raw_packet = packets.RawPacketData(test_data)
 
     value = benchmark.pedantic(raw_packet.read_as_int, args=(nbits, ),
                                rounds=rounds,
@@ -61,14 +59,12 @@ def test_benchmark__read_as_bytes__aligned(benchmark):
     """
     rounds = 3
     warmup_rounds = 1
-    test_byte = b'\x55'  # 01 01 01 01
+    test_byte = b'\x55' * 2  # 01 01 01 01
     n_iterations = 1000
     nbits = 16
     expected_value = b'\x55\x55'  # 01010101 01010101
     n_test_byte_repeats = ((rounds + warmup_rounds) * n_iterations * nbits // 8) + 1
-    raw_packet = packets.create_ccsds_packet(data=test_byte * n_test_byte_repeats)
-    # parse the header to move the bit cursor
-    _ = raw_packet.header_values
+    raw_packet = packets.RawPacketData(test_byte * n_test_byte_repeats)
 
     value = benchmark.pedantic(raw_packet.read_as_bytes, args=(nbits, ),
                                rounds=rounds,
@@ -86,15 +82,13 @@ def test_benchmark__read_as_bytes__non_aligned_full_bytes(benchmark):
     """
     rounds = 3
     warmup_rounds = 1
-    test_byte = b'\x55'  # 01 01 01 01
+    test_byte = b'\x55' * 2  # 01 01 01 01
     n_iterations = 1000
     nbits = 16
     expected_value = b'\xaa\xaa'  # 10101010 10101010
     n_test_byte_repeats = ((rounds + warmup_rounds) * n_iterations * nbits // 8) + 1
-    raw_packet = packets.create_ccsds_packet(data=test_byte * n_test_byte_repeats)
+    raw_packet = packets.RawPacketData(test_byte * n_test_byte_repeats)
     raw_packet.pos += 1  # Move cursor to non-aligned position
-    # parse the header to move the bit cursor
-    _ = raw_packet.header_values
 
     value = benchmark.pedantic(raw_packet.read_as_bytes, args=(nbits, ),
                                rounds=rounds,
@@ -118,10 +112,7 @@ def test_benchmark__read_as_bytes__partial_bytes(benchmark):
     nbits = 6
     expected_value = b'\x15'  # 00 01 01 01 (MSB padded with 2 bits)
     n_test_byte_repeats = ((rounds + warmup_rounds) * n_iterations * nbits // 8) + 1
-    raw_packet = packets.create_ccsds_packet(data=test_byte * n_test_byte_repeats)
-
-    # parse the header to move the bit cursor
-    _ = raw_packet.header_values
+    raw_packet = packets.RawPacketData(test_byte * n_test_byte_repeats)
 
     value = benchmark.pedantic(raw_packet.read_as_bytes, args=(nbits, ),
                                rounds=rounds,

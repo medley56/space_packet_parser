@@ -18,8 +18,8 @@ def test_jpss_xtce_packet_parsing(jpss_test_data_dir):
 
         n_packets = 0
         for jpss_packet in jpss_packet_generator:
-            assert isinstance(jpss_packet, packets.CCSDSPacket)
-            assert jpss_packet.header['PKT_APID'].raw_value == 11
-            assert jpss_packet.header['VERSION'].raw_value == 0
+            assert isinstance(jpss_packet, packets.Packet)
+            assert jpss_packet['PKT_APID'] == 11
+            assert jpss_packet['VERSION'] == 0
             n_packets += 1
         assert n_packets == 7200
