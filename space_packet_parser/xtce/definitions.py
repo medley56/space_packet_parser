@@ -434,7 +434,7 @@ class XtcePacketDefinition(common.AttrComparable):
             show_progress: bool = False,
             buffer_read_size_bytes: Optional[int] = None,
             skip_header_bytes: int = 0
-    ) -> Iterator[Union[packets.CCSDSPacket, UnrecognizedPacketTypeError]]:
+    ) -> Iterator[Union[packets.Packet, UnrecognizedPacketTypeError]]:
         """Create and return a Packet generator that reads from a ConstBitStream or a filelike object or a socket.
 
         Creating a generator object to return allows the user to create
@@ -507,6 +507,8 @@ class XtcePacketDefinition(common.AttrComparable):
             if ccsds_headers_only:
                 yield raw_packet_data
                 continue
+            # Wrap it in our own reader object
+            raw_packet_data = packets.RawPacketData(raw_packet_data)
 
             if not combine_segmented_packets or raw_packet_data.sequence_flags == packets.SequenceFlags.UNSEGMENTED:
                 packet = packets.CCSDSPacket(raw_data=raw_packet_data)
