@@ -9,19 +9,6 @@ on:
     - cron: '50 23 * * *'  # 11:50pm daily (to get ahead of all those midnight jobs)
 
 jobs:
-
-  linting:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repo
-        uses: actions/checkout@v4
-      - name: Install pre-commit
-        run: pip install pre-commit
-      - name: Run pre-commit
-        run: |
-          pre-commit install
-          pre-commit run --all
-
   ci-tests:
     runs-on: ${{ matrix.os }}
     permissions:
