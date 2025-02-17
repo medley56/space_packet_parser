@@ -18,6 +18,7 @@ jobs:
     defaults:
       run:
         shell: bash
+    environment: ci-testing
 
     steps:
       - uses: actions/checkout@v4
