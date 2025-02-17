@@ -8,10 +8,18 @@ import space_packet_parser.xtce.parameter_types
 from space_packet_parser.xtce import containers, definitions, encodings, parameters, comparisons
 
 
-def test_parsing_xtce_document(test_data_dir):
+@pytest.mark.parametrize(
+    ("xtcedoc", "xtce_ns_prefix"),
+    [
+        ("test_xtce.xml", "xtce"),
+        ("test_xtce_default_namespace.xml", None),
+        ("test_xtce_no_namespace.xml", None)
+    ]
+)
+def test_parsing_xtce_document(test_data_dir, xtcedoc, xtce_ns_prefix):
     """Tests parsing an entire XTCE document and makes assertions about the contents"""
-    with open(test_data_dir / "test_xtce.xml") as x:
-        xdef = definitions.XtcePacketDefinition.from_xtce(x)
+    with open(test_data_dir / xtcedoc) as x:
+        xdef = definitions.XtcePacketDefinition.from_xtce(x, xtce_ns_prefix=xtce_ns_prefix)
 
     # Test Parameter Types
     ptname = "USEC_Type"
@@ -156,9 +164,10 @@ def test_generating_xtce_from_objects():
     apid_filtered_container = containers.SequenceContainer(
         name="APID_3200",
         abstract=False,
+        base_container_name="RootContainer",
         restriction_criteria=[
             comparisons.Comparison(
-                required_value=3200,
+                required_value="3200",
                 referenced_parameter="APID",
                 operator="==",
                 use_calibrated_value=True
@@ -234,11 +243,11 @@ def test_generating_xtce_from_objects():
     )
 
     # This list of sequence containers internally contains all parameters and parameter types
-    sequence_containers = [root_container, apid_filtered_container]
+    sequence_containers = [root_container, apid_filtered_container, multiply_nested_container]
 
     # Create the definition object
     definition = definitions.XtcePacketDefinition(
-        container_list=sequence_containers,
+        container_set=sequence_containers,
         root_container_name=root_container.name,
         date="2025-01-01T01:01:01",
         space_system_name="Test Space System Name"
@@ -246,18 +255,18 @@ def test_generating_xtce_from_objects():
 
     # Serialize it to an XML string
     xtce_string = ElementTree.tostring(definition.to_xml_tree(), pretty_print=True).decode()
+
     # Reparse that string into a new definition object using from_document
     reparsed_definition = definitions.XtcePacketDefinition.from_xtce(
         io.StringIO(xtce_string),
         root_container_name=root_container.name
     )
 
-    # Serialize the reparsed object and assert that the string is the same as what we started with
-    assert ElementTree.tostring(reparsed_definition.to_xml_tree(), pretty_print=True).decode() == xtce_string
+    assert reparsed_definition == definition
 
 
 @pytest.mark.parametrize(
-    ("xml", "uri", "ns", "new_uri", "new_ns"),
+    ("xml", "ns_prefix", "uri", "ns", "new_ns_prefix", "new_uri", "new_ns"),
     [
         # Custom namespace to new custom namespace
         ("""
@@ -270,8 +279,10 @@ def test_generating_xtce_from_objects():
     </custom:TelemetryMetaData>
 </custom:SpaceSystem>
 """,
+         "custom",
          "http://www.fake-test.org/space/xtce",
          {"custom": "http://www.fake-test.org/space/xtce"},
+         "xtcenew",
          "http://www.fake-test.org/space/xtce",
          {"xtcenew": "http://www.fake-test.org/space/xtce"}),
         # No namespace to custom namespace
@@ -285,8 +296,10 @@ def test_generating_xtce_from_objects():
     </TelemetryMetaData>
 </SpaceSystem>
 """,
+         None,
          "http://www.fake-test.org/space/xtce",
          {None: "http://www.fake-test.org/space/xtce"},
+         "xtce",
          "http://www.fake-test.org/space/xtce",
          {"xtce": "http://www.fake-test.org/space/xtce"}),
         ("""
@@ -299,8 +312,10 @@ def test_generating_xtce_from_objects():
     </custom:TelemetryMetaData>
 </custom:SpaceSystem>
 """,
+         "custom",
          "http://www.fake-test.org/space/xtce",
          {"custom": "http://www.fake-test.org/space/xtce"},
+         None,
          "http://www.fake-test.org/space/xtce",
          {None: "http://www.fake-test.org/space/xtce"}),
         ("""
@@ -314,7 +329,9 @@ def test_generating_xtce_from_objects():
 </SpaceSystem>
 """,
          None,
+         None,
          {},
+         "xtcenew",
          "http://www.fake-test.org/space/xtce",
          {"xtcenew": "http://www.fake-test.org/space/xtce"}),
 ("""
@@ -327,16 +344,18 @@ def test_generating_xtce_from_objects():
     </custom:TelemetryMetaData>
 </custom:SpaceSystem>
 """,
+         "custom",
          "http://www.fake-test.org/space/xtce",
          {"custom": "http://www.fake-test.org/space/xtce"},
+         None,
          None,
          {}),
     ]
 )
-def test_custom_namespacing(test_data_dir, xml, uri, ns, new_uri, new_ns):
+def test_custom_namespacing(xml, ns_prefix, uri, ns, new_ns_prefix, new_uri, new_ns):
     """Test parsing XTCE with various namespace configurations"""
     # Parse directly from string, inferring the namespace mapping
-    xdef = definitions.XtcePacketDefinition.from_xtce(io.StringIO(xml), xtce_schema_uri=uri)
+    xdef = definitions.XtcePacketDefinition.from_xtce(io.StringIO(xml), xtce_ns_prefix=ns_prefix)
     default_tree = xdef.to_xml_tree()
     # Assert that we know what the inferred mapping is
     assert default_tree.getroot().nsmap == ns
@@ -453,7 +472,6 @@ def test_uniqueness_of_parsed_xtce_objects():
             else:
                 if id(entry.parameter_type) not in def_param_type_ids:
                     raise AssertionError(f"{entry.parameter_type.name} not in definition.parameter_types")
-
                 if id(entry) not in def_param_ids:
                     raise AssertionError(f"{entry.name} not in definition.parameters")
 

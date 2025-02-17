@@ -4,14 +4,14 @@ import lxml.etree as ElementTree
 
 from space_packet_parser import common
 from space_packet_parser.exceptions import CalibrationError
-from space_packet_parser.xtce import calibrators, comparisons, XTCE_NSMAP
+from space_packet_parser.xtce import XTCE_1_2_XMLNS, calibrators, comparisons
 
 
 @pytest.mark.parametrize(
     ('xml_string', 'expectation'),
     [
-        ("""
-<xtce:ContextCalibrator xmlns:xtce="http://www.omg.org/space/xtce">
+        (f"""
+<xtce:ContextCalibrator xmlns:xtce="{XTCE_1_2_XMLNS}">
     <xtce:ContextMatch>
         <xtce:ComparisonList>
             <xtce:Comparison comparisonOperator="&gt;=" value="678" parameterRef="EXI__FPGAT"/>
@@ -43,8 +43,8 @@ from space_packet_parser.xtce import calibrators, comparisons, XTCE_NSMAP
                  calibrators.PolynomialCoefficient(coefficient=1.25, exponent=3),
                  calibrators.PolynomialCoefficient(coefficient=0.0025, exponent=4)
              ]))),
-        ("""
-<xtce:ContextCalibrator xmlns:xtce="http://www.omg.org/space/xtce">
+        (f"""
+<xtce:ContextCalibrator xmlns:xtce="{XTCE_1_2_XMLNS}">
     <xtce:ContextMatch>
         <xtce:Comparison comparisonOperator="!=" value="3.14" parameterRef="EXI__FPGAT"/>
     </xtce:ContextMatch>
@@ -71,10 +71,10 @@ from space_packet_parser.xtce import calibrators, comparisons, XTCE_NSMAP
                  calibrators.PolynomialCoefficient(coefficient=1.25, exponent=3),
                  calibrators.PolynomialCoefficient(coefficient=0.0025, exponent=4)
              ]))),
-        ("""
-<xtce:ContextCalibrator xmlns:xtce="http://www.omg.org/space/xtce">
+        (f"""
+<xtce:ContextCalibrator xmlns:xtce="{XTCE_1_2_XMLNS}">
     <xtce:ContextMatch>
-        <xtce:BooleanExpression xmlns:xtce="http://www.omg.org/space/xtce">
+        <xtce:BooleanExpression xmlns:xtce="{XTCE_1_2_XMLNS}">
             <xtce:ANDedConditions>
                 <xtce:Condition>
                     <xtce:ParameterInstanceRef parameterRef="P1"/>
@@ -117,15 +117,15 @@ from space_packet_parser.xtce import calibrators, comparisons, XTCE_NSMAP
              ]))),
     ]
 )
-def test_context_calibrator(elmaker, xml_string, expectation):
+def test_context_calibrator(elmaker, xtce_parser, xml_string, expectation):
     """Test parsing a ContextCalibrator from an XML element"""
-    element = ElementTree.fromstring(xml_string)
+    element = ElementTree.fromstring(xml_string, parser=xtce_parser)
 
-    result = calibrators.ContextCalibrator.from_xml(element, ns=XTCE_NSMAP)
+    result = calibrators.ContextCalibrator.from_xml(element)
     assert result == expectation
     # Re parse the serialized form of the context calibrator to make sure we can recover it
     result_string = ElementTree.tostring(result.to_xml(elmaker=elmaker), pretty_print=True).decode()
-    full_circle = calibrators.ContextCalibrator.from_xml(ElementTree.fromstring(result_string), ns=XTCE_NSMAP)
+    full_circle = calibrators.ContextCalibrator.from_xml(ElementTree.fromstring(result_string, parser=xtce_parser))
     assert full_circle == expectation
 
 
@@ -216,8 +216,8 @@ def test_context_calibrator_calibrate(context_calibrator, parsed_data, parsed_va
 @pytest.mark.parametrize(
     ('xml_string', 'expectation'),
     [
-        ("""
-<xtce:SplineCalibrator xmlns:xtce="http://www.omg.org/space/xtce" order="0" extrapolate="true">
+        (f"""
+<xtce:SplineCalibrator xmlns:xtce="{XTCE_1_2_XMLNS}" order="0" extrapolate="true">
     <xtce:SplinePoint raw="1" calibrated="10"/>
     <xtce:SplinePoint raw="2.7" calibrated="100.948"/>
     <xtce:SplinePoint raw="3" calibrated="5E2"/>
@@ -228,8 +228,8 @@ def test_context_calibrator_calibrate(context_calibrator, parsed_data, parsed_va
              calibrators.SplinePoint(raw=2.7, calibrated=100.948),
              calibrators.SplinePoint(raw=3, calibrated=500),
          ])),
-        ("""
-<xtce:SplineCalibrator xmlns:xtce="http://www.omg.org/space/xtce">
+        (f"""
+<xtce:SplineCalibrator xmlns:xtce="{XTCE_1_2_XMLNS}">
     <xtce:SplinePoint raw="1" calibrated="10"/>
     <xtce:SplinePoint raw="2.7" calibrated="100.948"/>
     <xtce:SplinePoint raw="3" calibrated="5E2"/>
@@ -242,21 +242,20 @@ def test_context_calibrator_calibrate(context_calibrator, parsed_data, parsed_va
          ])),
     ]
 )
-def test_spline_calibrator(elmaker, xml_string: str, expectation):
+def test_spline_calibrator(elmaker, xtce_parser, xml_string: str, expectation):
     """Test parsing a StringDataEncoding from an XML string"""
-    element = ElementTree.fromstring(xml_string)
+    element = ElementTree.fromstring(xml_string, parser=xtce_parser)
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            calibrators.SplineCalibrator.from_xml(element, ns=XTCE_NSMAP)
+            calibrators.SplineCalibrator.from_xml(element)
     else:
-        result = calibrators.SplineCalibrator.from_xml(element, ns=XTCE_NSMAP)
+        result = calibrators.SplineCalibrator.from_xml(element)
         assert result == expectation
         # Re serialize to XML and re parse it to ensure we can reproduce it
         result_string = ElementTree.tostring(result.to_xml(elmaker=elmaker), pretty_print=True).decode()
         full_circle = calibrators.SplineCalibrator.from_xml(
-            ElementTree.fromstring(result_string),
-            ns=XTCE_NSMAP)
+            ElementTree.fromstring(result_string, parser=xtce_parser))
         assert full_circle == expectation
 
 
@@ -301,8 +300,8 @@ def test_spline_calibrator_calibrate(xq, order, extrapolate, expectation):
 @pytest.mark.parametrize(
     ('xml_string', 'expectation'),
     [
-        ("""
-<xtce:PolynomialCalibrator xmlns:xtce="http://www.omg.org/space/xtce">
+        (f"""
+<xtce:PolynomialCalibrator xmlns:xtce="{XTCE_1_2_XMLNS}">
     <xtce:Term exponent="0" coefficient="0.5"/>
     <xtce:Term exponent="1" coefficient="1.5"/>
     <xtce:Term exponent="2" coefficient="-0.045"/>
@@ -319,21 +318,20 @@ def test_spline_calibrator_calibrate(xq, order, extrapolate, expectation):
          ])),
     ]
 )
-def test_polynomial_calibrator(elmaker, xml_string: str, expectation):
+def test_polynomial_calibrator(elmaker, xtce_parser, xml_string: str, expectation):
     """Test parsing a StringDataEncoding from an XML string"""
-    element = ElementTree.fromstring(xml_string)
+    element = ElementTree.fromstring(xml_string, parser=xtce_parser)
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            calibrators.PolynomialCalibrator.from_xml(element, ns=XTCE_NSMAP)
+            calibrators.PolynomialCalibrator.from_xml(element)
     else:
-        result = calibrators.PolynomialCalibrator.from_xml(element, ns=XTCE_NSMAP)
+        result = calibrators.PolynomialCalibrator.from_xml(element)
         assert result == expectation
         # Re serialize to XML and re parse it to ensure we can reproduce it
         result_string = ElementTree.tostring(result.to_xml(elmaker=elmaker), pretty_print=True).decode()
         full_circle = calibrators.PolynomialCalibrator.from_xml(
-            ElementTree.fromstring(result_string),
-            ns=XTCE_NSMAP)
+            ElementTree.fromstring(result_string, parser=xtce_parser))
         assert full_circle == expectation
 
 @pytest.mark.parametrize(

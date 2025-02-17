@@ -18,16 +18,13 @@ class DataEncoding(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
     """Abstract base class for XTCE data encodings"""
 
     @staticmethod
-    def get_default_calibrator(data_encoding_element: ElementTree.Element,
-                               ns: dict) -> Union[calibrators.Calibrator, None]:
+    def get_default_calibrator(data_encoding_element: ElementTree.Element) -> Union[calibrators.Calibrator, None]:
         """Gets the default_calibrator for the data encoding element
 
         Parameters
         ----------
         data_encoding_element : ElementTree.Element
             The data encoding element which should contain the default_calibrator
-        ns : dict
-            XML namespace dict
 
         Returns
         -------
@@ -37,35 +34,33 @@ class DataEncoding(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
                            calibrators.PolynomialCalibrator,
                            calibrators.MathOperationCalibrator]:
             # Try to find each type of data encoding element. If we find one, we assume it's the only one.
-            element = data_encoding_element.find(f"xtce:DefaultCalibrator/xtce:{calibrator.__name__}", ns)
+            element = data_encoding_element.find(f"DefaultCalibrator/{calibrator.__name__}")
             if element is not None:
-                return calibrator.from_xml(element, ns=ns)
+                return calibrator.from_xml(element)
         return None
 
     @staticmethod
     def get_context_calibrators(
-            data_encoding_element: ElementTree.Element, ns: dict) -> Union[list[calibrators.ContextCalibrator], None]:
+            data_encoding_element: ElementTree.Element) -> Union[list[calibrators.ContextCalibrator], None]:
         """Get the context default_calibrator(s) for the data encoding element
 
         Parameters
         ----------
         data_encoding_element : ElementTree.Element
             XML element
-        ns : dict
-            XML namespace dict
 
         Returns
         -------
         : Union[List[ContextCalibrator], None]
             List of ContextCalibrator objects or None if there are no context calibrators
         """
-        if (context_calibrators_elements := data_encoding_element.find('xtce:ContextCalibratorList', ns)) is not None:
-            return [calibrators.ContextCalibrator.from_xml(el, ns=ns)
+        if (context_calibrators_elements := data_encoding_element.find('ContextCalibratorList')) is not None:
+            return [calibrators.ContextCalibrator.from_xml(el)
                     for el in context_calibrators_elements]
         return None
 
     @staticmethod
-    def _get_linear_adjuster(parent_element: ElementTree.Element, ns: dict) -> Union[callable, None]:
+    def _get_linear_adjuster(parent_element: ElementTree.Element) -> Union[callable, None]:
         """Examine a parent (e.g. a <xtce:DynamicValue>) element and find a LinearAdjustment if present,
         creating and returning a function that evaluates the adjustment.
 
@@ -73,16 +68,13 @@ class DataEncoding(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
         ----------
         parent_element : ElementTree.Element
             Parent element which may contain a LinearAdjustment
-        ns : dict
-            XML namespace dict
 
         Returns
         -------
         adjuster : Union[callable, None]
             Function object that adjusts a SizeInBits value by a linear function or None if no adjuster present
         """
-        linear_adjustment_element = parent_element.find('xtce:LinearAdjustment', ns)
-        if linear_adjustment_element is not None:
+        if (linear_adjustment_element := parent_element.find('LinearAdjustment')) is not None:
             slope = (int(linear_adjustment_element.attrib['slope'])
                      if 'slope' in linear_adjustment_element.attrib else 0)
             intercept = (int(linear_adjustment_element.attrib['intercept'])
@@ -357,7 +349,6 @@ class StringDataEncoding(DataEncoding):
             cls,
             element: ElementTree.Element,
             *,
-            ns: dict,
             tree: Optional[ElementTree.Element] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
             parameter_type_lookup: Optional[dict[str, any]] = None,
@@ -386,8 +377,6 @@ class StringDataEncoding(DataEncoding):
         ----------
         element : ElementTree.Element
             XML element
-        ns : dict
-            XML namespace dict
         tree: Optional[ElementTree.Element]
             Ignored
         parameter_lookup: Optional[dict]
@@ -414,33 +403,28 @@ class StringDataEncoding(DataEncoding):
                                      "either using the byteOrder attribute or via the encoding itself.")
 
         # Raw string specifiers
-        if element.find("xtce:SizeInBits", ns) is not None:
+        if (size_element := element.find("SizeInBits")) is not None:
             # This is a fixed length raw string
-            size_element = element.find("xtce:SizeInBits", ns)
-            fixed_raw_length = int(size_element.find("xtce:Fixed/xtce:FixedValue", ns).text)
+            fixed_raw_length = int(size_element.find("Fixed/FixedValue").text)
             init_kwargs["fixed_raw_length"] = fixed_raw_length
-        elif element.find("xtce:Variable", ns) is not None:
+        elif (size_element := element.find("Variable")) is not None:
             # This is a variable length raw string
-            size_element = element.find("xtce:Variable", ns)
-            if size_element.find("xtce:DynamicValue", ns) is not None:
+            if (dynamic_value_element := size_element.find("DynamicValue")) is not None:
                 # Raw string length is specified by reference to another parameter
-                dynamic_value_element = size_element.find('xtce:DynamicValue', ns)
-                referenced_parameter = dynamic_value_element.find('xtce:ParameterInstanceRef', ns).attrib[
-                    'parameterRef']
-                init_kwargs["dynamic_length_reference"] = referenced_parameter
+                parameter_instance_ref_element = dynamic_value_element.find("ParameterInstanceRef")
+                init_kwargs["dynamic_length_reference"] = parameter_instance_ref_element.attrib['parameterRef']
 
-                if 'useCalibratedValue' in dynamic_value_element.find('xtce:ParameterInstanceRef', ns).attrib:
-                    use_calibrated_value = dynamic_value_element.find(
-                        'xtce:ParameterInstanceRef', ns).attrib['useCalibratedValue'].lower() == "true"
-                    init_kwargs["use_calibrated_value"] = use_calibrated_value
+                use_calibrated_value = (
+                        parameter_instance_ref_element.attrib.get('useCalibratedValue', "true").lower() == "true"
+                )
+                init_kwargs["use_calibrated_value"] = use_calibrated_value
 
-                linear_adjuster = cls._get_linear_adjuster(dynamic_value_element, ns)
+                linear_adjuster = cls._get_linear_adjuster(dynamic_value_element)
                 init_kwargs["length_linear_adjuster"] = linear_adjuster
-            elif size_element.find("xtce:DiscreteLookupList", ns) is not None:
+            elif (discrete_lookup_list_element := size_element.find("DiscreteLookupList")) is not None:
                 # Raw string length is specified by lookup table based on another parameter
-                discrete_lookup_list_element = element.find('xtce:Variable/xtce:DiscreteLookupList', ns)
-                discrete_lookup_list = [comparisons.DiscreteLookup.from_xml(el, ns=ns)
-                                        for el in discrete_lookup_list_element.findall('xtce:DiscreteLookup', ns)]
+                discrete_lookup_list = [comparisons.DiscreteLookup.from_xml(el)
+                                        for el in discrete_lookup_list_element.iterfind('*')]
                 init_kwargs["discrete_lookup_length"] = discrete_lookup_list
             else:
                 raise ValueError("Variable element must contain either DynamicValue or DiscreteLookupList.")
@@ -448,13 +432,11 @@ class StringDataEncoding(DataEncoding):
             raise ValueError("StringDataEncoding must contain either a SizeInBits or Variable element.")
 
         # Derived string specifiers
-        if size_element.find("xtce:TerminationChar", ns) is not None:
-            termination_character = size_element.find('xtce:TerminationChar', ns).text
-            init_kwargs["termination_character"] = termination_character
+        if (termination_char_element := size_element.find("TerminationChar")) is not None:
+            init_kwargs["termination_character"] = termination_char_element.text
 
-        if size_element.find("xtce:LeadingSize", ns) is not None:
-            leading_length_size = int(size_element.find('xtce:LeadingSize', ns).attrib['sizeInBitsOfSizeTag'])
-            init_kwargs["leading_length_size"] = leading_length_size
+        if (leading_size_element := size_element.find("LeadingSize")) is not None:
+            init_kwargs["leading_length_size"] = int(leading_size_element.attrib['sizeInBitsOfSizeTag'])
 
         return cls(**init_kwargs)
 
@@ -682,7 +664,6 @@ class IntegerDataEncoding(NumericDataEncoding):
             cls,
             element: ElementTree.Element,
             *,
-            ns: dict,
             tree: Optional[ElementTree.Element] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
             parameter_type_lookup: Optional[dict[str, any]] = None,
@@ -694,8 +675,6 @@ class IntegerDataEncoding(NumericDataEncoding):
         ----------
         element : ElementTree.Element
             XML element
-        ns : dict
-            XML namespace dict
         tree: Optional[ElementTree.Element]
             Ignored
         parameter_lookup: Optional[dict]
@@ -712,8 +691,8 @@ class IntegerDataEncoding(NumericDataEncoding):
         size_in_bits = int(element.attrib['sizeInBits'])
         encoding = element.attrib['encoding'] if 'encoding' in element.attrib else "unsigned"
         byte_order = element.get("byteOrder", "mostSignificantByteFirst")
-        calibrator = cls.get_default_calibrator(element, ns)
-        context_calibrators = cls.get_context_calibrators(element, ns)
+        calibrator = cls.get_default_calibrator(element)
+        context_calibrators = cls.get_context_calibrators(element)
         return cls(size_in_bits=size_in_bits, encoding=encoding, byte_order=byte_order,
                    default_calibrator=calibrator, context_calibrators=context_calibrators)
 
@@ -834,7 +813,6 @@ class FloatDataEncoding(NumericDataEncoding):
             cls,
             element: ElementTree.Element,
             *,
-            ns: dict,
             tree: Optional[ElementTree.Element] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
             parameter_type_lookup: Optional[dict[str, any]] = None,
@@ -846,8 +824,6 @@ class FloatDataEncoding(NumericDataEncoding):
         ----------
         element : ElementTree.Element
             XML element
-        ns : dict
-            XML namespace dict
         tree: Optional[ElementTree.Element]
             Ignored
         parameter_lookup: Optional[dict]
@@ -864,8 +840,8 @@ class FloatDataEncoding(NumericDataEncoding):
         size_in_bits = int(element.attrib['sizeInBits'])
         encoding = element.get("encoding", "IEEE754")
         byte_order = element.get("byteOrder", "mostSignificantByteFirst")
-        default_calibrator = cls.get_default_calibrator(element, ns)
-        context_calibrators = cls.get_context_calibrators(element, ns)
+        default_calibrator = cls.get_default_calibrator(element)
+        context_calibrators = cls.get_context_calibrators(element)
         return cls(size_in_bits=size_in_bits, encoding=encoding, byte_order=byte_order,
                    default_calibrator=default_calibrator, context_calibrators=context_calibrators)
 
@@ -960,7 +936,6 @@ class BinaryDataEncoding(DataEncoding):
             cls,
             element: ElementTree.Element,
             *,
-            ns: dict,
             tree: Optional[ElementTree.Element] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
             parameter_type_lookup: Optional[dict[str, any]] = None,
@@ -972,8 +947,6 @@ class BinaryDataEncoding(DataEncoding):
         ----------
         element : ElementTree.Element
             XML element
-        ns : dict
-            XML namespace dict
         tree: Optional[ElementTree.Element]
             Ignored
         parameter_lookup: Optional[dict]
@@ -987,26 +960,22 @@ class BinaryDataEncoding(DataEncoding):
         -------
         : BinaryDataEncoding
         """
-        fixed_value_element = element.find('xtce:SizeInBits/xtce:FixedValue', ns)
-        if fixed_value_element is not None:
+        if (fixed_value_element := element.find('SizeInBits/FixedValue')) is not None:
             fixed_size_in_bits = int(fixed_value_element.text)
             return cls(fixed_size_in_bits=fixed_size_in_bits)
 
-        dynamic_value_element = element.find('xtce:SizeInBits/xtce:DynamicValue', ns)
-        if dynamic_value_element is not None:
-            param_inst_ref = dynamic_value_element.find('xtce:ParameterInstanceRef', ns)
+        if (dynamic_value_element := element.find('SizeInBits/DynamicValue')) is not None:
+            param_inst_ref = dynamic_value_element.find('ParameterInstanceRef')
             referenced_parameter = param_inst_ref.attrib['parameterRef']
-            use_calibrated_value = True
-            if 'useCalibratedValue' in param_inst_ref.attrib:
-                use_calibrated_value = param_inst_ref.attrib['useCalibratedValue'].lower() == "true"
-            linear_adjuster = cls._get_linear_adjuster(dynamic_value_element, ns)
+            # useCalibratedValue default value is "true"
+            use_calibrated_value = param_inst_ref.attrib.get('useCalibratedValue', "true").lower() == "true"
+            linear_adjuster = cls._get_linear_adjuster(dynamic_value_element)
             return cls(size_reference_parameter=referenced_parameter,
                        use_calibrated_value=use_calibrated_value, linear_adjuster=linear_adjuster)
 
-        discrete_lookup_list_element = element.find('xtce:SizeInBits/xtce:DiscreteLookupList', ns)
-        if discrete_lookup_list_element is not None:
-            discrete_lookup_list = [comparisons.DiscreteLookup.from_xml(el, ns=ns)
-                                    for el in discrete_lookup_list_element.findall('xtce:DiscreteLookup', ns)]
+        if (discrete_lookup_list_element := element.find('SizeInBits/DiscreteLookupList')) is not None:
+            discrete_lookup_list = [comparisons.DiscreteLookup.from_xml(el)
+                                    for el in discrete_lookup_list_element.iterfind('*')]
             return cls(size_discrete_lookup_list=discrete_lookup_list)
 
         raise ValueError("Tried parsing a binary parameter length using Fixed, Dynamic, and DiscreteLookupList "

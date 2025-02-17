@@ -9,6 +9,110 @@ from lxml.builder import ElementMaker
 from space_packet_parser import packets
 
 
+class NamespaceAwareElement(ElementTree.ElementBase):
+    """Custom element that automatically applies namespace mappings."""
+
+    _nsmap: dict[str, str] = {}  # Class level namespace mapping
+    _ns_prefix: Union[str, None] = None  # Class level namespace prefix for adding to Xpaths
+
+    @classmethod
+    def element_prefix(cls):
+        """Create the XPath element prefix
+
+        Notes
+        -----
+        If the prefix is None,
+        it indicates either an implicit namespace such as `<SpaceSystem xmlns="http://xtce-example-ns-uri"/>`,
+        where `nsmap` is `{None: "http://xtce-example-ns-uri", ...}`
+        or no namespace awareness, such as `<SpaceSystem/>`,
+        where `nsmap` does not contain any reference to a URI or prefix for the XTCE namespace
+        (but may contain other namespace mappings).
+
+        If the prefix is anything other than None,
+        it must be a string and must be present in the namespace mapping dict and represents a prefixed namespace,
+        such as `<xtce:SpaceSystem xmlns:xtce="http://xtce-example-ns-uri"/>`
+        where `nsmap` would be `{"xtce": "http://xtce-example-ns-uri", ...}` and `ns_prefix` would be `xtce`.
+        """
+        if cls._ns_prefix is not None:
+            if cls._ns_prefix not in cls._nsmap:
+                raise ValueError(f"XTCE namespace prefix {cls._ns_prefix} not found in namespace mapping "
+                                 f"{cls._nsmap}. If the namespace prefix is not 'None', it must appear as a key in the "
+                                 f"namespace mapping dict.")
+            return f"{cls._ns_prefix}:"
+        return ""
+
+    @classmethod
+    def add_namespace_to_xpath(cls, xpath: str) -> str:
+        """
+        Adds a namespace prefix to each element in an XPath expression.
+
+        Parameters
+        ----------
+        xpath : str
+            The original XPath expression without namespace prefixes.
+
+        Returns
+        -------
+        str
+            The updated XPath expression with namespace prefixes.
+        """
+        prefix = cls.element_prefix()
+        # Regex to match valid XML element names (avoids matching special characters like `@attr`, `.`, `*`, `()`, `::`)
+        xpath_parts = xpath.split('/')
+        new_parts = []
+
+        for part in xpath_parts:
+            # Skip empty parts (handles leading/trailing slashes)
+            if not part:
+                new_parts.append('')
+                continue
+
+            # Handle special cases (wildcards, functions, attributes, self, parent, axes)
+            if part is None or part in {'.', '..', '*'} or part.startswith('@') or '::' in part or '(' in part:
+                new_parts.append(part)
+            else:
+                new_parts.append(f"{prefix}{part}")
+
+        new_path = '/'.join(new_parts)
+        return new_path
+
+    def find(self, path, namespaces=None):
+        """Override find() to automatically use the stored namespace map."""
+        if namespaces is None:
+            namespaces = self.get_nsmap()
+        return super().find(self.add_namespace_to_xpath(path), namespaces=namespaces)
+
+    def findall(self, path, namespaces=None):
+        """Override findall() to automatically use the stored namespace map."""
+        if namespaces is None:
+            namespaces = self.get_nsmap()
+        return super().findall(self.add_namespace_to_xpath(path), namespaces=namespaces)
+
+    def iterfind(self, path, namespaces=None):
+        """Override iterfind() to automatically use the stored namespace map."""
+        if namespaces is None:
+            namespaces = self.get_nsmap()
+        return super().iterfind(self.add_namespace_to_xpath(path), namespaces=namespaces)
+
+    @classmethod
+    def set_nsmap(cls, nsmap: dict):
+        """Store the namespace map for all elements of this type."""
+        cls._nsmap = nsmap
+
+    def get_nsmap(self):
+        """Retrieve the stored namespace map."""
+        return self._nsmap
+
+    @classmethod
+    def set_ns_prefix(cls, ns_prefix: Union[str, None]):
+        """Store the namespace map for all elements of this type."""
+        cls._ns_prefix = ns_prefix
+
+    def get_ns_prefix(self):
+        """Retrieve the stored namespace map."""
+        return self._ns_prefix
+
+
 # Common comparable mixin
 class AttrComparable(metaclass=ABCMeta):
     """Generic class that provides a notion of equality based on all non-callable, non-dunder attributes"""
@@ -38,7 +142,6 @@ class XmlObject(metaclass=ABCMeta):
             cls,
             element: ElementTree.Element,
             *,
-            ns: dict,
             tree: Optional[ElementTree.ElementTree],
             parameter_lookup: Optional[dict[str, any]],
             parameter_type_lookup: Optional[dict[str, any]],
@@ -56,8 +159,6 @@ class XmlObject(metaclass=ABCMeta):
         ----------
         element : ElementTree.Element
             XML element from which to parse the object
-        ns : dict
-            XML namespace mapping
         tree: Optional[ElementTree.ElementTree]
             Full XML tree for parsing that requires access to other elements
         parameter_lookup: Optional[dict[str, parameters.ParameterType]]

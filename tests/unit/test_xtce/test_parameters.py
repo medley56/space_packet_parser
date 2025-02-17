@@ -6,14 +6,14 @@ import lxml.etree as ElementTree
 
 import space_packet_parser.xtce.parameter_types
 from space_packet_parser import common, packets
-from space_packet_parser.xtce import parameters, encodings, comparisons, calibrators, definitions, XTCE_NSMAP
+from space_packet_parser.xtce import XTCE_1_2_XMLNS, parameters, encodings, comparisons, calibrators, definitions
 
 
 def test_invalid_parameter_type_error(test_data_dir):
     """Test proper reporting of an invalid parameter type element"""
     # Test document contains an invalid "InvalidParameterType" element
-    test_xtce_document = """<?xml version='1.0' encoding='UTF-8'?>
-<xtce:SpaceSystem xmlns:xtce="http://www.omg.org/space/xtce" name="Space Packet Parser"
+    test_xtce_document = f"""<?xml version='1.0' encoding='UTF-8'?>
+<xtce:SpaceSystem xmlns:xtce="{XTCE_1_2_XMLNS}" name="Space Packet Parser"
                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                   xsi:schemaLocation="http://www.omg.org/spec/XTCE/20180204/SpaceSystem.xsd">
     <xtce:Header date="2024-03-05T13:36:00MST" version="1.0" author="Gavin Medley"/>
@@ -45,8 +45,8 @@ def test_invalid_parameter_type_error(test_data_dir):
 def test_unsupported_parameter_type_error(test_data_dir):
     """Test proper reporting of an unsupported parameter type element"""
     # Test document contains an unsupported array parameter type that is not yet implemented
-    test_xtce_document = """<?xml version='1.0' encoding='UTF-8'?>
-<xtce:SpaceSystem xmlns:xtce="http://www.omg.org/space/xtce" name="Space Packet Parser"
+    test_xtce_document = f"""<?xml version='1.0' encoding='UTF-8'?>
+<xtce:SpaceSystem xmlns:xtce="{XTCE_1_2_XMLNS}" name="Space Packet Parser"
                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                   xsi:schemaLocation="http://www.omg.org/spec/XTCE/20180204/SpaceSystem.xsd">
     <xtce:Header date="2024-03-05T13:36:00MST" version="1.0" author="Gavin Medley"/>
@@ -647,8 +647,8 @@ def test_absolute_time_parameter_parsing(parameter_type, raw_data, current_pos, 
 @pytest.mark.parametrize(
     ("param_xml", "param_object"),
     [
-        ("""
-<xtce:Parameter xmlns:xtce="http://www.omg.org/space/xtce" name="TEST_INT" parameterTypeRef="TEST_INT_Type" shortDescription="Param short desc">
+        (f"""
+<xtce:Parameter xmlns:xtce="{XTCE_1_2_XMLNS}" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="TEST_INT" parameterTypeRef="TEST_INT_Type" shortDescription="Param short desc">
   <xtce:LongDescription>This is a long description of the parameter</xtce:LongDescription>
 </xtce:Parameter>
 """,
@@ -662,6 +662,6 @@ def test_absolute_time_parameter_parsing(parameter_type, raw_data, current_pos, 
          )
     ]
 )
-def test_parameter(elmaker, param_xml, param_object):
+def test_parameter(elmaker, xtce_parser, param_xml, param_object):
     """Test Parameter"""
-    assert ElementTree.tostring(param_object.to_xml(elmaker=elmaker), pretty_print=True) == ElementTree.tostring(ElementTree.fromstring(param_xml), pretty_print=True)
+    assert ElementTree.tostring(param_object.to_xml(elmaker=elmaker), pretty_print=True) == ElementTree.tostring(ElementTree.fromstring(param_xml, parser=xtce_parser), pretty_print=True)

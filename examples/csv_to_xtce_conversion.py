@@ -39,15 +39,22 @@ def generate_ccsds_header() -> list[parameters.Parameter]:
     : list[Parameter]
         List of header parameters, in order, including their parameter types defined internally
     """
+    # Note: It is important to only have one ParameterType object for each type name. Reusing type names for
+    # different Python objects is an error as each parameter type name should correspond to exactly 1 object.
+    # The same goes for Parameters and SequenceContainers.
+    param_types = dict()  # Use a cache for types
 
     def _uint_type(bits: int):
-        return parameter_types.IntegerParameterType(
-        name=f"UINT{bits}_Type",
-        encoding=encodings.IntegerDataEncoding(
-            size_in_bits=bits,
-            encoding="unsigned"
-        )
-    )
+        type_name = f"UINT{bits}_Type"
+        if type_name not in param_types:
+            param_types[type_name] = parameter_types.IntegerParameterType(
+                name=type_name,
+                encoding=encodings.IntegerDataEncoding(
+                    size_in_bits=bits,
+                    encoding="unsigned"
+                )
+            )
+        return param_types[type_name]
 
     return [
         parameters.Parameter(
@@ -194,8 +201,9 @@ def convert_ccsdspy_to_xtce(csv_path: Path) -> definitions.XtcePacketDefinition:
 
         packet_parameters.append(parameter)
 
-    sequence_containers = [
-        containers.SequenceContainer(name="CCSDSPacket", entry_list=packet_parameters)]
+    sequence_containers = {
+        containers.SequenceContainer(name="CCSDSPacket", entry_list=packet_parameters)
+    }
 
     return definitions.XtcePacketDefinition(
         sequence_containers,

@@ -2,14 +2,14 @@
 import pytest
 import lxml.etree as ElementTree
 
-from space_packet_parser.xtce import encodings, comparisons, calibrators, XTCE_NSMAP
+from space_packet_parser.xtce import encodings, comparisons, calibrators, XTCE_1_2_XMLNS
 
 
 @pytest.mark.parametrize(
     ('xml_string', 'expectation'),
     [
-        ("""
-<xtce:StringDataEncoding encoding="UTF-16BE" xmlns:xtce="http://www.omg.org/space/xtce">
+        (f"""
+<xtce:StringDataEncoding encoding="UTF-16BE" xmlns:xtce="{XTCE_1_2_XMLNS}">
     <xtce:SizeInBits>
         <xtce:Fixed>
             <xtce:FixedValue>32</xtce:FixedValue>
@@ -19,8 +19,8 @@ from space_packet_parser.xtce import encodings, comparisons, calibrators, XTCE_N
 </xtce:StringDataEncoding>
 """,
          encodings.StringDataEncoding(fixed_raw_length=32, termination_character='0058', encoding='UTF-16BE')),
-        ("""
-<xtce:StringDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
+        (f"""
+<xtce:StringDataEncoding xmlns:xtce="{XTCE_1_2_XMLNS}">
     <xtce:SizeInBits>
         <xtce:Fixed>
             <xtce:FixedValue>17</xtce:FixedValue>
@@ -30,8 +30,8 @@ from space_packet_parser.xtce import encodings, comparisons, calibrators, XTCE_N
 </xtce:StringDataEncoding>
 """,
          encodings.StringDataEncoding(fixed_raw_length=17, leading_length_size=3)),
-        ("""
-<xtce:StringDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
+        (f"""
+<xtce:StringDataEncoding xmlns:xtce="{XTCE_1_2_XMLNS}">
     <xtce:Variable maxSizeInBits="32">
         <xtce:DynamicValue>
             <xtce:ParameterInstanceRef parameterRef="SizeFromThisParameter"/>
@@ -44,8 +44,8 @@ from space_packet_parser.xtce import encodings, comparisons, calibrators, XTCE_N
          encodings.StringDataEncoding(dynamic_length_reference='SizeFromThisParameter',
                                       length_linear_adjuster=object(),
                                       termination_character='58')),
-        ("""
-<xtce:StringDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
+        (f"""
+<xtce:StringDataEncoding xmlns:xtce="{XTCE_1_2_XMLNS}">
     <xtce:Variable maxSizeInBits="32">
         <xtce:DynamicValue>
             <xtce:ParameterInstanceRef parameterRef="SizeFromThisParameter"/>
@@ -58,8 +58,8 @@ from space_packet_parser.xtce import encodings, comparisons, calibrators, XTCE_N
          encodings.StringDataEncoding(dynamic_length_reference='SizeFromThisParameter',
                                       length_linear_adjuster=object(),
                                       leading_length_size=3)),
-        ("""
-<xtce:StringDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
+        (f"""
+<xtce:StringDataEncoding xmlns:xtce="{XTCE_1_2_XMLNS}">
     <xtce:Variable maxSizeInBits="32">
         <xtce:DiscreteLookupList>
             <xtce:DiscreteLookup value="10">
@@ -80,8 +80,8 @@ from space_packet_parser.xtce import encodings, comparisons, calibrators, XTCE_N
              ],
              termination_character="58"
          )),
-        ("""
-<xtce:StringDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
+        (f"""
+<xtce:StringDataEncoding xmlns:xtce="{XTCE_1_2_XMLNS}">
     <xtce:Variable maxSizeInBits="32">
         <xtce:DiscreteLookupList>
             <xtce:DiscreteLookup value="10">
@@ -102,8 +102,8 @@ from space_packet_parser.xtce import encodings, comparisons, calibrators, XTCE_N
              ],
              leading_length_size=3
          )),
-        ("""
-<xtce:StringDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
+        (f"""
+<xtce:StringDataEncoding xmlns:xtce="{XTCE_1_2_XMLNS}">
     <xtce:SizeInBits>
         <xtce:Fixed>
             <xtce:InvalidTag>9000</xtce:InvalidTag>
@@ -114,35 +114,35 @@ from space_packet_parser.xtce import encodings, comparisons, calibrators, XTCE_N
          AttributeError())
     ]
 )
-def test_string_data_encoding(elmaker, xml_string: str, expectation):
+def test_string_data_encoding(elmaker, xtce_parser, xml_string: str, expectation):
     """Test parsing a StringDataEncoding from an XML string"""
-    element = ElementTree.fromstring(xml_string)
+    element = ElementTree.fromstring(xml_string, parser=xtce_parser)
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            encodings.StringDataEncoding.from_xml(element, ns=XTCE_NSMAP)
+            encodings.StringDataEncoding.from_xml(element)
     else:
-        result = encodings.StringDataEncoding.from_xml(element, ns=XTCE_NSMAP)
+        result = encodings.StringDataEncoding.from_xml(element)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
         result_string = ElementTree.tostring(result.to_xml(elmaker=elmaker), pretty_print=True).decode()
-        full_circle = encodings.StringDataEncoding.from_xml(ElementTree.fromstring(result_string), ns=XTCE_NSMAP)
+        full_circle = encodings.StringDataEncoding.from_xml(ElementTree.fromstring(result_string, parser=xtce_parser))
         assert full_circle == expectation
 
 
 @pytest.mark.parametrize(
     ('xml_string', 'expectation'),
     [
-        ("""
-<xtce:IntegerDataEncoding xmlns:xtce="http://www.omg.org/space/xtce" sizeInBits="4" encoding="unsigned"/>
+        (f"""
+<xtce:IntegerDataEncoding xmlns:xtce="{XTCE_1_2_XMLNS}" sizeInBits="4" encoding="unsigned"/>
 """,
          encodings.IntegerDataEncoding(size_in_bits=4, encoding='unsigned')),
-        ("""
-<xtce:IntegerDataEncoding xmlns:xtce="http://www.omg.org/space/xtce" sizeInBits="4"/>
+        (f"""
+<xtce:IntegerDataEncoding xmlns:xtce="{XTCE_1_2_XMLNS}" sizeInBits="4"/>
 """,
          encodings.IntegerDataEncoding(size_in_bits=4, encoding='unsigned')),
-        ("""
-<xtce:IntegerDataEncoding xmlns:xtce="http://www.omg.org/space/xtce" sizeInBits="16" encoding="unsigned">
+        (f"""
+<xtce:IntegerDataEncoding xmlns:xtce="{XTCE_1_2_XMLNS}" sizeInBits="16" encoding="unsigned">
     <xtce:DefaultCalibrator>
         <xtce:PolynomialCalibrator>
             <xtce:Term exponent="1" coefficient="1.215500e-02"/>
@@ -156,8 +156,8 @@ def test_string_data_encoding(elmaker, xml_string: str, expectation):
              default_calibrator=calibrators.PolynomialCalibrator([
                  calibrators.PolynomialCoefficient(0.012155, 1), calibrators.PolynomialCoefficient(2.54, 0)
              ]))),
-        ("""
-<xtce:IntegerDataEncoding xmlns:xtce="http://www.omg.org/space/xtce" sizeInBits="12" encoding="unsigned">
+        (f"""
+<xtce:IntegerDataEncoding xmlns:xtce="{XTCE_1_2_XMLNS}" sizeInBits="12" encoding="unsigned">
     <xtce:ContextCalibratorList>
         <xtce:ContextCalibrator>
             <xtce:ContextMatch>
@@ -214,32 +214,31 @@ def test_string_data_encoding(elmaker, xml_string: str, expectation):
                                        ])),
     ]
 )
-def test_integer_data_encoding(elmaker, xml_string: str, expectation):
+def test_integer_data_encoding(elmaker, xtce_parser, xml_string: str, expectation):
     """Test parsing an IntegerDataEncoding from an XML string"""
-    element = ElementTree.fromstring(xml_string)
+    element = ElementTree.fromstring(xml_string, parser=xtce_parser)
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            encodings.IntegerDataEncoding.from_xml(element, ns=XTCE_NSMAP)
+            encodings.IntegerDataEncoding.from_xml(element)
     else:
-        result = encodings.IntegerDataEncoding.from_xml(element, ns=XTCE_NSMAP)
+        result = encodings.IntegerDataEncoding.from_xml(element)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
         result_string = ElementTree.tostring(result.to_xml(elmaker=elmaker), pretty_print=True).decode()
-        full_circle = encodings.IntegerDataEncoding.from_xml(ElementTree.fromstring(result_string),
-                                                             ns=XTCE_NSMAP)
+        full_circle = encodings.IntegerDataEncoding.from_xml(ElementTree.fromstring(result_string, parser=xtce_parser))
         assert full_circle == expectation
 
 
 @pytest.mark.parametrize(
     ('xml_string', 'expectation'),
     [
-        ("""
-<xtce:FloatDataEncoding xmlns:xtce="http://www.omg.org/space/xtce" sizeInBits="4" encoding="IEEE754"/>
+        (f"""
+<xtce:FloatDataEncoding xmlns:xtce="{XTCE_1_2_XMLNS}" sizeInBits="4" encoding="IEEE754"/>
 """,
          ValueError()),
-        ("""
-<xtce:FloatDataEncoding xmlns:xtce="http://www.omg.org/space/xtce" sizeInBits="16">
+        (f"""
+<xtce:FloatDataEncoding xmlns:xtce="{XTCE_1_2_XMLNS}" sizeInBits="16">
     <xtce:DefaultCalibrator>
         <xtce:PolynomialCalibrator>
             <xtce:Term exponent="1" coefficient="1.215500e-02"/>
@@ -253,8 +252,8 @@ def test_integer_data_encoding(elmaker, xml_string: str, expectation):
              default_calibrator=calibrators.PolynomialCalibrator([
                  calibrators.PolynomialCoefficient(0.012155, 1), calibrators.PolynomialCoefficient(2.54, 0)
              ]))),
-        ("""
-<xtce:FloatDataEncoding xmlns:xtce="http://www.omg.org/space/xtce" sizeInBits="16">
+        (f"""
+<xtce:FloatDataEncoding xmlns:xtce="{XTCE_1_2_XMLNS}" sizeInBits="16">
     <xtce:ContextCalibratorList>
         <xtce:ContextCalibrator>
             <xtce:ContextMatch>
@@ -319,36 +318,35 @@ def test_integer_data_encoding(elmaker, xml_string: str, expectation):
          )),
     ]
 )
-def test_float_data_encoding(elmaker, xml_string: str, expectation):
+def test_float_data_encoding(elmaker, xtce_parser, xml_string: str, expectation):
     """Test parsing an FloatDataEncoding from an XML string"""
-    element = ElementTree.fromstring(xml_string)
+    element = ElementTree.fromstring(xml_string, parser=xtce_parser)
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            encodings.FloatDataEncoding.from_xml(element, ns=XTCE_NSMAP)
+            encodings.FloatDataEncoding.from_xml(element)
     else:
-        result = encodings.FloatDataEncoding.from_xml(element, ns=XTCE_NSMAP)
+        result = encodings.FloatDataEncoding.from_xml(element)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
         result_string = ElementTree.tostring(result.to_xml(elmaker=elmaker), pretty_print=True).decode()
-        full_circle = encodings.FloatDataEncoding.from_xml(ElementTree.fromstring(result_string),
-                                                           ns=XTCE_NSMAP)
+        full_circle = encodings.FloatDataEncoding.from_xml(ElementTree.fromstring(result_string, parser=xtce_parser))
         assert full_circle == expectation
 
 
 @pytest.mark.parametrize(
     ('xml_string', 'expectation'),
     [
-        ("""
-<xtce:BinaryDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
+        (f"""
+<xtce:BinaryDataEncoding xmlns:xtce="{XTCE_1_2_XMLNS}">
     <xtce:SizeInBits>
         <xtce:FixedValue>256</xtce:FixedValue>
     </xtce:SizeInBits>
 </xtce:BinaryDataEncoding>
 """,
          encodings.BinaryDataEncoding(fixed_size_in_bits=256)),
-        ("""
-<xtce:BinaryDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
+        (f"""
+<xtce:BinaryDataEncoding xmlns:xtce="{XTCE_1_2_XMLNS}">
     <xtce:SizeInBits>
         <xtce:DynamicValue>
             <xtce:ParameterInstanceRef parameterRef="SizeFromThisParameter"/>
@@ -360,8 +358,8 @@ def test_float_data_encoding(elmaker, xml_string: str, expectation):
          encodings.BinaryDataEncoding(
              size_reference_parameter='SizeFromThisParameter',
              linear_adjuster=lambda x: 25 + 8 * x)),
-        ("""
-<xtce:BinaryDataEncoding xmlns:xtce="http://www.omg.org/space/xtce">
+        (f"""
+<xtce:BinaryDataEncoding xmlns:xtce="{XTCE_1_2_XMLNS}">
     <xtce:SizeInBits>
         <xtce:DiscreteLookupList>
             <xtce:DiscreteLookup value="10">
@@ -380,18 +378,17 @@ def test_float_data_encoding(elmaker, xml_string: str, expectation):
          ])),
     ]
 )
-def test_binary_data_encoding(elmaker, xml_string: str, expectation):
+def test_binary_data_encoding(elmaker, xtce_parser, xml_string: str, expectation):
     """Test parsing an BinaryDataEncoding from an XML string"""
-    element = ElementTree.fromstring(xml_string)
+    element = ElementTree.fromstring(xml_string, parser=xtce_parser)
 
     if isinstance(expectation, Exception):
         with pytest.raises(type(expectation)):
-            encodings.BinaryDataEncoding.from_xml(element, ns=XTCE_NSMAP)
+            encodings.BinaryDataEncoding.from_xml(element)
     else:
-        result = encodings.BinaryDataEncoding.from_xml(element, ns=XTCE_NSMAP)
+        result = encodings.BinaryDataEncoding.from_xml(element)
         assert result == expectation
         # Recover XML and re-parse it to check it's recoverable
         result_string = ElementTree.tostring(result.to_xml(elmaker=elmaker), pretty_print=True).decode()
-        full_circle = encodings.BinaryDataEncoding.from_xml(ElementTree.fromstring(result_string),
-                                                            ns=XTCE_NSMAP)
+        full_circle = encodings.BinaryDataEncoding.from_xml(ElementTree.fromstring(result_string, parser=xtce_parser))
         assert full_circle == expectation

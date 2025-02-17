@@ -43,7 +43,6 @@ class ParameterType(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
             cls,
             element: ElementTree.Element,
             *,
-            ns: dict,
             tree: Optional[ElementTree.Element] = None,
             parameter_lookup: Optional[dict] = None,
             parameter_type_lookup: Optional[dict] = None,
@@ -55,8 +54,6 @@ class ParameterType(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
         ----------
         element : ElementTree.Element
             The XML element from which to create the object.
-        ns: dict
-            XML namespace dict
         tree: Optional[ElementTree.Element]
             Ignored
         parameter_lookup: Optional[dict]
@@ -75,8 +72,8 @@ class ParameterType(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
         except KeyError as e:
             raise ValueError(f"Parameter Type name attribute is required for ParameterType element: "
                              f"{element.tag}, {element.attrib}") from e
-        unit = cls.get_units(element, ns)
-        encoding = cls.get_data_encoding(element, ns)
+        unit = cls.get_units(element)
+        encoding = cls.get_data_encoding(element)
         return cls(name, encoding, unit)
 
     def to_xml(self, *, elmaker: ElementMaker) -> ElementTree.Element:
@@ -105,7 +102,7 @@ class ParameterType(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
         return param_type_element
 
     @staticmethod
-    def get_units(parameter_type_element: ElementTree.Element, ns: dict) -> Union[str, None]:
+    def get_units(parameter_type_element: ElementTree.Element) -> Union[str, None]:
         """Finds the units associated with a parameter type element and parsed them to return a unit string.
         We assume only one <xtce:Unit> but this could be extended to support multiple units.
         See section 4.3.2.2.4 of CCSDS 660.1-G-1
@@ -114,8 +111,6 @@ class ParameterType(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
         ----------
         parameter_type_element : ElementTree.Element
             The parameter type element
-        ns : dict
-            XML namespace dictionary
 
         Returns
         -------
@@ -123,7 +118,7 @@ class ParameterType(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
             Unit string or None if no units are defined
         """
         # Assume we are not parsing a Time Parameter Type, which stores units differently
-        units = parameter_type_element.findall('xtce:UnitSet/xtce:Unit', ns)
+        units = parameter_type_element.findall('UnitSet/Unit')
         # TODO: Implement multiple unit elements for compound unit definitions
         if len(units) > 1:
             raise NotImplementedError(f"Found {len(units)} <xtce:Unit> elements in a single <xtce:UnitSet>."
@@ -134,7 +129,7 @@ class ParameterType(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
         return None
 
     @staticmethod
-    def get_data_encoding(parameter_type_element: ElementTree.Element, ns: dict) -> Union[encodings.DataEncoding, None]:
+    def get_data_encoding(parameter_type_element: ElementTree.Element) -> Union[encodings.DataEncoding, None]:
         """Finds the data encoding XML element associated with a parameter type XML element and parses
         it, returning an object representation of the data encoding.
 
@@ -142,8 +137,6 @@ class ParameterType(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
         ----------
         parameter_type_element : ElementTree.Element
             The parameter type element
-        ns : dict
-            XML namespace dictionary
 
         Returns
         -------
@@ -155,9 +148,9 @@ class ParameterType(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
                               encodings.FloatDataEncoding,
                               encodings.BinaryDataEncoding]:
             # Try to find each type of data encoding element. If we find one, we assume it's the only one.
-            element = parameter_type_element.find(f".//xtce:{data_encoding.__name__}", ns)
+            element = parameter_type_element.find(f".//{data_encoding.__name__}")
             if element is not None:
-                return data_encoding.from_xml(element, ns=ns)
+                return data_encoding.from_xml(element)
         raise ValueError(f"No Data Encoding element found for Parameter Type "
                          f"{parameter_type_element.tag}: {parameter_type_element.attrib}")
 
@@ -238,7 +231,6 @@ class EnumeratedParameterType(ParameterType):
             cls,
             element: ElementTree.Element,
             *,
-            ns: dict,
             tree: Optional[ElementTree.Element] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
             parameter_type_lookup: Optional[dict[str, any]] = None,
@@ -251,8 +243,6 @@ class EnumeratedParameterType(ParameterType):
         ----------
         element : ElementTree.Element
             The XML element from which to create the object.
-        ns: dict
-            XML namespace dict
         tree: Optional[ElementTree.Element]
             Ignored
         parameter_lookup: Optional[dict]
@@ -267,9 +257,9 @@ class EnumeratedParameterType(ParameterType):
         : EnumeratedParameterType
         """
         name = element.attrib['name']
-        unit = cls.get_units(element, ns)
-        encoding = cls.get_data_encoding(element, ns)
-        enumeration = cls.get_enumeration_list_contents(element, encoding, ns)
+        unit = cls.get_units(element)
+        encoding = cls.get_data_encoding(element)
+        enumeration = cls.get_enumeration_list_contents(element, encoding)
         return cls(name, encoding, enumeration=enumeration, unit=unit)
 
     def to_xml(self, *, elmaker: ElementMaker) -> ElementTree.Element:
@@ -313,7 +303,7 @@ class EnumeratedParameterType(ParameterType):
 
 
     @staticmethod
-    def get_enumeration_list_contents(element: ElementTree.Element, encoding: encodings.DataEncoding, ns: dict) -> dict:
+    def get_enumeration_list_contents(element: ElementTree.Element, encoding: encodings.DataEncoding) -> dict:
         """Finds the <xtce:EnumerationList> element child of an <xtce:EnumeratedParameterType> and parses it,
         returning a dict. This method is confusingly named as if it might return a list. Sorry, XML and python
         semantics are not always compatible. It's called an enumeration list because the XML element is called
@@ -325,33 +315,31 @@ class EnumeratedParameterType(ParameterType):
             The XML element from which to search for EnumerationList tags
         encoding: encodings.DataEncoding
             The data encoding informs how to interpret the keys in the enumeration list (int, float, or str).
-        ns : dict
-            XML namespace dict
 
         Returns
         -------
         : dict
         """
-        enumeration_list = element.find('xtce:EnumerationList', ns)
+        enumeration_list = element.find('EnumerationList')
         if enumeration_list is None:
             raise ValueError("An EnumeratedParameterType must contain an EnumerationList.")
 
         if isinstance(encoding, encodings.IntegerDataEncoding):
             return {
                 int(el.attrib['value']): el.attrib['label']
-                for el in enumeration_list.iterfind('xtce:Enumeration', ns)
+                for el in enumeration_list.iterfind('*')
             }
 
         if isinstance(encoding, encodings.FloatDataEncoding):
             return {
                 float(el.attrib['value']): el.attrib['label']
-                for el in enumeration_list.iterfind('xtce:Enumeration', ns)
+                for el in enumeration_list.iterfind('*')
             }
 
         if isinstance(encoding, encodings.StringDataEncoding):
             return {
                 bytes(el.attrib['value'], encoding=encoding.encoding): el.attrib['label']
-                for el in enumeration_list.iterfind('xtce:Enumeration', ns)
+                for el in enumeration_list.iterfind('*')
             }
 
         raise ValueError(f"Detected unsupported encoding type {encoding} for an EnumeratedParameterType."
@@ -490,7 +478,6 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
             cls,
             element: ElementTree.Element,
             *,
-            ns: dict,
             tree: Optional[ElementTree.ElementTree] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
             parameter_type_lookup: Optional[dict[str, any]] = None,
@@ -502,8 +489,6 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
         ----------
         element : ElementTree.Element
             The XML element from which to create the object.
-        ns: dict
-            XML namespace dict
         tree: Optional[ElementTree.Element]
             Ignored
         parameter_lookup: Optional[dict]
@@ -517,13 +502,13 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
         : TimeParameterType
         """
         name = element.attrib['name']
-        unit = cls.get_units(element, ns)
-        encoding = cls.get_data_encoding(element, ns)
-        encoding_unit_scaler = cls.get_time_unit_linear_scaler(element, ns)
+        unit = cls.get_units(element)
+        encoding = cls.get_data_encoding(element)
+        encoding_unit_scaler = cls.get_time_unit_linear_scaler(element)
         if encoding_unit_scaler:
             encoding.default_calibrator = encoding_unit_scaler
-        epoch = cls.get_epoch(element, ns)
-        offset_from = cls.get_offset_from(element, ns)
+        epoch = cls.get_epoch(element)
+        offset_from = cls.get_offset_from(element)
         return cls(name, encoding, unit=unit, epoch=epoch, offset_from=offset_from)
 
     def to_xml(self, *, elmaker: ElementMaker) -> ElementTree.Element:
@@ -589,7 +574,7 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
 
 
     @staticmethod
-    def get_units(parameter_type_element: ElementTree.Element, ns: dict) -> Union[str, None]:
+    def get_units(parameter_type_element: ElementTree.Element) -> Union[str, None]:
         """Finds the units associated with a parameter type element and parsed them to return a unit string.
         We assume only one <xtce:Unit> but this could be extended to support multiple units.
         See section 4.3.2.2.4 of CCSDS 660.1-G-1
@@ -598,22 +583,20 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
         ----------
         parameter_type_element : ElementTree.Element
             The parameter type element
-        ns : dict
-            XML namespace dictionary
 
         Returns
         -------
         : Union[str, None]
             Unit string or None if no units are defined
         """
-        if (encoding_element := parameter_type_element.find('xtce:Encoding', ns)) is not None:
+        if (encoding_element := parameter_type_element.find('Encoding')) is not None:
             return encoding_element.attrib.get('units')
         # Units are optional so return None if they aren't specified
         return None
 
     @staticmethod
     def get_time_unit_linear_scaler(
-            parameter_type_element: ElementTree.Element, ns: dict) -> Union[calibrators.PolynomialCalibrator, None]:
+            parameter_type_element: ElementTree.Element) -> Union[calibrators.PolynomialCalibrator, None]:
         """Finds the linear calibrator associated with the Encoding element for the parameter type element.
         See section 4.3.2.4.8.3 of CCSDS 660.1-G-2
 
@@ -621,15 +604,13 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
         ----------
         parameter_type_element : ElementTree.Element
             The parameter type element
-        ns : dict
-            XML namespace dictionary
 
         Returns
         -------
         : Union[PolynomialCalibrator, None]
             The PolynomialCalibrator, or None if we couldn't create a valid calibrator from the XML element
         """
-        encoding_element = parameter_type_element.find('xtce:Encoding', ns)
+        encoding_element = parameter_type_element.find('Encoding')
         coefficients = []
 
         if "offset" in encoding_element.attrib:
@@ -652,7 +633,7 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
         return None
 
     @staticmethod
-    def get_epoch(parameter_type_element: ElementTree.Element, ns: dict) -> Union[str, None]:
+    def get_epoch(parameter_type_element: ElementTree.Element) -> Union[str, None]:
         """Finds the epoch associated with a parameter type element and parses them to return an epoch string.
         See section 4.3.2.4.9 of CCSDS 660.1-G-2
 
@@ -660,8 +641,6 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
         ----------
         parameter_type_element : ElementTree.Element
             The parameter type element
-        ns : dict
-            XML namespace dictionary
 
         Returns
         -------
@@ -669,13 +648,13 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
             The epoch string, which may be a datetime string or a named epoch such as TAI. None if the element was
             not found.
         """
-        epoch_element = parameter_type_element.find('xtce:ReferenceTime/xtce:Epoch', ns)
+        epoch_element = parameter_type_element.find('ReferenceTime/Epoch')
         if epoch_element is not None:
             return epoch_element.text
         return None
 
     @staticmethod
-    def get_offset_from(parameter_type_element: ElementTree.Element, ns: dict) -> Union[str, None]:
+    def get_offset_from(parameter_type_element: ElementTree.Element) -> Union[str, None]:
         """Finds the parameter referenced in OffsetFrom in a parameter type element and returns the name of the
         referenced parameter (which must be of type TimeParameterType).
         See section 4.3.2.4.9 of CCSDS 660.1-G-1
@@ -684,15 +663,13 @@ class TimeParameterType(ParameterType, metaclass=ABCMeta):
         ----------
         parameter_type_element : ElementTree.Element
             The parameter type element
-        ns : dict
-            XML namespace dictionary
 
         Returns
         -------
         : Union[str, None]
             The named of the referenced parameter. None if no OffsetFrom element was found.
         """
-        offset_from_element = parameter_type_element.find('xtce:ReferenceTime/xtce:OffsetFrom', ns)
+        offset_from_element = parameter_type_element.find('ReferenceTime/OffsetFrom')
         if offset_from_element is not None:
             return offset_from_element.attrib['parameterRef']
         return None

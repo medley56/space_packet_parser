@@ -1,8 +1,10 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<xtce:SpaceSystem xmlns:xtce="http://www.omg.org/space/xtce" name="Space Packet Parser"
+<xtce:SpaceSystem name="SpacePacketParser"
+                  xmlns:xtce="http://www.omg.org/spec/XTCE/20180204"
                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                  xsi:schemaLocation="http://www.omg.org/spec/XTCE/20180204/SpaceSystem.xsd">
-    <xtce:Header date="2024-03-05T13:36:00MST" version="1.0" author="Gavin Medley"/>
+                  xsi:schemaLocation="http://www.omg.org/spec/XTCE/20180204
+                                      https://www.omg.org/spec/XTCE/20180204/SpaceSystem.xsd">
+    <xtce:Header date="2024-03-05T13:36:00MST" version="1.0" validationStatus="Working"/>
     <xtce:TelemetryMetaData>
         <xtce:ParameterTypeSet>
             <xtce:IntegerParameterType name="VERSION_Type" signed="false">

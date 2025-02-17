@@ -60,7 +60,6 @@ class SequenceContainer(common.Parseable, common.XmlObject):
             cls,
             element: ElementTree.Element,
             *,
-            ns: dict,
             tree: ElementTree.ElementTree,
             parameter_lookup: dict[str, parameters.Parameter],
             container_lookup: Optional[dict[str, any]],
@@ -77,8 +76,6 @@ class SequenceContainer(common.Parseable, common.XmlObject):
             Full XTCE tree
         element : ElementTree.Element
             The SequenceContainer element to parse.
-        ns : dict
-            XML namespace dict
         parameter_lookup : dict[str, parameters.Parameter]
             Parameters contained in the entry lists of sequence containers
         container_lookup: Optional[dict[str, SequenceContainer]]
@@ -94,7 +91,7 @@ class SequenceContainer(common.Parseable, common.XmlObject):
         """
         entry_list = []  # List to house Parameters and nested SequenceContainers for the current SequenceContainer
         try:
-            base_container, restriction_criteria = cls._get_base_container_element(tree, element, ns)
+            base_container, restriction_criteria = cls._get_base_container_element(tree, element)
             base_container_name = base_container.attrib['name']
             if base_container_name not in container_lookup:
                 base_sequence_container = cls.from_xml(
@@ -102,25 +99,19 @@ class SequenceContainer(common.Parseable, common.XmlObject):
                     tree=tree,
                     parameter_lookup=parameter_lookup,
                     container_lookup=container_lookup,
-                    ns=ns
                 )
                 container_lookup[base_sequence_container.name] = base_sequence_container
         except ElementNotFoundError:
             base_container_name = None
             restriction_criteria = None
 
-        # TODO: These hardcoded namespace prefixes need to be made dynamic according to the namespace uri
-        #  This probably means passing xtce_namespace_uri into this
-        container_contents = element.find('xtce:EntryList', ns).findall('*', ns)
-
-        for entry in container_contents:
-            if entry.tag == '{{{xtce}}}ParameterRefEntry'.format(**ns):
+        for entry in element.find('EntryList').iterfind('*'):
+            entry_tag_name = ElementTree.QName(entry).localname
+            if entry_tag_name == 'ParameterRefEntry':
                 parameter_name = entry.attrib['parameterRef']
                 entry_list.append(parameter_lookup[parameter_name])  # KeyError if parameter is not in the lookup
 
-            elif entry.tag == '{{{xtce}}}ContainerRefEntry'.format(
-                    **ns):
-
+            elif entry_tag_name == 'ContainerRefEntry':
                 # This container may not have been parsed yet. We need to parse it now so we might as well
                 # add it to the container lookup dict.
                 if entry.attrib['containerRef'] in container_lookup:
@@ -128,23 +119,22 @@ class SequenceContainer(common.Parseable, common.XmlObject):
                 else:
                     nested_container_element = cls._get_container_element(
                         tree,
-                        name=entry.attrib['containerRef'],
-                        ns=ns
+                        name=entry.attrib['containerRef']
                     )
                     nested_container = cls.from_xml(
                             nested_container_element,
                             tree=tree,
                             parameter_lookup=parameter_lookup,
-                            container_lookup=container_lookup,
-                            ns=ns
+                            container_lookup=container_lookup
                         )
+                    container_lookup[nested_container.name] = nested_container
                 entry_list.append(
                     nested_container
                 )
 
         short_description = element.attrib.get('shortDescription', None)
 
-        if (long_description_element := element.find('xtce:LongDescription', ns)) is not None:
+        if (long_description_element := element.find('LongDescription')) is not None:
             long_description = long_description_element.text
         else:
             long_description = None
@@ -184,6 +174,13 @@ class SequenceContainer(common.Parseable, common.XmlObject):
                 em.LongDescription(self.long_description)
             )
 
+        if (
+                (self.restriction_criteria and not self.base_container_name) or
+                (not self.restriction_criteria and self.base_container_name)
+        ):
+            raise ValueError("The restriction_criteria and base_container_name must be specified together or "
+                             "not at all.")
+
         if len(self.restriction_criteria) == 1:
             restrictions = self.restriction_criteria[0].to_xml(elmaker=elmaker)
         else:
@@ -216,8 +213,7 @@ class SequenceContainer(common.Parseable, common.XmlObject):
     @staticmethod
     def _get_container_element(
             tree: ElementTree.ElementTree,
-            name: str,
-            ns: dict
+            name: str
     ) -> ElementTree.Element:
         """Finds an XTCE container <xtce:SequenceContainer> by name.
 
@@ -230,10 +226,7 @@ class SequenceContainer(common.Parseable, common.XmlObject):
         -------
         : ElementTree.Element
         """
-        containers = tree.getroot().findall(
-            f"xtce:TelemetryMetaData/xtce:ContainerSet/xtce:SequenceContainer[@name='{name}']",
-            ns
-        )
+        containers = tree.getroot().find("TelemetryMetaData/ContainerSet").findall(f"SequenceContainer[@name='{name}']")
         if len(containers) != 1:
             raise ValueError(f"Found {len(containers)} matching container_set with name {name}. "
                              f"Container names are expected to exist and be unique.")
@@ -242,14 +235,15 @@ class SequenceContainer(common.Parseable, common.XmlObject):
     @staticmethod
     def _get_base_container_element(
             tree: ElementTree.Element,
-            container_element: ElementTree.Element,
-            ns: dict
+            container_element: ElementTree.Element
     ) -> tuple[ElementTree.Element, list[comparisons.MatchCriteria]]:
         """Finds the referenced base container of an existing XTCE container element,
         including its inheritance restrictions.
 
         Parameters
         ----------
+        tree : ElementTree.ElementTree
+            Full XML tree object, for finding additional referenced containers if necessary.
         container_element : ElementTree.Element
             The container element for which to find its base container.
 
@@ -259,31 +253,21 @@ class SequenceContainer(common.Parseable, common.XmlObject):
             The base container element of the input container_element.
             The restriction criteria for the inheritance.
         """
-        base_container_element = container_element.find('xtce:BaseContainer', ns)
+        base_container_element = container_element.find('BaseContainer')
         if base_container_element is None:
             raise ElementNotFoundError(
                 f"Container element {container_element} does not have a BaseContainer child element.")
 
-        restriction_criteria_element = base_container_element.find('xtce:RestrictionCriteria', ns)
-        if restriction_criteria_element is not None:
-            comparison_list_element = restriction_criteria_element.find('xtce:ComparisonList', ns)
-            single_comparison_element = restriction_criteria_element.find('xtce:Comparison', ns)
-            boolean_expression_element = restriction_criteria_element.find('xtce:BooleanExpression', ns)
-            custom_algorithm_element = restriction_criteria_element.find('xtce:CustomAlgorithm', ns)
-            if custom_algorithm_element is not None:
+        if (restriction_criteria_element := base_container_element.find('RestrictionCriteria')) is not None:
+            if (comparison_list_element := restriction_criteria_element.find('ComparisonList')) is not None:
+                restrictions = [comparisons.Comparison.from_xml(comp) for comp in comparison_list_element.iterfind('*')]
+            elif (comparison_element := restriction_criteria_element.find('Comparison')) is not None:
+                restrictions = [comparisons.Comparison.from_xml(comparison_element)]
+            elif (boolean_expression_element := restriction_criteria_element.find('BooleanExpression')) is not None:
+                restrictions = [comparisons.BooleanExpression.from_xml(boolean_expression_element)]
+            elif restriction_criteria_element.find('CustomAlgorithm') is not None:
                 raise NotImplementedError("Detected a CustomAlgorithm in a RestrictionCriteria element. "
                                           "This is not implemented.")
-
-            if comparison_list_element is not None:
-                comparison_items = comparison_list_element.findall('xtce:Comparison', ns)
-                restrictions = [
-                    comparisons.Comparison.from_xml(comp, ns=ns) for comp in comparison_items]
-            elif single_comparison_element is not None:
-                restrictions = [
-                    comparisons.Comparison.from_xml(single_comparison_element, ns=ns)]
-            elif boolean_expression_element is not None:
-                restrictions = [
-                    comparisons.BooleanExpression.from_xml(boolean_expression_element, ns=ns)]
             else:
                 raise ValueError("Detected a RestrictionCriteria element containing no "
                                  "Comparison, ComparisonList, BooleanExpression or CustomAlgorithm.")
@@ -292,7 +276,7 @@ class SequenceContainer(common.Parseable, common.XmlObject):
         else:
             restrictions = []
         return (
-            SequenceContainer._get_container_element(tree, base_container_element.attrib['containerRef'], ns),
+            SequenceContainer._get_container_element(tree, base_container_element.attrib['containerRef']),
             restrictions
         )
 

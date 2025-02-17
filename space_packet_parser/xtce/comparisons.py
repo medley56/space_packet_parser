@@ -55,7 +55,7 @@ class MatchCriteria(common.AttrComparable, common.XmlObject, metaclass=ABCMeta):
 class Comparison(MatchCriteria):
     """<xtce:Comparison>"""
 
-    def __init__(self, required_value: any, referenced_parameter: str,
+    def __init__(self, required_value: str, referenced_parameter: str,
                  operator: str = "==", use_calibrated_value: bool = True):
         """Constructor
 
@@ -63,7 +63,7 @@ class Comparison(MatchCriteria):
         ----------
         operator : str
             String representation of the comparison operation. e.g. "<=" or "leq"
-        required_value : any
+        required_value : str
             Value with which to compare the referenced parameter using the operator. This value is dynamically
             coerced to the referenced parameter type during evaluation.
         referenced_parameter : str
@@ -97,7 +97,6 @@ class Comparison(MatchCriteria):
             cls,
             element: ElementTree.Element,
             *,
-            ns: dict,
             tree: Optional[ElementTree.Element] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
             parameter_type_lookup: Optional[dict[str, any]] = None,
@@ -109,8 +108,6 @@ class Comparison(MatchCriteria):
         ----------
         element : ElementTree.Element
             XML element
-        ns : dict
-            XML namespace dict
         tree: Optional[ElementTree.Element]
             Ignored
         parameter_lookup: Optional[dict]
@@ -296,7 +293,6 @@ class Condition(MatchCriteria):
             cls,
             element: ElementTree.Element,
             *,
-            ns: dict,
             tree: Optional[ElementTree.Element] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
             parameter_type_lookup: Optional[dict[str, any]] = None,
@@ -308,8 +304,6 @@ class Condition(MatchCriteria):
         ----------
         element : ElementTree.Element
             XML element
-        ns : dict
-            XML namespace dict
         tree: Optional[ElementTree.Element]
             Ignored
         parameter_lookup: Optional[dict]
@@ -323,12 +317,12 @@ class Condition(MatchCriteria):
         -------
         : cls
         """
-        operator = element.find('xtce:ComparisonOperator', ns).text
-        params = element.findall('xtce:ParameterInstanceRef', ns)
+        operator = element.find('ComparisonOperator').text
+        params = element.findall('ParameterInstanceRef')
         if len(params) == 1:
             # XTCE green book Figure 3-5 specifies if only one ParameterInstanceRef, it is the LHS of the operator
             left_param, use_calibrated_value = cls._parse_parameter_instance_ref(params[0])
-            right_value = element.find('xtce:Value', ns).text
+            right_value = element.find('Value').text
             return cls(left_param, operator, right_value=right_value,
                        left_use_calibrated_value=use_calibrated_value,
                        right_use_calibrated_value=False)
@@ -454,7 +448,6 @@ class BooleanExpression(MatchCriteria):
             cls,
             element: ElementTree.Element,
             *,
-            ns: dict,
             tree: Optional[ElementTree.Element] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
             parameter_type_lookup: Optional[dict[str, any]] = None,
@@ -466,8 +459,6 @@ class BooleanExpression(MatchCriteria):
         ----------
         element : ElementTree.Element
            XML element
-        ns : dict
-           XML namespace dict
         tree: Optional[ElementTree.Element]
             Ignored
         parameter_lookup: Optional[dict]
@@ -494,9 +485,9 @@ class BooleanExpression(MatchCriteria):
             -------
             : Anded
             """
-            conditions = [Condition.from_xml(el, ns=ns)
-                          for el in anded_el.findall('xtce:Condition', ns)]
-            anded_ors = [_parse_ored(anded_or) for anded_or in anded_el.findall('xtce:ORedConditions', ns)]
+            conditions = [Condition.from_xml(el)
+                          for el in anded_el.iterfind('Condition')]
+            anded_ors = [_parse_ored(anded_or) for anded_or in anded_el.iterfind('ORedConditions')]
             return Anded(conditions, anded_ors)
 
         def _parse_ored(ored_el: ElementTree.Element) -> Ored:
@@ -511,18 +502,18 @@ class BooleanExpression(MatchCriteria):
             -------
             : Ored
             """
-            conditions = [Condition.from_xml(el, ns=ns)
-                          for el in ored_el.findall('xtce:Condition', ns)]
-            ored_ands = [_parse_anded(ored_and) for ored_and in ored_el.findall('xtce:ANDedConditions', ns)]
+            conditions = [Condition.from_xml(el)
+                          for el in ored_el.iterfind('Condition')]
+            ored_ands = [_parse_anded(ored_and) for ored_and in ored_el.iterfind('ANDedConditions')]
             return Ored(conditions, ored_ands)
 
-        if element.find('xtce:Condition', ns) is not None:
-            condition = Condition.from_xml(element.find('xtce:Condition', ns), ns=ns)
+        if (condition_element := element.find('Condition')) is not None:
+            condition = Condition.from_xml(condition_element)
             return cls(expression=condition)
-        if element.find('xtce:ANDedConditions', ns) is not None:
-            return cls(expression=_parse_anded(element.find('xtce:ANDedConditions', ns)))
-        if element.find('xtce:ORedConditions', ns) is not None:
-            return cls(expression=_parse_ored(element.find('xtce:ORedConditions', ns)))
+        if (anded_conditions_element := element.find('ANDedConditions')) is not None:
+            return cls(expression=_parse_anded(anded_conditions_element))
+        if (ored_conditions_element := element.find('ORedConditions')) is not None:
+            return cls(expression=_parse_ored(ored_conditions_element))
         raise ValueError(f"Failed to parse {element}")
 
     def evaluate(self,
@@ -626,7 +617,6 @@ class DiscreteLookup(common.AttrComparable, common.XmlObject):
             cls,
             element: ElementTree.Element,
             *,
-            ns: dict,
             tree: Optional[ElementTree.ElementTree] = None,
             parameter_lookup: Optional[dict[str, any]] = None,
             parameter_type_lookup: Optional[dict[str, any]] = None,
@@ -638,8 +628,6 @@ class DiscreteLookup(common.AttrComparable, common.XmlObject):
         ----------
         element : ElementTree.Element
             <xtce:DiscreteLookup> XML element from which to parse the DiscreteLookup object.
-        ns : dict
-            Namespace dict for XML parsing
         tree: Optional[ElementTree.Element]
             Ignored
         parameter_lookup: Optional[dict]
@@ -654,12 +642,10 @@ class DiscreteLookup(common.AttrComparable, common.XmlObject):
         : DiscreteLookup
         """
         lookup_value = float(element.attrib['value'])
-        if element.find('xtce:ComparisonList', ns) is not None:
-            match_criteria = [Comparison.from_xml(el, ns=ns)
-                              for el in element.findall('xtce:ComparisonList/xtce:Comparison', ns)]
-        elif element.find('xtce:Comparison', ns) is not None:
-            match_criteria = [Comparison.from_xml(
-                element.find('xtce:Comparison', ns), ns=ns)]
+        if (comparison_list_element := element.find('ComparisonList')) is not None:
+            match_criteria = [Comparison.from_xml(el) for el in comparison_list_element.iterfind("*")]
+        elif (comparison_element := element.find('Comparison')) is not None:
+            match_criteria = [Comparison.from_xml(comparison_element)]
         else:
             raise NotImplementedError("Only Comparison and ComparisonList are implemented for DiscreteLookup.")
 
