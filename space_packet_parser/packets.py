@@ -53,7 +53,9 @@ class RawPacketData(bytes):
             Raw bytes from the packet data
         """
         if self.pos + nbits > len(self) * 8:
-            raise ValueError("End of packet reached")
+            raise ValueError("Tried to read beyond the end of the packet data. "
+                             f"Tried to read {nbits} bits from position {self.pos} "
+                             f"in a packet of length {len(self) * 8} bits.")
         if self.pos % 8 == 0 and nbits % 8 == 0:
             # If the read is byte-aligned, we can just return the bytes directly
             data = self[self.pos//8:self.pos//8 + (nbits+7) // 8]
@@ -77,6 +79,10 @@ class RawPacketData(bytes):
         : int
             Integer representation of the bits read from the packet
         """
+        if self.pos + nbits > len(self) * 8:
+            raise ValueError("Tried to read beyond the end of the packet data. "
+                             f"Tried to read {nbits} bits from position {self.pos} "
+                             f"in a packet of length {len(self) * 8} bits.")
         int_data = _extract_bits(self, self.pos, nbits)
         self.pos += nbits
         return int_data

@@ -84,6 +84,14 @@ def test_raw_packet_reads(raw_value, start, nbits, expected):
     assert raw_packet.pos == start + nbits
 
 
+def test_read_beyond_end_of_packet():
+    raw_packet = packets.RawPacketData(b"123")
+    with pytest.raises(ValueError, match="Tried to read beyond the end of the packet"):
+        raw_packet.read_as_bytes(25)
+    with pytest.raises(ValueError, match="Tried to read beyond the end of the packet"):
+        raw_packet.read_as_int(25)
+
+
 def test_packet_data_lookups():
     packet = packets.Packet(raw_data=b"123")
     assert packet.raw_data == b"123"

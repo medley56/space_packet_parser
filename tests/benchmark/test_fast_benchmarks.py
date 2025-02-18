@@ -11,7 +11,7 @@ def test_benchmark__read_as_int__aligned(benchmark):
     """
     rounds = 3
     warmup_rounds = 1
-    test_byte = b'\x55'  # 01 01 01 01
+    test_byte = b'\x55'*2  # 01 01 01 01
     n_iterations = 1000
     nbits = 16
     expected_value = int.from_bytes(test_byte, "big")  # 85
