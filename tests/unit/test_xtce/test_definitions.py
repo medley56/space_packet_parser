@@ -5,7 +5,8 @@ import pytest
 from lxml import etree as ElementTree
 
 import space_packet_parser.xtce.parameter_types
-from space_packet_parser.xtce import containers, definitions, encodings, parameters, comparisons
+from space_packet_parser import packets
+from space_packet_parser.xtce import comparisons, containers, definitions, encodings, parameters
 
 
 @pytest.mark.parametrize(
@@ -497,3 +498,23 @@ def test_uniqueness_of_reused_sequence_container(jpss_test_data_dir):
     assert unused_secondary_header_container_ref in jpss_definition.containers.values()
     assert jpss_att_ephem_header_container_ref in jpss_definition.containers.values()
     assert unused_secondary_header_container_ref is jpss_att_ephem_header_container_ref
+
+def test_parse_methods(test_data_dir):
+    """Test parsing a packet from an XTCE document"""
+    xdef = definitions.XtcePacketDefinition.from_xtce(test_data_dir / "test_xtce.xml")
+
+    # Test parsing a packet
+    empty_packet_data = packets.create_ccsds_packet(data=bytes(80), apid=11, sequence_flags=packets.SequenceFlags.UNSEGMENTED)
+
+    # Full packet object with a RawPacketData reader
+    empty_packet = packets.Packet(raw_data=packets.RawPacketData(empty_packet_data))
+    packet = xdef.parse_packet(empty_packet)
+    # With a CCSDSPacketBytes object
+    assert packet == xdef.parse_bytes(empty_packet_data)
+    # Raw bytes should work too, not required to be a CCSDSPacketBytes object
+    assert packet == xdef.parse_bytes(bytes(empty_packet_data))
+
+    # Deprecated method, can be removed in a future version
+    empty_packet = packets.Packet(raw_data=packets.RawPacketData(empty_packet_data))
+    with pytest.warns(UserWarning, match="parse_ccsds_packet is deprecated"):
+        assert packet == xdef.parse_ccsds_packet(empty_packet)

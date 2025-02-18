@@ -371,10 +371,33 @@ class XtcePacketDefinition(common.AttrComparable):
 
         return parameter_lookup
 
-    def parse_ccsds_packet(self,
-                           packet: packets.Packet,
-                           *,
-                           root_container_name: Optional[str] = None) -> packets.Packet:
+    def parse_bytes(self,
+                    data: bytes,
+                    *,
+                    root_container_name: Optional[str] = None) -> packets.Packet:
+        """Parse binary packet data according to the self.packet_definition object
+
+        Parameters
+        ----------
+        data : bytes
+            Binary representation of the packet used to get the coming bits and any previously parsed data items to
+            infer field lengths.
+        root_container_name : Optional[str]
+            Default is taken from the XtcePacketDefinition object. Any root container may be specified, but it must
+            begin with the definition of a CCSDS header in order to parse correctly.
+
+        Returns
+        -------
+        Packet
+            A Packet object containing header and data attributes.
+        """
+        packet = packets.Packet(raw_data=data)
+        return self.parse_packet(packet, root_container_name=root_container_name)
+
+    def parse_packet(self,
+                     packet: packets.Packet,
+                     *,
+                     root_container_name: Optional[str] = None) -> packets.Packet:
         """Parse binary packet data according to the self.packet_definition object
 
         Parameters
@@ -420,6 +443,31 @@ class XtcePacketDefinition(common.AttrComparable):
                 f"Multiple valid inheritors, {valid_inheritors} are possible for {current_container}.",
                 partial_data=packet)
         return packet
+
+    def parse_ccsds_packet(self,
+                           packet: packets.Packet,
+                           *,
+                           root_container_name: Optional[str] = None) -> packets.Packet:
+        """Parse binary packet data according to the self.packet_definition object
+
+        Parameters
+        ----------
+        packet: packets.Packet
+            Binary representation of the packet used to get the coming bits and any
+            previously parsed data items to infer field lengths.
+        root_container_name : Optional[str]
+            Default is taken from the XtcePacketDefinition object. Any root container may be specified, but it must
+            begin with the definition of a CCSDS header in order to parse correctly.
+
+        Returns
+        -------
+        Packet
+            A Packet object containing header and data attributes.
+        """
+        warnings.warn("parse_ccsds_packet is deprecated and will be removed in a future release. "
+                      "Use the parse_packet method instead, XTCE has no notion of the ccsds standard.")
+        return self.parse_packet(packet, root_container_name=root_container_name)
+
 
     def packet_generator(
             self,
@@ -504,10 +552,9 @@ class XtcePacketDefinition(common.AttrComparable):
                 yield raw_packet_data
                 continue
 
-            packet = packets.Packet(raw_data=raw_packet_data)
             # Now do the actual parsing of the packet data
             try:
-                packet = self.parse_ccsds_packet(packet, root_container_name=root_container_name)
+                packet = self.parse_bytes(raw_packet_data, root_container_name=root_container_name)
             except UnrecognizedPacketTypeError as e:
                 logger.debug(f"Unrecognized error on packet with APID {raw_packet_data.apid}")
                 if yield_unrecognized_packet_errors:
