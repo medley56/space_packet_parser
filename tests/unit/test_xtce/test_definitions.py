@@ -497,3 +497,14 @@ def test_uniqueness_of_reused_sequence_container(jpss_test_data_dir):
     assert unused_secondary_header_container_ref in jpss_definition.containers.values()
     assert jpss_att_ephem_header_container_ref in jpss_definition.containers.values()
     assert unused_secondary_header_container_ref is jpss_att_ephem_header_container_ref
+
+
+def test_deprecated_definition_class(test_data_dir):
+    """Test that the deprecated XtcePacketDefinition class still works"""
+    with pytest.warns(UserWarning, match="The space_packet_parser.definitions module is deprecated"):
+        from space_packet_parser.definitions import XtcePacketDefinition as DeprecatedXtcePacketDefinition
+
+    with pytest.warns(UserWarning, match="This class is deprecated"):
+        xtce = DeprecatedXtcePacketDefinition(test_data_dir / "test_xtce.xml")
+    assert xtce.containers == definitions.XtcePacketDefinition.from_xtce(test_data_dir / "test_xtce.xml").containers
+

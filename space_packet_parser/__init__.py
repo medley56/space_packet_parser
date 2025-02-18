@@ -2,10 +2,10 @@
 from pathlib import Path
 from typing import Union
 
-from space_packet_parser.xtce import definitions
+from space_packet_parser.xtce.definitions import XtcePacketDefinition
 
 
-def load_xml(filename: Union[str, Path]) -> definitions.XtcePacketDefinition:
+def load_xml(filename: Union[str, Path]) -> XtcePacketDefinition:
     """Create an XtcePacketDefinition object from an XTCE XML file
 
     Parameters
@@ -17,4 +17,4 @@ def load_xml(filename: Union[str, Path]) -> definitions.XtcePacketDefinition:
     -------
     : definitions.XtcePacketDefinition
     """
-    return definitions.XtcePacketDefinition.from_xtce(filename)
+    return XtcePacketDefinition.from_xtce(filename)
