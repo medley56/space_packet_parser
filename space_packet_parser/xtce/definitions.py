@@ -371,15 +371,38 @@ class XtcePacketDefinition(common.AttrComparable):
 
         return parameter_lookup
 
-    def parse_ccsds_packet(self,
-                           packet: packets.CCSDSPacket,
-                           *,
-                           root_container_name: Optional[str] = None) -> packets.CCSDSPacket:
+    def parse_bytes(self,
+                    data: bytes,
+                    *,
+                    root_container_name: Optional[str] = None) -> packets.Packet:
         """Parse binary packet data according to the self.packet_definition object
 
         Parameters
         ----------
-        packet: packets.CCSDSPacket
+        data : bytes
+            Binary representation of the packet used to get the coming bits and any previously parsed data items to
+            infer field lengths.
+        root_container_name : Optional[str]
+            Default is taken from the XtcePacketDefinition object. Any root container may be specified, but it must
+            begin with the definition of a CCSDS header in order to parse correctly.
+
+        Returns
+        -------
+        Packet
+            A Packet object containing header and data attributes.
+        """
+        packet = packets.Packet(raw_data=data)
+        return self.parse_packet(packet, root_container_name=root_container_name)
+
+    def parse_packet(self,
+                     packet: packets.Packet,
+                     *,
+                     root_container_name: Optional[str] = None) -> packets.Packet:
+        """Parse binary packet data according to the self.packet_definition object
+
+        Parameters
+        ----------
+        packet: packets.Packet
             Binary representation of the packet used to get the coming bits and any
             previously parsed data items to infer field lengths.
         root_container_name : Optional[str]
@@ -421,6 +444,31 @@ class XtcePacketDefinition(common.AttrComparable):
                 partial_data=packet)
         return packet
 
+    def parse_ccsds_packet(self,
+                           packet: packets.Packet,
+                           *,
+                           root_container_name: Optional[str] = None) -> packets.Packet:
+        """Parse binary packet data according to the self.packet_definition object
+
+        Parameters
+        ----------
+        packet: packets.Packet
+            Binary representation of the packet used to get the coming bits and any
+            previously parsed data items to infer field lengths.
+        root_container_name : Optional[str]
+            Default is taken from the XtcePacketDefinition object. Any root container may be specified, but it must
+            begin with the definition of a CCSDS header in order to parse correctly.
+
+        Returns
+        -------
+        Packet
+            A Packet object containing header and data attributes.
+        """
+        warnings.warn("parse_ccsds_packet is deprecated and will be removed in a future release. "
+                      "Use the parse_packet method instead, XTCE has no notion of the ccsds standard.")
+        return self.parse_packet(packet, root_container_name=root_container_name)
+
+
     def packet_generator(
             self,
             binary_data: Union[BinaryIO, socket.socket],
@@ -434,7 +482,7 @@ class XtcePacketDefinition(common.AttrComparable):
             show_progress: bool = False,
             buffer_read_size_bytes: Optional[int] = None,
             skip_header_bytes: int = 0
-    ) -> Iterator[Union[packets.CCSDSPacket, UnrecognizedPacketTypeError]]:
+    ) -> Iterator[Union[packets.Packet, UnrecognizedPacketTypeError]]:
         """Create and return a Packet generator that reads from a ConstBitStream or a filelike object or a socket.
 
         Creating a generator object to return allows the user to create
@@ -493,54 +541,22 @@ class XtcePacketDefinition(common.AttrComparable):
         """
         root_container_name = root_container_name or self.root_container_name
 
-        # Used to keep track of any continuation packets that we encounter
-        # gathering them all up before combining them into a single packet
-        # for the XTCE to parse, lookup is by APID.
-        # _segmented_packets[APID] = [RawPacketData, ...]
-        _segmented_packets = {}
-
         # Iterate over individual packets in the binary data
         for raw_packet_data in packets.ccsds_generator(binary_data,
                                                        buffer_read_size_bytes=buffer_read_size_bytes,
                                                        show_progress=show_progress,
-                                                       skip_header_bytes=skip_header_bytes):
+                                                       skip_header_bytes=skip_header_bytes,
+                                                       combine_segmented_packets=combine_segmented_packets,
+                                                       secondary_header_bytes=secondary_header_bytes):
             if ccsds_headers_only:
                 yield raw_packet_data
                 continue
 
-            if not combine_segmented_packets or raw_packet_data.sequence_flags == packets.SequenceFlags.UNSEGMENTED:
-                packet = packets.CCSDSPacket(raw_data=raw_packet_data)
-            elif raw_packet_data.sequence_flags == packets.SequenceFlags.FIRST:
-                _segmented_packets[raw_packet_data.apid] = [raw_packet_data]
-                continue
-            elif not _segmented_packets.get(raw_packet_data.apid, []):
-                warnings.warn("Continuation packet found without declaring the start, skipping this packet.")
-                continue
-            elif raw_packet_data.sequence_flags == packets.SequenceFlags.CONTINUATION:
-                _segmented_packets[raw_packet_data.apid].append(raw_packet_data)
-                continue
-            else:  # raw_packet_data.sequence_flags == packets.SequenceFlags.LAST:
-                _segmented_packets[raw_packet_data.apid].append(raw_packet_data)
-                # We have received the final packet, close it up and combine all of
-                # the segmented packets into a single "packet" for XTCE parsing
-                sequence_counts = [p.sequence_count for p in _segmented_packets[raw_packet_data.apid]]
-                if not all((sequence_counts[i + 1] - sequence_counts[i]) % 16384 == 1
-                           for i in range(len(sequence_counts) - 1)):
-                    warnings.warn(f"Continuation packets for apid {raw_packet_data.apid} "
-                                  f"are not in sequence {sequence_counts}, skipping these packets.")
-                    continue
-                # Add all content (including header) from the first packet
-                raw_data = _segmented_packets[raw_packet_data.apid][0]
-                # Add the continuation packets to the first packet, skipping the headers
-                for p in _segmented_packets[raw_packet_data.apid][1:]:
-                    raw_data += p[raw_packet_data.HEADER_LENGTH_BYTES + secondary_header_bytes:]
-                packet = packets.CCSDSPacket(raw_data=raw_data)
-
             # Now do the actual parsing of the packet data
             try:
-                packet = self.parse_ccsds_packet(packet, root_container_name=root_container_name)
+                packet = self.parse_bytes(raw_packet_data, root_container_name=root_container_name)
             except UnrecognizedPacketTypeError as e:
-                logger.debug(f"Unrecognized error on packet with APID {packet.raw_data.apid}")
+                logger.debug(f"Unrecognized error on packet with APID {raw_packet_data.apid}")
                 if yield_unrecognized_packet_errors:
                     # Yield the caught exception without raising it (raising ends generator)
                     yield e
@@ -550,7 +566,7 @@ class XtcePacketDefinition(common.AttrComparable):
             if packet.raw_data.pos != len(packet.raw_data) * 8:
                 warnings.warn(f"Number of bits parsed ({packet.raw_data.pos}b) did not match "
                               f"the length of data available ({len(packet.raw_data) * 8}b) for packet with APID "
-                              f"{packet.raw_data.apid}.")
+                              f"{raw_packet_data.apid}.")
 
                 if not parse_bad_pkts:
                     logger.warning(f"Skipping (not yielding) bad packet with apid {raw_packet_data.apid}.")

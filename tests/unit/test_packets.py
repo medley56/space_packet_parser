@@ -84,23 +84,38 @@ def test_raw_packet_reads(raw_value, start, nbits, expected):
     assert raw_packet.pos == start + nbits
 
 
-def test_ccsds_packet_data_lookups():
-    packet = packets.CCSDSPacket(raw_data=b"123")
+def test_read_beyond_end_of_packet():
+    raw_packet = packets.RawPacketData(b"123")
+    with pytest.raises(ValueError, match="Tried to read beyond the end of the packet"):
+        raw_packet.read_as_bytes(25)
+    with pytest.raises(ValueError, match="Tried to read beyond the end of the packet"):
+        raw_packet.read_as_int(25)
+
+
+def test_packet_data_lookups():
+    packet = packets.Packet(raw_data=b"123")
     assert packet.raw_data == b"123"
     # There are no items yet, so it should be an empty dictionary
     assert packet == {}
-    assert packet.header == {}
-    assert packet.user_data == {}
-    # Now populated some packet items
+    # Now populate some packet items
     packet.update({x: x for x in range(10)})
     assert packet[5] == 5
     assert packet == {x: x for x in range(10)}
-    # The header is the first 7 items
-    assert packet.header == {x: x for x in range(7)}
-    assert packet.user_data == {x: x for x in range(7, 10)}
 
     with pytest.raises(KeyError):
         packet[10]
+
+    # Deprecated properties that can be removed in the future
+    with pytest.warns(UserWarning, match="The header property is deprecated"):
+        assert packet.header == {x: x for x in range(7)}
+    with pytest.warns(UserWarning, match="The user_data property is deprecated"):
+        assert packet.user_data == {x: x for x in range(7, 10)}
+
+
+def test_ccsds_packet_data_lookups():
+    # Deprecated CCSDSPacket class, an instance of the new Packet class
+    # can be removed in a future version
+    assert isinstance(packets.CCSDSPacket(), packets.Packet)
 
 
 def test_continuation_packets(test_data_dir):

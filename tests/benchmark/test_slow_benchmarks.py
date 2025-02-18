@@ -37,7 +37,7 @@ def test_benchmark_simple_packet_parsing(benchmark, jpss_test_data_dir):
             packet_generator = packet_definition.packet_generator(packet_fh)
             return (), {"generator": packet_generator}  # args, kwargs for benchmarked function
 
-        def _make_packet_list(generator: Iterable[packets.CCSDSPacket]):
+        def _make_packet_list(generator: Iterable[packets.Packet]):
             """Function wrapper for list that takes the generator as a kwarg"""
             return list(generator)
 
@@ -68,7 +68,7 @@ def test_benchmark_complex_packet_parsing(benchmark, idex_test_data_dir):
             packet_generator = packet_definition.packet_generator(packet_fh, show_progress=True)
             return (), {"generator": packet_generator}  # args, kwargs for benchmarked function
 
-        def _make_packet_list(generator: Iterable[packets.CCSDSPacket]):
+        def _make_packet_list(generator: Iterable[packets.Packet]):
             """Function wrapper for list that takes the generator as a kwarg"""
             return list(generator)
 

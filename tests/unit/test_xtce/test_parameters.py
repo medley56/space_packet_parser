@@ -213,7 +213,7 @@ def test_unsupported_parameter_type_error(test_data_dir):
 def test_string_parameter_parsing(parameter_type, raw_data, current_pos, expected_raw, expected_derived):
     """Test parsing a string parameter"""
     # pre parsed data to reference for lookups
-    packet = packets.CCSDSPacket(raw_data=raw_data, **{'P1': common.FloatParameter(7.55, 7),
+    packet = packets.Packet(raw_data=raw_data, **{'P1': common.FloatParameter(7.55, 7),
                                                        'P2': common.IntParameter(100, 99),
                                                        'STR_LEN': common.IntParameter(8)})
     # Artificially set the current position of the packet data read so far
@@ -325,7 +325,7 @@ def test_string_parameter_parsing(parameter_type, raw_data, current_pos, expecte
 def test_integer_parameter_parsing(parameter_type, raw_data, current_pos, expected):
     """Testing parsing an integer parameters"""
     # pre parsed data to reference for lookups
-    packet = packets.CCSDSPacket(raw_data=raw_data, PKT_APID=common.IntParameter(1101))
+    packet = packets.Packet(raw_data=raw_data, PKT_APID=common.IntParameter(1101))
     packet.raw_data.pos = current_pos
     value = parameter_type.parse_value(packet)
     assert value == expected
@@ -431,7 +431,7 @@ def test_integer_parameter_parsing(parameter_type, raw_data, current_pos, expect
 def test_float_parameter_parsing(parameter_type, raw_data, expected):
     """Test parsing float parameters"""
     # pre parsed data to reference for lookups
-    packet = packets.CCSDSPacket(raw_data=raw_data, **{'PKT_APID': common.IntParameter(1101)})
+    packet = packets.Packet(raw_data=raw_data, **{'PKT_APID': common.IntParameter(1101)})
     value = parameter_type.parse_value(packet)
     # NOTE: These results are compared with a relative tolerance due to the imprecise storage of floats
     assert value == pytest.approx(expected, rel=1E-7)
@@ -499,7 +499,7 @@ def test_float_parameter_parsing(parameter_type, raw_data, expected):
 )
 def test_enumerated_parameter_parsing(parameter_type, raw_data, expected_raw, expected):
     """Test parsing enumerated parameters"""
-    packet = packets.CCSDSPacket(raw_data=raw_data)
+    packet = packets.Packet(raw_data=raw_data)
     value = parameter_type.parse_value(packet)
     assert value == expected
     assert value.raw_value == expected_raw
@@ -537,7 +537,7 @@ def test_enumerated_parameter_parsing(parameter_type, raw_data, expected_raw, ex
 def test_binary_parameter_parsing(parameter_type, raw_data, expected):
     """Test parsing binary parameters"""
     # pre parsed data to reference for lookups
-    packet = packets.CCSDSPacket(raw_data=raw_data, **{
+    packet = packets.Packet(raw_data=raw_data, **{
         'P1': common.FloatParameter(7.4, 1),
         'BIN_LEN': common.IntParameter(2)})
     value = parameter_type.parse_value(packet)
@@ -587,7 +587,7 @@ def test_binary_parameter_parsing(parameter_type, raw_data, expected):
 )
 def test_boolean_parameter_parsing(parameter_type, raw_data, current_pos, expected_raw, expected_derived):
     """Test parsing boolean parameters"""
-    packet = packets.CCSDSPacket(raw_data=raw_data)
+    packet = packets.Packet(raw_data=raw_data)
     packet.raw_data.pos = current_pos
     value = parameter_type.parse_value(packet)
     assert value.raw_value == expected_raw
@@ -636,7 +636,7 @@ def test_boolean_parameter_parsing(parameter_type, raw_data, current_pos, expect
     ]
 )
 def test_absolute_time_parameter_parsing(parameter_type, raw_data, current_pos, expected_raw, expected_derived):
-    packet = packets.CCSDSPacket(raw_data=raw_data)
+    packet = packets.Packet(raw_data=raw_data)
     packet.raw_data.pos = current_pos
     value = parameter_type.parse_value(packet)
     assert value.raw_value == pytest.approx(expected_raw, rel=1E-6)

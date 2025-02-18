@@ -193,7 +193,7 @@ class XmlObject(metaclass=ABCMeta):
 
 class Parseable(Protocol):
     """Defines an object that can be parsed from packet data."""
-    def parse(self, packet: packets.CCSDSPacket) -> None:
+    def parse(self, packet: packets.Packet) -> None:
         """Parse this entry from the packet data and add the necessary items to the packet."""
 
 

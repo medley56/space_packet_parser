@@ -12,6 +12,7 @@ import io
 import logging
 import socket
 import time
+import warnings
 from collections.abc import Iterator
 from enum import IntEnum
 from functools import cached_property
@@ -29,13 +30,67 @@ class SequenceFlags(IntEnum):
 
 
 class RawPacketData(bytes):
-    """A class to represent raw packet data as bytes but whose length is represented by bit length.
+    """A class containing the raw binary packet data.
 
     This class is a subclass of bytes and is used to represent the raw packet data
-    in a more readable way. It is used to store the raw packet data in the Packet
+    in a more readable way. It is used to store the binary data in the Packet
     class and used to keep track of the current parsing position (accessible through the `pos` attribute).
+    """
+    pos = 0  # Current position in bits
 
-    There are also a few convenience methods to extract the CCSDS header fields from the packet data.
+    def read_as_bytes(self, nbits: int) -> bytes:
+        """Read a number of bits from the packet data as bytes. Reads minimum number of complete bytes required to
+        capture `nbits`. Moves `pos` cursor `nbits` forward, even if `nbits` is not an integer number of bytes.
+
+        Parameters
+        ----------
+        nbits : int
+            Number of bits to read
+
+        Returns
+        -------
+        : bytes
+            Raw bytes from the packet data
+        """
+        if self.pos + nbits > len(self) * 8:
+            raise ValueError("Tried to read beyond the end of the packet data. "
+                             f"Tried to read {nbits} bits from position {self.pos} "
+                             f"in a packet of length {len(self) * 8} bits.")
+        if self.pos % 8 == 0 and nbits % 8 == 0:
+            # If the read is byte-aligned, we can just return the bytes directly
+            data = self[self.pos//8:self.pos//8 + (nbits+7) // 8]
+            self.pos += nbits
+            return data
+        # We are non-byte aligned, so we need to extract the bits and convert to bytes
+        bytes_as_int = _extract_bits(self, self.pos, nbits)
+        self.pos += nbits
+        return int.to_bytes(bytes_as_int, (nbits + 7) // 8, "big")
+
+    def read_as_int(self, nbits: int) -> int:
+        """Read a number of bits from the packet data as an integer.
+
+        Parameters
+        ----------
+        nbits : int
+            Number of bits to read
+
+        Returns
+        -------
+        : int
+            Integer representation of the bits read from the packet
+        """
+        if self.pos + nbits > len(self) * 8:
+            raise ValueError("Tried to read beyond the end of the packet data. "
+                             f"Tried to read {nbits} bits from position {self.pos} "
+                             f"in a packet of length {len(self) * 8} bits.")
+        int_data = _extract_bits(self, self.pos, nbits)
+        self.pos += nbits
+        return int_data
+
+class CCSDSPacketBytes(bytes):
+    """Binary representation of a CCSDS packet.
+
+    Methods to extract the header fields are added to the raw bytes object.
     """
     HEADER_LENGTH_BYTES = 6
     pos = 0  # in bits
@@ -66,7 +121,6 @@ class RawPacketData(bytes):
         0 = No secondary header
         1 = Secondary header present
         """
-
         return _extract_bits(self, 4, 1)
 
     @cached_property
@@ -95,12 +149,12 @@ class RawPacketData(bytes):
         """CCSDS Packet Data Length
 
         Section 4.1.3.5.3 The length count C shall be expressed as:
-        C = (Total Number of Octets in the Packet Data Field) – 1
+        C = (Total Number of Octets in the Packet Data Field) - 1
         """
         # This has already been parsed previously to give us the length of the packet
         # so avoid the extract_bits call again and calculate it based on the length of the data
         # Subtract 6 bytes for the header and 1 for the length count
-        return len(self) - RawPacketData.HEADER_LENGTH_BYTES - 1
+        return len(self) - CCSDSPacketBytes.HEADER_LENGTH_BYTES - 1
 
     @cached_property
     def header_values(self) -> tuple[int, ...]:
@@ -113,49 +167,6 @@ class RawPacketData(bytes):
                 self.sequence_count,
                 self.data_length)
 
-    def read_as_bytes(self, nbits: int) -> bytes:
-        """Read a number of bits from the packet data as bytes. Reads minimum number of complete bytes required to
-        capture `nbits`. Moves `pos` cursor `nbits` forward, even if `nbits` is not an integer number of bytes.
-
-        Parameters
-        ----------
-        nbits : int
-            Number of bits to read
-
-        Returns
-        -------
-        : bytes
-            Raw bytes from the packet data
-        """
-        if self.pos + nbits > len(self) * 8:
-            raise ValueError("End of packet reached")
-        if self.pos % 8 == 0 and nbits % 8 == 0:
-            # If the read is byte-aligned, we can just return the bytes directly
-            data = self[self.pos//8:self.pos//8 + (nbits+7) // 8]
-            self.pos += nbits
-            return data
-        # We are non-byte aligned, so we need to extract the bits and convert to bytes
-        bytes_as_int = _extract_bits(self, self.pos, nbits)
-        self.pos += nbits
-        return int.to_bytes(bytes_as_int, (nbits + 7) // 8, "big")
-
-    def read_as_int(self, nbits: int) -> int:
-        """Read a number of bits from the packet data as an integer.
-
-        Parameters
-        ----------
-        nbits : int
-            Number of bits to read
-
-        Returns
-        -------
-        : int
-            Integer representation of the bits read from the packet
-        """
-        int_data = _extract_bits(self, self.pos, nbits)
-        self.pos += nbits
-        return int_data
-
 
 def create_ccsds_packet(data=b"\x00",
                         *,
@@ -164,7 +175,7 @@ def create_ccsds_packet(data=b"\x00",
                         secondary_header_flag=0,
                         apid=2047,  # 2047 is defined as a fill packet in the CCSDS spec
                         sequence_flags=SequenceFlags.UNSEGMENTED,
-                        sequence_count=0) -> RawPacketData:
+                        sequence_count=0) -> CCSDSPacketBytes:
     """Create a binary CCSDS packet from input values.
 
     Pack the header fields into the proper bit locations and append the data bytes.
@@ -188,7 +199,7 @@ def create_ccsds_packet(data=b"\x00",
 
     Returns
     -------
-    : RawPacketData
+    : CCSDSPacketBytes
         Resulting binary packet
     """
     if version_number < 0 or version_number > 7:  # 3 bits
@@ -216,21 +227,18 @@ def create_ccsds_packet(data=b"\x00",
                   | sequence_flags << 48 - 18
                   | sequence_count << 48 - 32
                   | len(data) - 1)
-        packet = header.to_bytes(RawPacketData.HEADER_LENGTH_BYTES, "big") + data
+        packet = header.to_bytes(CCSDSPacketBytes.HEADER_LENGTH_BYTES, "big") + data
     except TypeError as e:
         raise TypeError("CCSDS Header items must be integers and the input data bytes.") from e
-    return RawPacketData(packet)
+    return CCSDSPacketBytes(packet)
 
 
-class CCSDSPacket(dict):
-    """Packet representing parsed data items from CCSDS packet(s).
+class Packet(dict):
+    """Packet representing parsed data items.
 
-    Container that stores the raw packet data (bytes) as an instance attribute and the parsed
-    data items in a dictionary interface. A ``CCSDSPacket`` generally begins as an empty dictionary that gets
-    filled as the packet is parsed. The first 7 items in the dictionary make up the
-    packet header (accessed with ``CCSDSPacket.header``), and the rest of the items
-    make up the user data (accessed with ``CCSDSPacket.user_data``). To access the
-    raw bytes of the packet, use the ``CCSDSPacket.raw_data`` attribute.
+    Container that stores the binary packet data (bytes) as an instance attribute and the parsed
+    data items in a dictionary interface. A ``Packet`` generally begins as an empty dictionary that gets
+    filled as the packet is parsed. To access the raw bytes of the packet, use the ``Packet.raw_data`` attribute.
 
     Parameters
     ----------
@@ -248,12 +256,33 @@ class CCSDSPacket(dict):
     @property
     def header(self) -> dict:
         """The header content of the packet."""
+        warnings.warn("The header property is deprecated and will be removed in a future release. "
+                      "To access the header fields of a CCSDS packet, use the CCSDSPacketBytes class.")
         return dict(list(self.items())[:7])
 
     @property
     def user_data(self) -> dict:
         """The user data content of the packet."""
+        warnings.warn("The user_data property is deprecated and will be removed in a future release. "
+                      "To access the user_data fields of a CCSDS packet, use the CCSDSPacketBytes class.")
         return dict(list(self.items())[7:])
+
+class CCSDSPacket(Packet):
+    """Packet representing parsed data items from CCSDS packet(s). DEPRECATED
+
+    This class is deprecated and will be removed in a future release. Use the Packet class instead.
+    In an XTCE representation, there is no guarantee that the CCSDS packet header will be defined
+    as individual elements. If you want to access those elements, you can use the CCSDSPacketBytes
+    class to extract the header fields with specific methods.
+
+    Container that stores the raw packet data (bytes) as an instance attribute and the parsed
+    data items in a dictionary interface. A ``CCSDSPacket`` generally begins as an empty dictionary that gets
+    filled as the packet is parsed. The first 7 items in the dictionary make up the
+    packet header (accessed with ``CCSDSPacket.header``), and the rest of the items
+    make up the user data (accessed with ``CCSDSPacket.user_data``). To access the
+    raw bytes of the packet, use the ``CCSDSPacket.raw_data`` attribute.
+    """
+    pass
 
 
 def ccsds_generator(
@@ -262,7 +291,9 @@ def ccsds_generator(
             buffer_read_size_bytes: Optional[int] = None,
             show_progress: bool = False,
             skip_header_bytes: int = 0,
-) -> Iterator[RawPacketData]:
+            combine_segmented_packets: bool = False,
+            secondary_header_bytes: int = 0,
+) -> Iterator[CCSDSPacketBytes]:
     """A generator that reads raw packet data from a filelike object or a socket.
 
     Each iteration of the generator yields a ``RawPacketData`` object that makes up
@@ -282,16 +313,30 @@ def ccsds_generator(
     skip_header_bytes : int
         Default 0. The parser skips this many bytes at the beginning of every packet. This allows dynamic stripping
         of additional header data that may be prepended to packets in "raw record" file formats.
+    combine_segmented_packets : bool
+        Default False. If True, combines segmented packets into a single packet for parsing. This is useful for
+        parsing packets that are split into multiple packets due to size constraints. The packet data is combined
+        by concatenating the data from each packet together. The combined packet is then parsed as a single packet.
+    secondary_header_bytes : int
+        Default 0. The length of the secondary header in bytes.
+        This is used to skip the secondary header of segmented packets.
+        The byte layout within the returned packet has all data concatenated together as follows:
+        [packet0header, packet0secondaryheader, packet0data, packet1data, packet2data, ...].
 
     Yields
     -------
-    RawPacketData
-        Generator yields a RawPacketData object containing the raw packet data.
+    CCSDSPacketBytes
+        The bytes of a single CCSDS packet.
     """
     n_bytes_parsed = 0  # Keep track of how many bytes we have parsed
     n_packets_parsed = 0  # Keep track of how many packets we have parsed
     read_buffer = b""  # Empty bytes object to start
     current_pos = 0  # Keep track of where we are in the buffer
+    header_length_bytes = CCSDSPacketBytes.HEADER_LENGTH_BYTES
+    # Used to keep track of any continuation packets that we encounter
+    # gathering them all up before combining them into a single packet, lookup is by APID.
+    # _segmented_packets[APID] = [RawPacketData, ...]
+    _segmented_packets = {}
 
     # ========
     # Set up the reader based on the type of binary_data
@@ -323,7 +368,7 @@ def ccsds_generator(
         raise OSError(f"Unrecognized data source: {binary_data}")
 
     # ========
-    # Packet loop. Each iteration of this loop yields a RawPacketData object
+    # Packet loop. Each iteration of this loop yields a CCSDSPacketBytes object
     # ========
     start_time = time.time_ns()
     while True:
@@ -341,20 +386,20 @@ def ccsds_generator(
             current_pos = 0
 
         # Fill buffer enough to parse a header
-        while len(read_buffer) - current_pos < skip_header_bytes + RawPacketData.HEADER_LENGTH_BYTES:
+        while len(read_buffer) - current_pos < skip_header_bytes + header_length_bytes:
             result = read_bytes_from_source(buffer_read_size_bytes)
             if not result:  # If there is verifiably no more data to add, break
                 break
             read_buffer += result
         # Skip the header bytes
         current_pos += skip_header_bytes
-        header_bytes = read_buffer[current_pos:current_pos + RawPacketData.HEADER_LENGTH_BYTES]
+        header_bytes = read_buffer[current_pos:current_pos + header_length_bytes]
 
         # per the CCSDS spec
         # 4.1.3.5.3 The length count C shall be expressed as:
         #   C = (Total Number of Octets in the Packet Data Field) – 1
         n_bytes_data = _extract_bits(header_bytes, 32, 16) + 1
-        n_bytes_packet = RawPacketData.HEADER_LENGTH_BYTES + n_bytes_data
+        n_bytes_packet = header_length_bytes + n_bytes_data
 
         # Fill the buffer enough to read a full packet, taking into account the user data length
         while len(read_buffer) - current_pos < n_bytes_packet:
@@ -372,7 +417,37 @@ def ccsds_generator(
         packet_bytes = read_buffer[current_pos:current_pos + n_bytes_packet]
         current_pos += n_bytes_packet
         # Wrap the bytes in a RawPacketData object that adds convenience methods for parsing the header
-        yield RawPacketData(packet_bytes)
+        ccsds_packet = CCSDSPacketBytes(packet_bytes)
+
+        if not combine_segmented_packets or ccsds_packet.sequence_flags == SequenceFlags.UNSEGMENTED:
+            yield ccsds_packet
+        elif ccsds_packet.sequence_flags == SequenceFlags.FIRST:
+            _segmented_packets[ccsds_packet.apid] = [ccsds_packet]
+            continue
+        elif not _segmented_packets.get(ccsds_packet.apid, []):
+            warnings.warn("Continuation packet found without declaring the start, skipping this packet.")
+            continue
+        elif ccsds_packet.sequence_flags == SequenceFlags.CONTINUATION:
+            _segmented_packets[ccsds_packet.apid].append(ccsds_packet)
+            continue
+        else:  # raw_packet_data.sequence_flags == packets.SequenceFlags.LAST:
+            _segmented_packets[ccsds_packet.apid].append(ccsds_packet)
+            # We have received the final packet, close it up and combine all of
+            # the segmented packets into a single "packet" for XTCE parsing
+            sequence_counts = [p.sequence_count for p in _segmented_packets[ccsds_packet.apid]]
+            if not all((sequence_counts[i + 1] - sequence_counts[i]) % 16384 == 1
+                        for i in range(len(sequence_counts) - 1)):
+                warnings.warn(f"Continuation packets for apid {ccsds_packet.apid} "
+                              f"are not in sequence {sequence_counts}, skipping these packets.")
+                continue
+            # Add all content (including header) from the first packet
+            raw_data = _segmented_packets[ccsds_packet.apid][0]
+            # Add the continuation packets to the first packet, skipping the headers
+            for p in _segmented_packets[ccsds_packet.apid][1:]:
+                raw_data += p[header_length_bytes + secondary_header_bytes:]
+            yield CCSDSPacketBytes(raw_data)
+
+
 
     if show_progress:
         _print_progress(current_bytes=n_bytes_parsed, total_bytes=total_length_bytes,
