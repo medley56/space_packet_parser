@@ -247,6 +247,20 @@ class Packet(dict):
         self.raw_data = RawPacketData(raw_data)
         super().__init__(*args, **kwargs)
 
+    @property
+    def header(self) -> dict:
+        """The header content of the packet."""
+        warnings.warn("The header property is deprecated and will be removed in a future release. "
+                      "To access the header fields of a CCSDS packet, use the CCSDSPacketBytes class.")
+        return dict(list(self.items())[:7])
+
+    @property
+    def user_data(self) -> dict:
+        """The user data content of the packet."""
+        warnings.warn("The user_data property is deprecated and will be removed in a future release. "
+                      "To access the user_data fields of a CCSDS packet, use the CCSDSPacketBytes class.")
+        return dict(list(self.items())[7:])
+
 class CCSDSPacket(Packet):
     """Packet representing parsed data items from CCSDS packet(s). DEPRECATED
 
@@ -262,15 +276,7 @@ class CCSDSPacket(Packet):
     make up the user data (accessed with ``CCSDSPacket.user_data``). To access the
     raw bytes of the packet, use the ``CCSDSPacket.raw_data`` attribute.
     """
-    @property
-    def header(self) -> dict:
-        """The header content of the packet."""
-        return dict(list(self.items())[:7])
-
-    @property
-    def user_data(self) -> dict:
-        """The user data content of the packet."""
-        return dict(list(self.items())[7:])
+    pass
 
 
 def ccsds_generator(
